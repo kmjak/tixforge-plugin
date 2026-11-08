@@ -195,6 +195,26 @@ eq "invalid: LT-000003" "$(dt 'LT-000003 の続き')" "a local ticket (v2) is re
 eq "id: none" "$(dt 'ログイン画面を作りたい')" "no id"
 eq "id: none" "$(dt 'v2 の API')" "letters and digits are not an id"
 
+# --- pr-template.sh ---------------------------------------------------------
+section="pr-template.sh"
+pt="$tmp/prt"
+git init -q "$pt"
+eq "path: none" "$(cd "$pt" && bash "$scripts/pr-template.sh")" "no template"
+mkdir -p "$pt/.github/PULL_REQUEST_TEMPLATE"
+eq "$(printf 'path: none\ndirectory: .github/PULL_REQUEST_TEMPLATE/')" "$(cd "$pt" && bash "$scripts/pr-template.sh")" "only the directory"
+# Each place alone (compared without case: macOS file systems ignore it),
+# and tixforge's order when there are several.
+for p in .github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md docs/pull_request_template.md pull_request_template.md; do
+  rm -rf "$pt/.github" "$pt/docs" "$pt/pull_request_template.md"
+  mkdir -p "$pt/$(dirname "$p")" "$pt/docs" && : > "$pt/$p"
+  got=$(cd "$pt/docs" && bash "$scripts/pr-template.sh")
+  [ "$(printf '%s' "$got" | tr '[:upper:]' '[:lower:]')" = "$(printf 'path: %s' "$p" | tr '[:upper:]' '[:lower:]')" ] && ok || ng "found: $p, got [$got]"
+done
+: > "$pt/.github/pull_request_template.md" 2> /dev/null || { mkdir -p "$pt/.github" && : > "$pt/.github/pull_request_template.md"; }
+eq "path: .github/pull_request_template.md" "$(cd "$pt" && bash "$scripts/pr-template.sh")" "the first in tixforge's order"
+(cd "$tmp" && bash "$scripts/pr-template.sh" > /dev/null 2>&1)
+eq 2 $? "not in a repository"
+
 # --- run-state.sh --------------------------------------------------------------
 section="run-state.sh"
 st() { bash "$scripts/run-state.sh" "$@"; }
@@ -227,6 +247,25 @@ eq plan:awaiting-approval "$(st set GT-000901 Status plan:awaiting-approval)" "s
 st set GT-000901 Status implement:in-progress > /dev/null
 grep -q '^## Implementation Log' .tixforge/GT-000901/state.md && ok || ng "sections kept"
 eq "$(printf 'GT-000901\timplement:in-progress\tGT-000901-a')" "$(st list)" "list: id, Status, Branch"
+# statuses: every value run-state accepts, each explained in run.md's
+# "Status のフォーマット" list: a line "- `<value>`", or "- `<phase>:<state>`"
+# with the phase in the line that lists the phases.
+fmt=$(awk '/^\*\*Status のフォーマット：\*\*/ { on = 1; next } on && /^$/ { exit } on' "$here/../skills/dev/run.md")
+phases=$(printf '%s\n' "$fmt" | grep '`<phase>` は')
+for v in $(st statuses); do
+  st set GT-000901 Status "$v" > /dev/null 2>&1 && ok || ng "statuses lists $v, which set refuses"
+  if printf '%s\n' "$fmt" | grep -q "^- \`$v\`"; then
+    ok
+  elif case $v in *:*) true ;; *) false ;; esac \
+    && printf '%s\n' "$fmt" | grep -q "^- \`<phase>:${v#*:}\`" \
+    && printf '%s\n' "$phases" | grep -q "\`${v%%:*}\`"; then
+    ok
+  else
+    ng "run.md does not explain $v"
+  fi
+done
+st set GT-000901 Status implement:in-progress > /dev/null
+eq 16 "$(st statuses | wc -l | tr -d ' ')" "statuses: 16 values"
 st get GT-000404 2> /dev/null
 eq 1 $? "no such run"
 eq pr:ready-to-merge "$(st set GT-000901 Status pr:ready-to-merge)" "ready-to-merge is a Status"

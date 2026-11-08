@@ -8,6 +8,7 @@
 #   run-state.sh init <id>                   create state.md (Status research:in-progress)
 #   run-state.sh get <id> [field]            print a header field (default Status)
 #   run-state.sh set <id> <field> <value>    set Status / Branch / Base; also sets Updated
+#   run-state.sh statuses                    every valid Status, one per line
 #   run-state.sh list                        "<id>\t<Status>\t<Branch>" for every run
 #   run-state.sh rewind <id> <phase> [--keep-log] [--reason <text>]
 #                                            go back to research / approach / plan / implement
@@ -49,17 +50,20 @@ usage() {
 top=$(tf_top)
 sfile() { state_file "$1" "$top"; }
 
+# Every Status a run can have, in phase order (statuses prints them). The
+# meaning of each is in skills/dev/run.md ("Status のフォーマット").
+STATUSES="research:in-progress research:awaiting-approval
+approach:in-progress approach:awaiting-approval
+plan:in-progress plan:awaiting-approval
+implement:in-progress implement:awaiting-approval
+review:in-progress review:awaiting-approval
+pr:in-progress pr:awaiting-approval pr:awaiting-review pr:ready-to-merge
+done canceled"
 valid_status() {
-  case "$1" in
-    research:in-progress | research:awaiting-approval) ;;
-    approach:in-progress | approach:awaiting-approval) ;;
-    plan:in-progress | plan:awaiting-approval) ;;
-    implement:in-progress | implement:awaiting-approval) ;;
-    review:in-progress | review:awaiting-approval) ;;
-    pr:in-progress | pr:awaiting-approval | pr:awaiting-review | pr:ready-to-merge) ;;
-    done | canceled) ;;
-    *) return 1 ;;
-  esac
+  local v
+  [ -n "$1" ] || return 1
+  for v in $STATUSES; do [ "$v" = "$1" ] && return 0; done
+  return 1
 }
 
 # put <file> <field> <value>: rewrite one row of the header table.
@@ -320,6 +324,10 @@ case $cmd in
     cat "$tmp" > "$f"
     rm -f "$tmp"
     printf 'format %s -> %s: %s\n' "$from" "$STATE_FORMAT" "${f#$top/}"
+    ;;
+  statuses)
+    [ $# -eq 0 ] || usage
+    for v in $STATUSES; do printf '%s\n' "$v"; done
     ;;
   list)
     each_run "$top" | tr "$RUN_SEP" '\t' | cut -f1-3

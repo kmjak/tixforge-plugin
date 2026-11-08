@@ -17,7 +17,7 @@
 
 **チケットの準備**（新規・再開のどちらでも、続けて行う）：
 
-- チケットを「取ってくる」（`references/github/fetch.md` を Read し、その手順で行う。`<ファイル>` は `.tixforge/<ticket-id>/snapshot.md`。v2 の `ticket.md` があれば、`pull` がそれを `snapshot.md` に移してから差分を出す）。「変更あり」で、進行中の run（状態ファイルがあり、`Status` が `done`・`canceled` 以外）がある場合は、`<plugin>/skills/dev/rewind.md` を Read し、その「チケットが変わったとき」の手順でフェーズを戻すか決めてから再開する。チケットの状態が `canceled` なら、下の 0. に従う。`completed` なら、状態ファイルで分ける：
+- チケットを「取ってくる」（`references/github/fetch.md` を Read し、その手順で行う。`<ファイル>` は `.tixforge/<ticket-id>/snapshot.md`。v2 の `ticket.md` があれば、`pull` がそれを `snapshot.md` に移してから差分を出す）。「変更あり」で、進行中の run（状態ファイルがあり、`Status` が `done`・`canceled` 以外）がある場合は、`references/ticket-changed.md` を Read し、その手順でフェーズを戻すか決めてから再開する。チケットの状態が `canceled` なら、下の 0. に従う。`completed` なら、状態ファイルで分ける：
   - `Status` が `pr:*` → 下の 1. の `pr:*` へ進む（マージでチケットが閉じた後の再開。pr.md の「再開」で `done` にする）。
   - 状態ファイルが無い・`done` → 完了済みであることを伝えて止まる。
   - それより前のフェーズ → チケットが閉じていることと `Status` を示し、どうするか尋ねる。
@@ -47,11 +47,13 @@
 - 承認を受けて（またはゲートを自動で通過して）次のフェーズへ進むときは、作業を始める前に `Status` を `<次のphase>:in-progress` にする。
 - 前のフェーズに戻ったときの古い内容は `history/` にある（`rewind.md`）。参考として読んでよいが、承認済みの内容として扱わない。
 
-**Status のフォーマット：** `<phase>:<state>`、または終端の値
-- `<phase>`：`research | approach | plan | implement | review | pr`
-- `<state>`：`in-progress`（作業中）か `awaiting-approval`（フェーズ完了・ゲートで停止し承認待ち）。`pr` フェーズのみ、これに加えて `awaiting-review`（PR を出してレビュー待ち）と `ready-to-merge`（Approve・CI・コンフリクトの条件を満たし、マージ待ち）を使う。
-- 終端の値（state を付けない）：`done`（マージされて完了）、`canceled`（`/tixforge:ticket cancel` でキャンセル済み）。
-- `run-state.sh` はこれ以外の値を拒否する。
+**Status のフォーマット：** 取りうる値は `bash <scripts>/run-state.sh statuses` が出すものだけ（`run-state.sh` はそれ以外を拒否する）。意味：
+- `<phase>:in-progress`：そのフェーズの作業中。`<phase>` は `research`・`approach`・`plan`・`implement`・`review`・`pr`
+- `<phase>:awaiting-approval`：フェーズを終え、ゲートで止まって承認待ち
+- `pr:awaiting-review`：PR を出してレビュー待ち
+- `pr:ready-to-merge`：Approve・CI・コンフリクトの条件を満たし、マージ待ち
+- `done`：マージされて完了
+- `canceled`：`/tixforge:ticket cancel` でキャンセル済み
 
 ## 承認ゲート（＝再開点）
 
