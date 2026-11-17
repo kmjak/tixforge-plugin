@@ -5,7 +5,7 @@ run を前のフェーズに戻す、ただ 1 つの手順。次のどれから�
 - `/tixforge:dev rewind <ticket-id>`
 - dev の最中に、ユーザーが「Plan からやり直したい」のように頼んだとき
 - Review で「計画の見直し」「方針の見直し」と決まったとき（戻り先は決まっているので、手順 3 を飛ばす）
-- チケットの内容が変わったとき（`references/ticket-changed.md` から入る。そこで手順 2・5・7 を使う）
+- チケットの内容が変わったとき（`references/ticket-changed.md` から入る。そこで手順 2・3（選択肢の出し方）・5・7 を使う。番号を変えたら `ticket-changed.md` も直す）
 
 戻したフェーズの古い内容は、状態ファイルから `.tixforge/<ticket-id>/history/<日時>.md` に移る（`run-state.sh rewind`）。消えないので経緯を後から見られるが、状態ファイルには今有効な内容だけが残るので、古い内容を承認済みと取り違えない。
 
