@@ -54,8 +54,7 @@ if [ "${1:-}" = setup ]; then
       --dry-run) dry=1 ;;
       --lang)
         [ $# -ge 2 ] && [ -n "$2" ] || usage
-        MSG_LANG=$2
-        export MSG_LANG
+        TIXFORGE_MSG_LANG=$2
         shift
         ;;
       *) usage ;;

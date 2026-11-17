@@ -936,6 +936,11 @@ case "$out" in *tixforge:todo*) ng "setup --dry-run skips an existing label" ;; 
 eq "tixforge:todo
 bug" "$(cat "$GH_DIR/labels")" "setup --dry-run creates nothing"
 has "$(printf 'tixforge:in-progress\tBeing developed')" "$(il setup --dry-run --lang en)" "setup --lang en describes in English (init runs it before config.yml has a language)"
+cp .tixforge/config.yml "$tmp/keep-lang.yml"
+printf 'language: ja\n' > .tixforge/config.yml
+has "$(printf 'tixforge:in-progress\tBeing developed')" "$(il setup --dry-run --lang en)" "--lang wins over config.yml's language"
+has "$(printf 'tixforge:in-progress\tdev を進めている')" "$(MSG_LANG=en il setup --dry-run)" "an unrelated MSG_LANG in the environment changes nothing"
+cp "$tmp/keep-lang.yml" .tixforge/config.yml
 il setup --lang 2> /dev/null
 eq 2 $? "setup --lang needs a value"
 out=$(il setup)
@@ -949,7 +954,7 @@ defs=$(sed -n '/^label_defs() {/,/^}/p' "$scripts/issue-label.sh" | grep -o 'tix
 [ -n "$defs" ] && ok || ng "no labels found in label_defs"
 for l in $defs; do
   k="label_$(printf '%s' "${l#tixforge:}" | tr '-' '_')"
-  for lang in ja en; do
+  for lang in $(sed -n 's/^\([a-z][a-z_-]*\):$/\1/p' "$here/../templates/github/tixforge/messages.yml"); do
     eq 1 "$(awk -v l="$lang:" -v k="  $k: " '/^[a-z]/ { on = ($0 == l) } on && index($0, k) == 1 { n++ } END { print n + 0 }' "$here/../templates/github/tixforge/messages.yml")" "messages.yml has $k in $lang"
   done
 done

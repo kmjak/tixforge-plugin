@@ -48,5 +48,5 @@ plugin を更新しても、プロジェクトにコピーしたファイルは�
 | `.github/workflows/tixforge-ci.yml` | `<plugin>/templates/github/tixforge-ci.yml` | バージョンだけ。中身はプロジェクトに合わせて埋めたものなので置き換えない。雛形の変更点（差分）を示し、取り込むか尋ねる |
 
 - 違うものを一覧で示し（ファイルごとに差分）、置き換えるものを選んでもらってから書く。同じものは「最新」と伝える。
-- 足りないラベル（新しい版で増えたもの）を作る：init の「チケット管理」と同じく `bash <scripts>/issue-label.sh setup --dry-run` で無いラベルとその説明を示して確認を得てから、`bash <scripts>/issue-label.sh setup` を実行する。
+- 足りないラベル（新しい版で増えたもの）を作る：init の「チケット管理」と同じく `bash <scripts>/issue-label.sh setup --dry-run` で無いラベルとその説明（何も出なければ全てある）を示して確認を得てから、`bash <scripts>/issue-label.sh setup` を実行する。
 - プロジェクトに無いファイルは作らない（入れたいなら init の「GitHub Actions」を案内する）。
