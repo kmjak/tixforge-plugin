@@ -1,16 +1,16 @@
 # tixforge 共通規約
 
-**会話の言語**：ユーザーへの質問・説明・選択肢（AskUserQuestion の文言を含む）は、`.tixforge/config.yml` の `language` で書く。設定が無いとき（init で言語を決める前を含む）は日本語。ユーザーが明らかに別の言語の文章で書いてきたときだけ、その言語に合わせる。スラッシュコマンドや選択肢の回答だけでは言語を判断しない（英語に切り替えない）。
-
-`project`・`ticket`・`dev` の 3 つのスキルに共通する規約。各スキルの起動時にこのファイルの内容が差し込まれる。
+`project`・`ticket`・`dev` の 3 つのスキルに共通する規約。
 
 手順ファイルの中の表記：
 
-- `<plugin>` — plugin のディレクトリ（各スキルの「置き場所」に実際のパスがある）
+- `<plugin>` — plugin のディレクトリ（上の「置き場所」に実際のパスがある）
 - `<scripts>` — `<plugin>/scripts`。スクリプトは `bash <scripts>/<名前>.sh …` で実行する
 - `references/<名前>.md` — `<plugin>/references/<名前>.md`
 
-**会話が要約された後**（要約から再開したとき）は、続ける前に、今の手順ファイルと（dev なら）`.tixforge/<ticket-id>/state.md` を Read し直す。要約には手順の細部が残らないため。SessionStart hook（plugin に同梱）が、そのことを自動で伝える。
+**会話の言語**：ユーザーへの質問・説明・選択肢（AskUserQuestion の文言を含む）は、`.tixforge/config.yml` の `language` で書く。設定が無いとき（init で言語を決める前を含む）は日本語。ユーザーが明らかに別の言語の文章で書いてきたときだけ、その言語に合わせる。スラッシュコマンドや選択肢の回答だけでは言語を判断しない（英語に切り替えない）。
+
+**会話が要約された後**は、続ける前に、今の手順ファイルと（dev なら）`.tixforge/<ticket-id>/state.md` を Read し直す。要約には手順の細部が残らないため。
 
 ## 共通規約
 
@@ -40,7 +40,7 @@
 | 用途 | コマンド |
 |------|----------|
 | 引数からチケット id を取り出す | `bash <scripts>/ticket-id.sh detect "<引数>"` → `id: <id>`（無ければ `id: none`、形が不正なら `invalid: <語>`）と `rest: <id を除いた残り>`、番号が v2 の LT と重なれば `note: …`。明示的な形（`GT-…`・`#123`）は文中でも拾い、裸の数字は引数全体が数字のときだけ拾う |
-| 指定された id の正規化 | `bash <scripts>/ticket-id.sh normalize <引数>`（`GT-000123`（大文字小文字は問わない）・`#123`・`123`（どれも issue 番号）。桁数が違う id は 0 埋めせずにエラー（終了コード 2）→ 正しい形を示して尋ねる） |
+| 指定された id の正規化 | `bash <scripts>/ticket-id.sh normalize <引数>`（`GT-000123`（大文字小文字は問わない）・`#123`・`123`（どれも issue 番号）） |
 | そのチケットが実在するか | `bash <scripts>/ticket-id.sh exists <id>` → `issue`・`pull-request`（その番号は PR）・`none` |
 | id → issue 番号 | `bash <scripts>/ticket-id.sh number <GT-id>` |
 
@@ -49,13 +49,14 @@
 
 | 用途 | パス |
 |------|------|
-| サービス／ドメイン知識 | `docs/context/**`（必要な分だけ読む。git 管理する） |
-| tixforge 設定 | `.tixforge/config.yml`（git 管理する。チーム共通） |
-| チケット | `.tixforge/<ticket-id>/snapshot.md`（**git 管理外**）— dev が issue から取った版（「取ってくる」）。edit は `.tixforge/<ticket-id>/editing.md` で書き換え、書き戻したら消す |
-| run の状態 | `.tixforge/<ticket-id>/state.md`（**git 管理外**。`<scripts>/run-state.sh` で作り、ヘッダを更新する） |
+| サービス／ドメイン知識 | `docs/context/**`（必要な分だけ読む） |
+| tixforge 設定 | `.tixforge/config.yml`（チーム共通） |
+| チケット | `.tixforge/<ticket-id>/snapshot.md` — dev が issue から取った版（「取ってくる」）。edit は `.tixforge/<ticket-id>/editing.md` で書き換え、書き戻したら消す |
+| run の状態 | `.tixforge/<ticket-id>/state.md`（`<scripts>/run-state.sh` で作り、ヘッダを更新する） |
 | ブランチ名 | `<ticket-id>-<slug>`（チケット id を接頭辞にする。slug は英小文字・数字・ハイフン） |
 
-- **`.tixforge/` の中で git 管理するのは `config.yml` と `.gitignore` だけ。** `.tixforge/.gitignore`（`*`・`!.gitignore`・`!config.yml`）がそれ以外を管理外にする。無ければ `run-state.sh init` と `issue-sync.sh pull` が作る。プロジェクトの `.gitignore` は触らない。チケットと run の状態は各個人の作業場所であり、共有物ではない。また PR に含めるとレビュアーが検討過程に引っ張られ、実装そのものを見たレビューにならないため。PR 本文に書くのは、合意した方針の**結論と理由**（2〜3 行）だけにする。
+- プロジェクトの `.gitignore` は触らない（`.tixforge/` の中は `.tixforge/.gitignore` が git から外す）。
+- PR 本文に書くのは、合意した方針の**結論と理由**（2〜3 行）だけにする。チケットや検討の過程にレビュアーが引っ張られず、実装そのものを見たレビューにするため。
 - **ドキュメント言語**：チケット・`docs/context/**`・run の状態（`state.md`）の本文、および PR のタイトル・本文は `.tixforge/config.yml` の `language` で書く。既定は日本語（`ja`）。設定ファイルが無ければ日本語とする。チケットと context は見出しもこの言語にする（`state.md` の見出しは英語の固定キー）。
   ```yaml
   # tixforge settings (shared, committed)
@@ -73,7 +74,7 @@
   gates: [approach, plan, pr]  # 必ず止まるゲート。pr は書かなくても必ず止まる（skills/dev/run.md「承認ゲート」）
   ```
   スクリプトはこの形（2 段までの入れ子・1 行 1 キー・`#` コメント）だけを読む。値は全体を `"…"` で囲むか、まったく囲まない（` #` を含むなら囲む）。
-- 設定に必要なキーが無ければ、推測の既定値で補わず、`/tixforge:project init` の再実行で足せることを伝える（init は全てのキーを書く）。`review.required` が無ければ `true`、`gates` が無ければ `[approach, plan, pr]` として扱う。
+- 設定に必要なキーが無ければ、推測の既定値で補わず、`/tixforge:project init` の再実行で足せることを伝える。`review.required` が無ければ `true`、`gates` が無ければ `[approach, plan, pr]` として扱う。
 - 上記パスは固定規約。`init` はこの規約どおりの雛形を作るだけで、パスの選択はしない。
 - どのサブコマンドでも、既存ファイルを黙って上書きしない（`snapshot.md`・`editing.md` は issue から作り直すものなので例外。作り直すときは差分を示す）。
 - **キャンセル済みのチケット**（チケットの状態が `canceled`、または `state.md` の `Status` が `canceled`）は、どのサブコマンドでも操作しない。その旨を伝えて止まる。
@@ -92,20 +93,28 @@
 | `issue-sync.sh` / `issue-label.sh` / `github-preflight.sh` | GitHub issue との同期・ラベルと担当者・事前チェック（`references/github/`） |
 | `project-status.sh` | 設定と進行中の run の一覧（起動時に上の「現在の状態」へ自動で入る） |
 
+## チケットを書く対話
+
+チケットを作る・書き換える・取り込んだ issue を埋める・dev でチケットに書き戻すときは、どれもこの決まりで対話する。
+
+- **中身はユーザーが書く。** Claude は項目ごとに質問し、答えを項目の形に整える。要件・受け入れ条件などの案を Claude から出すのは、ユーザーが「考えて」「案を出して」と頼んだときだけ。そのときも案は案として示し、合意したものだけ書く。ただし dev の Research で未決事項を片付けるときは、頼まれなくても調査の結果と推奨を示す（`skills/dev/run.md`。決めるのはユーザー）。
+- 抜けている観点（エラーのとき・権限・空のとき・境界の値など）は、答えを書かずに「〜のときはどうしますか？」と**質問として**指摘してよい。
+- **要件を捏造しない。** ユーザーが言っていないことは書かない。決まらない点は削らず「未決事項」に残す。
+- 必要なら `docs/context/**` やコードを読んで、質問を具体的にする。
+
 ## 行動原則（全体を通して）
 
-- 情報が不足・曖昧なときは**質問する**。チケットの内容・要件・存在しないファイルを勝手に作らない。
+- 情報が不足・曖昧なときは**質問する**。存在しないファイルを勝手に作らない（チケットの中身は下の「チケットを書く対話」）。
 - 仮定を置いて進めるときは**その仮定を明示**し、ユーザーが直せるようにする（該当セクションにも記録する）。
 - 不要な手順や成果物だと感じたら、黙ってやらず（黙って省きもせず）**指摘する**。
 - 懸念や反対は**理由付きで率直に**言う。ユーザーが提案したというだけで同意しない。
-- ユーザーとの会話は、冒頭の「会話の言語」に従う。チケット・context・`state.md` のセクション本文はドキュメント言語で書く。
 
 ## ガードレール
 
 - dev の 1 run につき 1 チケット。作業が別チケットの範囲に広がりそうなら指摘する。
-- 明示的な確認なしに push / PR 作成 / マージをしない（dev の PR フェーズ）。tixforge は PR をマージしない。
+- 明示的な確認なしに push / PR 作成 / マージをしない。tixforge は PR をマージしない。
 - **hook（guard）が push・PR 作成・一部の git / gh 操作・Plan 承認前のコード編集に確認画面を出したり、ブロックしたりする。ブロックされたら、また確認画面で拒否されたら、コマンドを言い換えるなどして回避・再実行しない。** 理由（拒否なら拒否されたこと）をユーザーに伝えて指示を待つ。確認画面はチャットでの承認の代わりではない（PR フェーズでは、チャットで確認を得てから実行する）。
-- 外部システムの操作は、チケットの GitHub issue に対する、`references/github/` に定めた操作だけにする。issue のコメントは自由で、tixforge はコメントを編集・削除しない。それ以外の外部システム（Jira など）にチケットを作らない。
+- 外部システムの操作は、チケットの GitHub issue に対する、`references/github/` に定めた操作だけにする。issue へのコメントも、そこに定めたものだけを確認を得てから投稿する。tixforge はコメントを編集・削除しない。それ以外の外部システム（Jira など）にチケットを作らない。
 
 ## 扱わないもの
 

@@ -14,11 +14,6 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/project-status.sh`
 
-## 置き場所
-
-- plugin：`${CLAUDE_PLUGIN_ROOT}`（手順では `<plugin>` と書く）
-- スクリプト：`${CLAUDE_PLUGIN_ROOT}/scripts/`（手順では `<scripts>` と書く）
-
 ## サブコマンド
 
 | 起動 | 内容 | 手順ファイル |
@@ -38,9 +33,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 質問文に「前のフェーズに戻すのは `/tixforge:dev rewind <ticket-id>`」と添える。
 
-## 手順ファイルと参照ファイル（必須）
-
-サブコマンドが決まったら、**作業を始める前に必ずその手順ファイルを Read する**。読まずに記憶や推測で進めない。**他のサブコマンドの手順ファイルは読まない。** 参照ファイルは、手順が読むよう指示したときだけ読む。
+## 参照ファイル
 
 | 参照ファイル | 読むとき |
 |--------------|----------|
@@ -48,6 +41,6 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 | `${CLAUDE_SKILL_DIR}/pr.md` | PR フェーズに入るとき・`pr:*` から再開するとき（`run.md` が指示する） |
 | `${CLAUDE_PLUGIN_ROOT}/references/ticket-changed.md` | チケットが変わり、フェーズを戻すか決めるとき（`run.md`・`pr.md` が指示する） |
 
-以下の共通規約は、このスキルのすべてに適用する。
+以下の置き場所・手順ファイルの読み方・共通規約は、このスキルのすべてに適用する。
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/common-rules.sh`

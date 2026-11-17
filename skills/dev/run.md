@@ -28,14 +28,14 @@
 0. **キャンセル済みのチケット**（チケットの状態が `canceled`、または `state.md` の `Status` が `canceled`）なら、理由を示して止まる。やり直したいなら、新しいチケットを `/tixforge:ticket create` で作るよう伝える。
 1. **状態ファイル `.tixforge/<ticket-id>/state.md` が存在する**場合：読んで `Status` から再開する。
    - `<phase>:awaiting-approval`（`pr` 以外）→ そのフェーズの要約とゲートを再提示し、停止して待つ。
-   - `<phase>:in-progress`（`pr` 以外）→ そこまで書かれたセクションを読み直し（Implement ならブランチの `git log` / `git status` も確認）、そのフェーズを継続する。途中成果が信頼できずにやり直したいときは、**やり直す前に**、捨てることになるもの（commit の一覧など）を示して尋ねる（伝えるだけにしない）。フェーズを戻すなら `rewind.md` の手順で行う。
+   - `<phase>:in-progress`（`pr` 以外）→ そこまで書かれたセクションを読み直し（Implement ならブランチの `git log` / `git status` も確認）、そのフェーズを継続する。途中成果が信頼できずにやり直したいときは、**やり直す前に**、捨てることになるもの（commit の一覧など）を示して尋ねる（伝えるだけにしない）。フェーズを戻すなら `rewind.md` を Read し、その手順で行う。
    - `pr:*` → `<plugin>/skills/dev/pr.md` を Read し、その「再開」に従う。
    - `done` → run が完了済みであること（`## PR` の結果付き）を伝え、どうしたいか尋ねる。勝手にやり直さない（やり直すなら新しいチケットを作る）。PR がマージ済みなのにチケットの状態が `open`・`in-review` なら、`references/github/close.md` を Read し、その「完了」を確かめる。
 2. **状態ファイルが存在しない**場合：
    - `references/github/labels.md` を Read し、その「dev の開始」で着手にする（他の人が担当している・閉じているときは、状態ファイルを作る前に、labels.md のとおり停止して尋ねる）。
    - `bash <scripts>/run-state.sh init <ticket-id>` で状態ファイルを作り（`Status: research:in-progress`。`.tixforge/.gitignore` が無ければ一緒に作られ、状態ファイルは git に載らない）、Phase 1 を開始する。
 
-**いつでも**：ユーザーが「Plan からやり直したい」のように前のフェーズに戻りたいと言ったら、`<plugin>/skills/dev/rewind.md` の手順で戻す（`/tixforge:dev rewind` と同じ）。
+**いつでも**：ユーザーが「Plan からやり直したい」のように前のフェーズに戻りたいと言ったら、`<plugin>/skills/dev/rewind.md` を Read し、その手順で戻す（`/tixforge:dev rewind` と同じ）。
 
 ## 状態ファイル `.tixforge/<ticket-id>/state.md`
 
@@ -132,7 +132,7 @@
    - 最初の commit のメッセージに、`references/github/pr.md` を Read し、その「commit と PR 本文」のとおり紐付けを入れる。
    - commit ごとの承認では止めない。
 3. commit を積むごとに `## Implementation Log`（commit hash とメッセージ、実装中の重要な判断）を更新する。
-4. 承認された計画どおりに進められないと分かったら（ある commit を大きく変える必要がある、方針が誤っていた等）、停止して提起する。これは小さな確認ではなく本当の判断事項。戻るなら `rewind.md` の手順で戻す。
+4. 承認された計画どおりに進められないと分かったら（ある commit を大きく変える必要がある、方針が誤っていた等）、停止して提起する。これは小さな確認ではなく本当の判断事項。戻るなら `rewind.md` を Read し、その手順で戻す。
 5. 計画した commit を全て終えたら、**検証**・**手動確認**・**context の確認**（下記）を行う。通ったら `## Implementation Log` を更新し、ゲート（`implement`）へ。止まるなら `Status: implement:awaiting-approval` にして、作ったもの（検証結果・手動確認の結果を含む）を要約し、停止。止まらないなら `Status: review:in-progress` にして Review へ。
 
 **Review からの差し戻しで戻ってきた場合**（Review で「修正」と決まった指摘がある）：直すのは `## Review` の最新ラウンドで「修正」とされた項目だけにする。それ以外に手を広げない。修正の commit は `## Implementation Log` に「Review Round N の修正」（ドキュメント言語）として記録する。修正後に検証（と、影響する手動確認）を行う。ユーザーにしてもらう手動確認が残っていれば、ここで止まる（止まる条件）。無ければ Implement のゲートは挟まずに `Status: review:in-progress` にして Review へ戻る（直後に Review があるため）。
@@ -194,7 +194,7 @@
    - **方針の見直し** — Approach 自体が誤っていた。Approach に戻る。
    - **受け入れ** — 実装のほうが妥当、誤検知、または今回は直さない。直さず、理由をその項目に記録する。
 8. 決まった対処を各項目に記録し、次のとおり進む：
-   - 「方針の見直し」か「計画の見直し」がある → `rewind.md` の手順で Approach（両方あれば Approach）か Plan に戻る。以降のフェーズもゲートを通り直す。
+   - 「方針の見直し」か「計画の見直し」がある → `rewind.md` を Read し、その手順で Approach（両方あれば Approach）か Plan に戻る。以降のフェーズもゲートを通り直す。
    - 「修正」がある（見直しは無い） → `Status: implement:in-progress` にして Implement へ（「Review からの差し戻し」）。修正後に Review へ戻り、次のラウンドを行う。
    - 指摘なし、または全て「受け入れ」 → ゲート（`review`）へ。対処が決まっていない指摘は残っていないので、`gates` に `review` が無ければ自動で通過して `Status: pr:in-progress` にし、`pr.md` へ。`gates` にあれば `Status: review:awaiting-approval` にして要約を出し、停止。
 
