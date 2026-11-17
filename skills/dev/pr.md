@@ -1,6 +1,6 @@
 # /tixforge:dev — Phase 6：PR（強ゲート）
 
-目的：明示的な確認の後にだけ PR を出し、完了まで見届ける。tixforge は PR をマージしない。
+目的：明示的な確認の後にだけ PR を出し、完了まで見届ける。
 
 「PR と紐づける」（`references/github/pr.md`）を Read する。
 
@@ -26,21 +26,21 @@
    - 開いている PR があれば（PR を出した後に Implement 以前へ戻した run など）、新しく作らない：その URL を `## PR` に書き、push していない commit（`git fetch origin <ブランチ>` の後、`git log --oneline origin/<ブランチ>..<ブランチ>`）を示して確認を得てから push し、`Status: pr:awaiting-review` にして「PR の状況確認」へ進む。
 2. 取り返しのつかない操作の前に、次を提示する：**ブランチ**・**向き先ブランチ**（ヘッダ表の `Base`）・**PR タイトル**・**PR 本文の下書き**（タイトルと本文はドキュメント言語）。
    - **本文**：`bash <scripts>/pr-template.sh` が `path: <パス>` を出したら、その既定の PR テンプレートの見出しに沿って埋める。`path: none` なら `<plugin>/templates/github/pull_request_template.md` の見出しで書く（見出しはドキュメント言語に訳し、テンプレートのコメントは書かない。受け入れ条件には、対応表の確かめ方と結果を書く）。
-   - **方針**は、Approach で合意した**結論と理由を 2〜3 行**だけ書く（検討した選択肢・試行錯誤の経緯は書かない。人のレビュアーに「なぜこうしたか」を伝えるためで、検討過程に引っ張らないため）。
+   - **方針**は、Approach で合意した**結論と理由を 2〜3 行**だけ書く。
    - 本文に、「PR と紐づける」の紐付けを必ず入れる。
-3. `Status: pr:awaiting-approval` にして、**停止して明示的な確認を求める。** このゲートは `gates` の設定や前段の自動通過に関係なく必ず発生する。勝手に push / PR しない。
+3. `Status: pr:awaiting-approval` にして、**停止して明示的な確認を求める。**
 4. 確認されたら：
    - push の**直前に**、`references/github/fetch.md` を Read し、チケットを「取ってくる」。変更があったら、PR を作らずに停止し、`references/ticket-changed.md` で戻すか尋ねる（実装が変更後のチケットを満たしているとは限らないため）。
-   - `Status` は `pr:awaiting-approval` のまま push して PR を作成する（例：`gh pr create --base <Base> --body-file <一時ファイル>`。`--fill` は使わず本文を明示する）。guard hook により、push・PR 作成のたびにユーザーの確認画面が出る。**確認画面で拒否されたら、言い換えて再実行せず、停止して指示を待つ**（共通規約のガードレール）。
+   - `Status` は `pr:awaiting-approval` のまま push して PR を作成する（例：`gh pr create --base <Base> --body-file <一時ファイル>`。`--fill` は使わず本文を明示する）。
    - 作成後に「PR と紐づける」の「紐付けの確認」を行い、`references/github/labels.md` を Read し、その「PR の作成」でレビュー中にする。
-5. PR タイトル・向き先・URL を `## PR` に書き、`Status: pr:awaiting-review` にして URL を報告し、停止する。レビューとマージは人が行うので、tixforge は待つだけ。ユーザーには、レビューが進んだら（1 人なら CI が通ったら）`/tixforge:dev <ticket-id>` で再開するよう案内する。
+5. PR タイトル・向き先・URL を `## PR` に書き、`Status: pr:awaiting-review` にして URL を報告し、停止する。ユーザーには、レビューが進んだら（1 人なら CI が通ったら）`/tixforge:dev <ticket-id>` で再開するよう案内する。
 
 ## PR の状況確認
 
-`bash <scripts>/pr-status.sh <PR URL>` を実行する。1 行目が判定、2 行目以降が詳細。`.tixforge/config.yml` の `review.required`（無ければ `true`）と合わせて、次のとおり進む：
+`bash <scripts>/pr-status.sh <PR URL>` を実行する。1 行目が判定、2 行目以降が詳細。`.tixforge/config.yml` の `review.required` と合わせて、次のとおり進む：
 
 - `merged` → `## PR` に結果を追記し、`Status: done` にする。`references/github/close.md` を Read し、その「完了」を行う。
-- `approved`（Approve 済み・CI 成功・コンフリクトなし）→ `## PR` に結果を追記し、`Status: pr:ready-to-merge` にして停止する。マージはユーザーが行う。マージしたら `/tixforge:dev <ticket-id>` で再開すると `done` になることを伝える。
+- `approved` → `## PR` に結果を追記し、`Status: pr:ready-to-merge` にして停止する。マージはユーザーが行う。マージしたら `/tixforge:dev <ticket-id>` で再開すると `done` になることを伝える。
 - `ready`（Approve は無いが、CI 成功・コンフリクトなし）→
   - `review.required: false` なら `approved` と同じく `pr:ready-to-merge` にする。
   - `review.required: true` なら `pending` と同じ（Approve 待ち）。1 人で開発していて自分の PR を Approve できない場合は、`/tixforge:project update` で `review.required: false` にできることを伝える。
