@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Status labels and assignee of a GitHub ticket (GT-<n>).
 #
-#   issue-label.sh setup                      create the tixforge labels that are missing
+#   issue-label.sh setup [--dry-run]          create the tixforge labels that are missing
+#                                             (--dry-run: print "<name>\t<description>" of each, create none)
 #   issue-label.sh <number> start [--force]   tixforge:in-progress, assign yourself
 #   issue-label.sh <number> review            tixforge:in-review
 #   issue-label.sh <number> merged            tixforge:merged (merged into the base, not released yet)
@@ -17,6 +18,8 @@
 # Exit: 0 ok, 2 usage, 3 the issue is closed, 4 someone else is assigned
 #       (start without --force), other: gh failed.
 set -uo pipefail
+# shellcheck source=SCRIPTDIR/lib.sh
+. "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 usage() {
   grep '^#   [a-z]' "$0" | sed 's/^#   //' >&2
@@ -25,29 +28,40 @@ usage() {
 
 STATUS_LABELS="tixforge:todo tixforge:in-progress tixforge:in-review tixforge:merged tixforge:done tixforge:canceled"
 
-# name<TAB>color<TAB>description of every label tixforge uses.
+# name<TAB>color of every label tixforge uses: the one list of them. The
+# description GitHub shows is label_<name> in messages.yml (msg), in the
+# document language; setup reads it from there.
 label_defs() {
-  printf '%s\t%s\t%s\n' \
-    tixforge:todo 0e8a16 "誰もまだ着手していない" \
-    tixforge:in-progress 1d76db "dev を進めている（assignee が担当）" \
-    tixforge:in-review fbca04 "PR のレビュー・マージ待ち" \
-    tixforge:merged 5319e7 "Base にマージ済み・リリース待ち" \
-    tixforge:done 6f42c1 "完了" \
-    tixforge:canceled cfd3d7 "キャンセル済み" \
-    tixforge:out-of-sync d93f0b "GitHub 上で本文かタイトルが直接編集された"
+  printf '%s\t%s\n' \
+    tixforge:todo 0e8a16 \
+    tixforge:in-progress 1d76db \
+    tixforge:in-review fbca04 \
+    tixforge:merged 5319e7 \
+    tixforge:done 6f42c1 \
+    tixforge:canceled cfd3d7 \
+    tixforge:out-of-sync d93f0b
 }
+# label_desc <name>: tixforge:in-progress -> msg label_in_progress
+label_desc() { msg "label_$(printf '%s' "${1#tixforge:}" | tr '-' '_')"; }
 
 if [ "${1:-}" = setup ]; then
-  [ $# -eq 1 ] || usage
+  dry=""
+  [ $# -eq 2 ] && [ "$2" = --dry-run ] && dry=1
+  [ $# -eq 1 ] || [ -n "$dry" ] || usage
   have=$(gh label list --limit 200 --json name --jq '.[].name') || exit $?
   made=""
-  while IFS="$(printf '\t')" read -r name color desc; do
+  while IFS="$(printf '\t')" read -r name color; do
     printf '%s\n' "$have" | grep -qx "$name" && continue
-    gh label create "$name" --color "$color" --description "$desc" > /dev/null || exit $?
+    if [ -n "$dry" ]; then
+      printf '%s\t%s\n' "$name" "$(label_desc "$name")"
+      continue
+    fi
+    gh label create "$name" --color "$color" --description "$(label_desc "$name")" > /dev/null || exit $?
     made="$made $name"
   done << EOF
 $(label_defs)
 EOF
+  [ -n "$dry" ] && exit 0
   if [ -n "$made" ]; then echo "created labels:$made"; else echo "labels: all present"; fi
   exit 0
 fi

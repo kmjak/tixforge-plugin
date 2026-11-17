@@ -930,10 +930,30 @@ has "--add-label tixforge:merged" "$(tail -1 "$GH_DIR/calls")" "merged"
 il 42 done --force 2> /dev/null
 eq 2 $? "--force is only for start"
 printf 'tixforge:todo\nbug\n' > "$GH_DIR/labels"
+out=$(il setup --dry-run)
+has "$(printf 'tixforge:in-progress\tdev を進めている（assignee が担当）')" "$out" "setup --dry-run lists a missing label with its description"
+case "$out" in *tixforge:todo*) ng "setup --dry-run skips an existing label" ;; *) ok ;; esac
+eq "tixforge:todo
+bug" "$(cat "$GH_DIR/labels")" "setup --dry-run creates nothing"
 out=$(il setup)
 has "tixforge:in-progress" "$out" "setup creates the missing labels"
 case "$out" in *"tixforge:todo "* | *"tixforge:todo") ng "setup skips an existing label" ;; *) ok ;; esac
 eq "labels: all present" "$(il setup)" "setup again"
+has "--description dev を進めている（assignee が担当）" "$(cat "$GH_DIR/calls")" "setup takes the description from messages.yml, in the document language"
+# Every label is one of label_defs, with a description in each language,
+# and every tixforge: label the Actions templates use is one of them.
+defs=$(sed -n '/^label_defs() {/,/^}/p' "$scripts/issue-label.sh" | grep -o 'tixforge:[a-z-]*' | sort -u)
+for l in $defs; do
+  k="label_$(printf '%s' "${l#tixforge:}" | tr '-' '_')"
+  eq 2 "$(grep -c "^  $k: " "$here/../templates/github/tixforge/messages.yml")" "messages.yml has $k in ja and en"
+done
+for l in $(grep -oh 'tixforge:[a-z][a-z-]*' "$here"/../templates/github/*.yml | sort -u); do
+  case $l in tixforge:hash | tixforge:ticket | tixforge:project | tixforge:dev) continue ;; esac
+  printf '%s\n' "$defs" | grep -qx "$l" && ok || ng "a template uses $l, which label_defs does not define"
+done
+for l in $(sed -n 's/^STATUS_LABELS="\(.*\)"/\1/p' "$scripts/issue-label.sh"); do
+  printf '%s\n' "$defs" | grep -qx "$l" && ok || ng "STATUS_LABELS has $l, which label_defs does not define"
+done
 
 # --- github-preflight.sh ---------------------------------------------------
 section="github-preflight.sh"
