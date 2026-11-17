@@ -195,6 +195,15 @@ eq "invalid: LT-000003" "$(dt 'LT-000003 の続き')" "a local ticket (v2) is re
 eq "id: none" "$(dt 'ログイン画面を作りたい')" "no id"
 eq "id: none" "$(dt 'v2 の API')" "letters and digits are not an id"
 
+# --- templates/docs/ticket.md -----------------------------------------------
+section="ticket template"
+# The issue form asks for the same sections, in the same order, as the
+# ticket template (Base is not in the form: it is set only when it differs).
+tt=$(sed -n 's/^## //p' "$here/../templates/docs/ticket.md" | grep -v '^Base$' | paste -sd'|' -)
+form=$(sed -n 's/^ *label: //p' "$here/../templates/github/ISSUE_TEMPLATE/tixforge-ticket.yml" | paste -sd'|' -)
+eq "$tt" "$form" "the issue form's sections are the ticket template's"
+eq "背景|要件|受け入れ条件|対象外|未決事項" "$tt" "the ticket template's sections"
+
 # --- pr-template.sh ---------------------------------------------------------
 section="pr-template.sh"
 pt="$tmp/prt"
@@ -654,6 +663,12 @@ out=$(is create "$tmp/draft.md")
 has "number: 42" "$out" "create prints the number"
 has "id: GT-000042" "$out" "create prints the id"
 has "--label tixforge:todo" "$(cat "$GH_DIR/calls")" "create labels tixforge:todo"
+{
+  printf '<!--\nheader\n-->\n'
+  cat "$tmp/draft.md"
+} > "$tmp/draft-header.md"
+is create "$tmp/draft-header.md" > /dev/null 2>&1
+eq 2 $? "create refuses a draft whose first line is not the title"
 [ ! -e .tixforge/GT-000042 ] && ok || ng "create makes no local copy (dev takes the snapshot)"
 mkdir -p .tixforge/GT-000042
 is create "$tmp/draft.md" > /dev/null 2>&1

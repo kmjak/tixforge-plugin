@@ -42,6 +42,7 @@ AskUserQuestion で、create・edit・cancel から 1 つを選んでもらう�
 | 参照ファイル | 読むとき |
 |--------------|----------|
 | `${CLAUDE_PLUGIN_ROOT}/references/github/<名前>.md` | 手順が指示したファイルだけ |
+| `${CLAUDE_PLUGIN_ROOT}/templates/docs/ticket.md` | create でチケットの下書きを作るとき・取り込んだ issue の足りない項目を埋めるとき（手順が指示する） |
 | `${CLAUDE_PLUGIN_ROOT}/references/ticket-changed.md` | チケットが変わり、進行中の run のフェーズを戻すか決めるとき（edit が指示する） |
 | `${CLAUDE_PLUGIN_ROOT}/skills/dev/rewind.md` | `ticket-changed.md` で戻すかを尋ねるとき（`ticket-changed.md` が指示する。手順 3 の出し方と、手順 2・5・7） |
 
