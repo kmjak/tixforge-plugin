@@ -14,11 +14,6 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/project-status.sh`
 
-## 置き場所
-
-- plugin：`${CLAUDE_PLUGIN_ROOT}`（手順では `<plugin>` と書く）
-- スクリプト：`${CLAUDE_PLUGIN_ROOT}/scripts/`（手順では `<scripts>` と書く）
-
 ## サブコマンド
 
 | 起動 | 内容 | 手順ファイル |
@@ -35,9 +30,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 AskUserQuestion で、create・edit・cancel から 1 つを選んでもらう（単一選択）。edit・cancel を選んだら、対象のチケット id を尋ねる。推測で決めない。
 
-## 手順ファイルと参照ファイル（必須）
-
-サブコマンドが決まったら、**作業を始める前に必ずその手順ファイルを Read する**。読まずに記憶や推測で進めない。**他のサブコマンドの手順ファイルは読まない。** 参照ファイルは、手順が読むよう指示したときだけ読む。
+## 参照ファイル
 
 | 参照ファイル | 読むとき |
 |--------------|----------|
@@ -46,6 +39,6 @@ AskUserQuestion で、create・edit・cancel から 1 つを選んでもらう�
 | `${CLAUDE_PLUGIN_ROOT}/references/ticket-changed.md` | チケットが変わり、進行中の run のフェーズを戻すか決めるとき（edit が指示する） |
 | `${CLAUDE_PLUGIN_ROOT}/skills/dev/rewind.md` | `ticket-changed.md` で戻すかを尋ねるとき（`ticket-changed.md` が指示する。手順 3 の出し方と、手順 2・5・7） |
 
-以下の共通規約は、このスキルのすべてに適用する。
+以下の置き場所・手順ファイルの読み方・共通規約は、このスキルのすべてに適用する。
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/common-rules.sh`

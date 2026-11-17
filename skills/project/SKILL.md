@@ -14,11 +14,6 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/project-status.sh`
 
-## 置き場所
-
-- plugin：`${CLAUDE_PLUGIN_ROOT}`（手順では `<plugin>` と書く）
-- スクリプト：`${CLAUDE_PLUGIN_ROOT}/scripts/`（手順では `<scripts>` と書く）
-
 ## サブコマンド
 
 | 起動 | 内容 | 手順ファイル |
@@ -29,14 +24,12 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 それ以外の引数が渡されたら実行せず、使えるサブコマンドを示して止まる。
 
-## 手順ファイルと参照ファイル（必須）
-
-サブコマンドが決まったら、**作業を始める前に必ずその手順ファイルを Read する**。読まずに記憶や推測で進めない。参照ファイルは、手順が読むよう指示したときだけ読む。
+## 参照ファイル
 
 | 参照ファイル | 読むとき |
 |--------------|----------|
-| `${CLAUDE_PLUGIN_ROOT}/references/github/<名前>.md` | 手順が指示したファイルだけ（`labels`・`actions`・`create`） |
+| `${CLAUDE_PLUGIN_ROOT}/references/github/<名前>.md` | 手順が指示したファイルだけ（`actions`・`create`） |
 
-以下の共通規約は、このスキルのすべてに適用する。
+以下の置き場所・手順ファイルの読み方・共通規約は、このスキルのすべてに適用する。
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/common-rules.sh`
