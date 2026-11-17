@@ -200,6 +200,12 @@ case $cmd in
 
   create)
     [ $# -eq 1 ] || usage
+    # The title is line 1 ("# <id>: <title>"); anything else there (the
+    # template's header comment copied in, say) would become the title.
+    head -1 "$1" | grep -q '^# ' || {
+      echo "the draft's first line is not \"# <ticket-id>: <title>\": $(head -1 "$1")" >&2
+      exit 2
+    }
     t=$(ticket_title "$1")
     ticket_body "$1" > "$tmpd/ticket"
     make_body "$t" "$tmpd/ticket" > "$tmpd/new"

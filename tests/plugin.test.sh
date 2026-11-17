@@ -54,7 +54,7 @@ done <<< "$cmds"
 # templates/, agents/ paths are relative to the plugin root; <scripts>/x is
 # scripts/x. Only full file names are checked (no <placeholder>, * or {}).
 section="references"
-docs=$(git ls-files 'skills/*.md' 'references/*.md' 'agents/*.md' README.md)
+docs=$(git ls-files 'skills/*.md' 'references/*.md' 'agents/*.md' 'templates/docs/*.md' README.md)
 [ -n "$docs" ] && ok || ng "documents found"
 refs=$(
   # shellcheck disable=SC2086 # $docs is a list of paths without spaces
