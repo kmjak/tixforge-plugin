@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Status labels and assignee of a GitHub ticket (GT-<n>).
 #
-#   issue-label.sh setup [--dry-run]          create the tixforge labels that are missing
-#                                             (--dry-run: print "<name>\t<description>" of each, create none)
+#   issue-label.sh setup [--dry-run] [--lang <language>]
+#                                             create the tixforge labels that are missing, described
+#                                             in <language> (default: config.yml's). --dry-run prints
+#                                             "<name>\t<description>" of each and creates none
 #   issue-label.sh <number> start [--force]   tixforge:in-progress, assign yourself
 #   issue-label.sh <number> review            tixforge:in-review
 #   issue-label.sh <number> merged            tixforge:merged (merged into the base, not released yet)
@@ -46,8 +48,20 @@ label_desc() { msg "label_$(printf '%s' "${1#tixforge:}" | tr '-' '_')"; }
 
 if [ "${1:-}" = setup ]; then
   dry=""
-  [ $# -eq 2 ] && [ "$2" = --dry-run ] && dry=1
-  [ $# -eq 1 ] || [ -n "$dry" ] || usage
+  shift
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --dry-run) dry=1 ;;
+      --lang)
+        [ $# -ge 2 ] && [ -n "$2" ] || usage
+        MSG_LANG=$2
+        export MSG_LANG
+        shift
+        ;;
+      *) usage ;;
+    esac
+    shift
+  done
   have=$(gh label list --limit 200 --json name --jq '.[].name') || exit $?
   made=""
   while IFS="$(printf '\t')" read -r name color; do

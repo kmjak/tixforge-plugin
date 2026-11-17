@@ -935,6 +935,9 @@ has "$(printf 'tixforge:in-progress\tdev を進めている（assignee が担当
 case "$out" in *tixforge:todo*) ng "setup --dry-run skips an existing label" ;; *) ok ;; esac
 eq "tixforge:todo
 bug" "$(cat "$GH_DIR/labels")" "setup --dry-run creates nothing"
+has "$(printf 'tixforge:in-progress\tBeing developed')" "$(il setup --dry-run --lang en)" "setup --lang en describes in English (init runs it before config.yml has a language)"
+il setup --lang 2> /dev/null
+eq 2 $? "setup --lang needs a value"
 out=$(il setup)
 has "tixforge:in-progress" "$out" "setup creates the missing labels"
 case "$out" in *"tixforge:todo "* | *"tixforge:todo") ng "setup skips an existing label" ;; *) ok ;; esac
@@ -943,11 +946,14 @@ has "--description dev を進めている（assignee が担当）" "$(cat "$GH_D
 # Every label is one of label_defs, with a description in each language,
 # and every tixforge: label the Actions templates use is one of them.
 defs=$(sed -n '/^label_defs() {/,/^}/p' "$scripts/issue-label.sh" | grep -o 'tixforge:[a-z-]*' | sort -u)
+[ -n "$defs" ] && ok || ng "no labels found in label_defs"
 for l in $defs; do
   k="label_$(printf '%s' "${l#tixforge:}" | tr '-' '_')"
-  eq 2 "$(grep -c "^  $k: " "$here/../templates/github/tixforge/messages.yml")" "messages.yml has $k in ja and en"
+  for lang in ja en; do
+    eq 1 "$(awk -v l="$lang:" -v k="  $k: " '/^[a-z]/ { on = ($0 == l) } on && index($0, k) == 1 { n++ } END { print n + 0 }' "$here/../templates/github/tixforge/messages.yml")" "messages.yml has $k in $lang"
+  done
 done
-for l in $(grep -oh 'tixforge:[a-z][a-z-]*' "$here"/../templates/github/*.yml | sort -u); do
+for l in $(grep -oh 'tixforge:[a-z][a-z-]*' "$here"/../templates/github/*.yml "$here"/../templates/github/ISSUE_TEMPLATE/*.yml | sort -u); do
   case $l in tixforge:hash | tixforge:ticket | tixforge:project | tixforge:dev) continue ;; esac
   printf '%s\n' "$defs" | grep -qx "$l" && ok || ng "a template uses $l, which label_defs does not define"
 done

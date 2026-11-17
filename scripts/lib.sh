@@ -66,11 +66,12 @@ issue_of() { case "$1" in GT-*) printf '%s\n' "${1#GT-}" | sed 's/^0*//' ;; esac
 # msg <key>: a fixed message in the document language, from
 # templates/github/tixforge/messages.yml (the file init copies to the
 # project's .github/tixforge/ for the Actions). English when the language
-# has none.
+# has none. The language is MSG_LANG when set (init creates labels before
+# config.yml has one), else config.yml's language, else ja.
 msg() {
   local lang file v
   file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/templates/github/tixforge/messages.yml"
-  lang=$(cfg language)
+  lang=${MSG_LANG:-$(cfg language)}
   lang=${lang:-ja}
   v=$(cfg "$lang.$1" "$file")
   [ -n "$v" ] || v=$(cfg "en.$1" "$file")

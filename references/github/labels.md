@@ -12,6 +12,6 @@
 | cancel | `bash <scripts>/issue-label.sh <番号> canceled` | `tixforge:canceled` |
 | チケットを手放す | `bash <scripts>/issue-label.sh <番号> reset` | `tixforge:todo`、assignee から自分を外す |
 
-- `start` が終了コード 4 なら止まり、そのまま進めるか尋ねる（進めるなら `--force`）。終了コード 3 なら止まって尋ねる。開き直さない。
+- `start` が終了コード 4（他の人が assign されている）なら止まり、そのまま進めるか尋ねる（進めるなら `--force`）。終了コード 3（閉じている）なら止まって尋ねる。開き直さない。
 - ラベルが無いというエラーなら、`/tixforge:project init` を再実行すればラベルを作れることを伝える。
 - 操作したら、スクリプトが出力した一行をユーザーに伝える。

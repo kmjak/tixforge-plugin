@@ -85,7 +85,7 @@ gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる�
 - GitHub の画面で作られた issue も、`/tixforge:ticket create #<番号>` で取り込める（`project init` で issue フォームを入れておくと、見出しがそろう）。
 - tixforge が投稿するコメントは、キャンセル・巻き戻し・手放すときの判断の記録と、クローズのときの一言だけ。コメントを編集・削除しない。
 
-状態ラベル（`tixforge:todo`・`in-progress`・`in-review`・`merged`・`done`・`canceled`）は常に 1 つだけ付く。それぞれの意味は、GitHub のラベルの説明（`project init` が作る。ドキュメント言語）にある。直接編集を知らせる `tixforge:out-of-sync` は、状態とは別に付く。
+状態ラベル（`tixforge:todo`・`in-progress`・`in-review`・`merged`・`done`・`canceled`）は常に 1 つだけ付く。それぞれの意味は、GitHub のラベルの説明（`project init` がドキュメント言語で作る。すでにあるラベルの説明は変えない）にある。直接編集を知らせる `tixforge:out-of-sync` は、状態とは別に付く。
 
 **issue が閉じる時点**：Base が GitHub の default branch なら、PR のマージで閉じる。develop などの場合は `repository.close_issues` で選ぶ：`release` なら、develop にマージした時点では開いたまま `tixforge:merged` になり、main に入った時点（最初の commit の `Closes #N` により GitHub が閉じる）で `tixforge:done`。`merge` なら develop へのマージで閉じる（Actions の `tixforge-issue-sync` が必要）。
 
