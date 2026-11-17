@@ -125,8 +125,8 @@
     - **取り込む・`CLAUDE.md` がある** — 既存の内容は一切変えず、**末尾に**見出しと `@<パス>` の行を追記する。追記する差分を示し、確認を得てから書く（上書きはしない）。
     - **取り込まない** — 何もしない。
 14. **PR テンプレート**：dev の PR フェーズは、既定の PR テンプレートがあればその見出しに沿って本文を書く。
-    - 既定のテンプレート（`.github/pull_request_template.md`・`.github/PULL_REQUEST_TEMPLATE.md`・`docs/pull_request_template.md`・ルートの `pull_request_template.md`）があるか確かめる。`.github/PULL_REQUEST_TEMPLATE/`（ディレクトリ）の中のテンプレートは GitHub が自動では使わないので、既定のテンプレートとして扱わない。ディレクトリしか無ければ、そのことを伝える。
-    - tixforge 用の項目を入れるか尋ねる（「入れる（推奨）」「入れない」）。項目は `<plugin>/templates/pull_request_template.md`（概要・方針・受け入れ条件・検証・関連。見出しとコメントはドキュメント言語に訳す）。
+    - `bash <scripts>/pr-template.sh` で既定のテンプレートを探す（`path: <パス>` か `path: none`）。`directory:` の行があれば、`.github/PULL_REQUEST_TEMPLATE/` の中のテンプレートは GitHub が自動では使わないことを伝える。
+    - tixforge 用の項目を入れるか尋ねる（「入れる（推奨）」「入れない」）。項目は `<plugin>/templates/github/pull_request_template.md` の見出し（見出しとコメントはドキュメント言語に訳す）。
     - **入れる・既定のテンプレートが無い** — `.github/pull_request_template.md` として新しく作る。
     - **入れる・ある** — 既存の内容は一切変えず、既存のテンプレートに**無い見出しだけ**を末尾に追記する。追記する差分を示し、確認を得てから書く。
     - **入れない** — 何もしない。

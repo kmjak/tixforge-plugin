@@ -25,12 +25,12 @@
 1. `Status: pr:in-progress` にする。「PR の存在確認」で PR が無いことを確かめる。
    - 開いている PR があれば（PR を出した後に Implement 以前へ戻した run など）、新しく作らない：その URL を `## PR` に書き、push していない commit（`git fetch origin <ブランチ>` の後、`git log --oneline origin/<ブランチ>..<ブランチ>`）を示して確認を得てから push し、`Status: pr:awaiting-review` にして「PR の状況確認」へ進む。
 2. 取り返しのつかない操作の前に、次を提示する：**ブランチ**・**向き先ブランチ**（ヘッダ表の `Base`）・**PR タイトル**・**PR 本文の下書き**（タイトルと本文はドキュメント言語）。
-   - **本文**：既定の PR テンプレート（`.github/pull_request_template.md`・`.github/PULL_REQUEST_TEMPLATE.md`・`docs/pull_request_template.md`・ルートの `pull_request_template.md`）があれば、その見出しに沿って埋める。無ければ「概要」「方針」「受け入れ条件（対応表の確かめ方と結果）」「検証」を書く。
+   - **本文**：`bash <scripts>/pr-template.sh` が `path: <パス>` を出したら、その既定の PR テンプレートの見出しに沿って埋める。`path: none` なら `<plugin>/templates/github/pull_request_template.md` の見出しで書く（見出しはドキュメント言語に訳し、テンプレートのコメントは書かない。受け入れ条件には、対応表の確かめ方と結果を書く）。
    - **方針**は、Approach で合意した**結論と理由を 2〜3 行**だけ書く（検討した選択肢・試行錯誤の経緯は書かない。人のレビュアーに「なぜこうしたか」を伝えるためで、検討過程に引っ張らないため）。
    - 本文に、「PR と紐づける」の紐付けを必ず入れる。
 3. `Status: pr:awaiting-approval` にして、**停止して明示的な確認を求める。** このゲートは `gates` の設定や前段の自動通過に関係なく必ず発生する。勝手に push / PR しない。
 4. 確認されたら：
-   - push の**直前に**、`references/github/fetch.md` を Read し、チケットを「取ってくる」。変更があったら、PR を作らずに停止し、`<plugin>/skills/dev/rewind.md` の「チケットが変わったとき」で戻すか尋ねる（実装が変更後のチケットを満たしているとは限らないため）。
+   - push の**直前に**、`references/github/fetch.md` を Read し、チケットを「取ってくる」。変更があったら、PR を作らずに停止し、`references/ticket-changed.md` で戻すか尋ねる（実装が変更後のチケットを満たしているとは限らないため）。
    - `Status` は `pr:awaiting-approval` のまま push して PR を作成する（例：`gh pr create --base <Base> --body-file <一時ファイル>`。`--fill` は使わず本文を明示する）。guard hook により、push・PR 作成のたびにユーザーの確認画面が出る。**確認画面で拒否されたら、言い換えて再実行せず、停止して指示を待つ**（共通規約のガードレール）。
    - 作成後に「PR と紐づける」の「紐付けの確認」を行い、`references/github/labels.md` を Read し、その「PR の作成」でレビュー中にする。
 5. PR タイトル・向き先・URL を `## PR` に書き、`Status: pr:awaiting-review` にして URL を報告し、停止する。レビューとマージは人が行うので、tixforge は待つだけ。ユーザーには、レビューが進んだら（1 人なら CI が通ったら）`/tixforge:dev <ticket-id>` で再開するよう案内する。
