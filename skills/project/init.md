@@ -69,7 +69,7 @@
    ```
 8. **チケット管理**（`ticket.tracker`）：尋ねずに `tracker: github` を書く。public リポジトリなら、チケットの背景や未決事項も公開されることを伝える。再実行のたびに次を行う：
    - **事前チェック**：`bash <scripts>/github-preflight.sh`（同じ実行の中で「リポジトリ」の手順で既に `ok:` だったなら繰り返さない）。`ok:` 以外なら出力を示し、済ませてもらってから確かめ直す。
-   - **ラベルを作る**：`references/github/labels.md` を Read し、tixforge のラベルのうち無いものを意味と一緒に示して確認を得てから、`bash <scripts>/issue-label.sh setup` で作る。
+   - **ラベルを作る**：`bash <scripts>/issue-label.sh setup --dry-run --lang <ドキュメント言語>` で、無いラベルとその説明（何も出なければ全てある）を示して確認を得てから、`bash <scripts>/issue-label.sh setup --lang <ドキュメント言語>` で作る（`config.yml` を書く前なので、「ドキュメント言語」で決めた、`language` に書く値（`ja`・`en` など）を渡す）。
    - **issue フォーム**（任意）：tixforge を使わない人（PM など）も GitHub の画面から issue を作るなら、チケットと同じ見出しの issue フォームを入れるか尋ねる。入れるなら `<plugin>/templates/github/ISSUE_TEMPLATE/tixforge-ticket.yml` を `.github/ISSUE_TEMPLATE/` にコピーする（ドキュメント言語が日本語以外なら、ラベル・見出し・説明をその言語に訳す。見出しはチケットの見出しと同じにする）。フォームで作られた issue は `/tixforge:ticket create #<番号>` で取り込める。
 9. **レビューの要否**（`review.required`）：「開発の人数」の答えから決める（尋ね直さない）。
    - **1 人** — `required: false`。GitHub では自分の PR を Approve できないため、`true` のままだと PR が完了にならない。CI 成功・コンフリクトなしで dev はマージ待ちにし、マージはユーザーが行う。
