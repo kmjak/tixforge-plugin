@@ -29,6 +29,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 | 参照ファイル | 読むとき |
 |--------------|----------|
 | `${CLAUDE_PLUGIN_ROOT}/references/github/<名前>.md` | 手順が指示したファイルだけ |
+| `${CLAUDE_PLUGIN_ROOT}/references/config.md` | config.yml を書く・キーを説明するとき、キーが無いとき（手順と共通規約が指示する） |
 
 以下の置き場所・手順ファイルの読み方・共通規約は、このスキルのすべてに適用する。
 

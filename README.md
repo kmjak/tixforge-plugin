@@ -44,18 +44,12 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 language: ja            # チケット・context・run の記録・PR を書く言語
 commands:               # dev が検証で書いた順に実行する（無ければ {}）
   test: npm test
-  lint: npm run lint
-ticket:
-  tracker: github       # チケットの置き場：github
 repository:
-  base_branch: develop  # dev がブランチを切る元・PR の向き先
-  close_issues: release # base_branch が GitHub の default branch と違うとき：release | merge
-review:
-  required: true        # PR の Approve を必須にするか（1 人なら false）
+  base_branch: main     # dev がブランチを切る元・PR の向き先
 gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる）
 ```
 
-`/tixforge:project init` が全てのキーを書く。値を変えるのは `/tixforge:project update`。スクリプトはこの形（2 段までの入れ子・1 行 1 キー・`#` コメント）だけを読む。値は全体を `"…"` で囲むか、まったく囲まない。
+`/tixforge:project init` が全てのキーを書く。値を変えるのは `/tixforge:project update`。全てのキーと意味・値・書き方は [`references/config.md`](references/config.md) にある。
 
 ## チケット
 

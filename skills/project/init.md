@@ -33,15 +33,9 @@
      - **main + develop**（develop で開発し、main はリリース用）— `base_branch: develop`。GitHub の default branch は main のままにする。
      - **ブランチ名を合わせる**：commit がまだ無く、今のブランチ名（`git symbolic-ref --short HEAD`）が合わせる名前（main だけなら `base_branch`、main + develop なら main 側の名前）と違えば、「今のブランチは `<今の名前>`、`base_branch` は `<名前>`。`git branch -m <名前>` で名前を変えますか」と尋ねてから行う。変えないと、commit は今のブランチに入り、`base_branch` のブランチが存在しないまま残る。
    - **既存のリポジトリ**：GitHub の default branch（`gh repo view --json defaultBranchRef`、取れなければ `git symbolic-ref --short refs/remotes/origin/HEAD`）を既定にする。ローカル（`git show-ref`）とリモート（`git ls-remote --heads origin`）に `develop`・`dev`・`development` があり、default と違えば、どちらを `base_branch` にするか尋ねる。見つからなければ尋ねない。
-   - **issue を閉じる時点**（`base_branch` が GitHub の default branch と違うときだけ尋ねる）：
+   - **issue を閉じる時点**（`base_branch` が GitHub の default branch と違うときだけ尋ねる。同じなら尋ねずに `close_issues: merge` を書く）：
      - **リリースで閉じる**（`close_issues: release`）— develop へのマージでは閉じず、main に入ったとき（commit メッセージの `Closes #N` により GitHub が閉じる）。間は `tixforge:merged`。このときは squash の設定を確かめる：`gh api repos/{owner}/{repo} --jq '.squash_merge_commit_title + " " + .squash_merge_commit_message'` が `PR_TITLE BLANK`（squash の commit メッセージが PR タイトルだけ）なら、squash マージで `Closes` が消えて issue が閉じなくなることを伝え、設定を変えるか「マージで閉じる」にするか尋ねる。
      - **マージで閉じる**（`close_issues: merge`）— develop へのマージで閉じる。これには Actions の `tixforge-issue-sync` が要る（無いと dev を再開したときにしか閉じない）ので、「GitHub Actions」で強く勧める。
-   - `.tixforge/config.yml` に書く例：
-     ```yaml
-     repository:
-       base_branch: develop  # dev がブランチを切る元・PR の向き先
-       close_issues: release # base_branch が default branch と違うときだけ：release | merge
-     ```
 5. **ドキュメント言語**（`language`）：「日本語（推奨・既定）」「English」を選択肢にして尋ねる（その他は自由入力）。以降のチケットと `docs/context/**` はこの言語で書き、この後の会話（質問・説明）もこの言語で行う。
 6. **検証コマンド**（`commands`）：dev の Implement・Review で Claude が実行する、テスト・lint・型チェックなどのコマンド。
    - 先にプロジェクトから候補を読み取る（`package.json` の scripts、`Makefile`、`justfile`、`Taskfile.yml`、`pyproject.toml`、`Cargo.toml`、`go.mod`、CI 設定（`.github/workflows/*`）など）。CI で実行しているコマンドがあれば優先して候補にする。
@@ -77,7 +71,7 @@
    - 人数が変わったら `/tixforge:project update` で変えられることを伝える。
 10. **ゲート**（`gates`）：`gates: [approach, plan, pr]` を書く（尋ねない）。書いたゲートでは必ず止まり、書いていないフェーズは、止まる条件（未解決の疑問・レビュー指摘など）が無ければ自動で通過すること、`pr` は書かなくても必ず止まることを伝える。全フェーズで止めたければ `[research, approach, plan, implement, review, pr]` にできる。
 11. **作るもの**：一覧で提示してから作る（既にあるものは作らない・上書きしない）：
-    - `.tixforge/config.yml` — ここまでで決めた値を書く（既にあれば、足りないキーだけを追記する）。**全てのキーを書く**。
+    - `.tixforge/config.yml` — ここまでで決めた値を、`references/config.md`（Read する）の形とキーの順で書く（既にあれば、足りないキーだけを足す。入れ子のキーは、既にある親（`repository:` など）の下に足す）。**全てのキーを書く**。
     - `.tixforge/.gitignore` — 内容は `*`・`!.gitignore`・`!config.yml` の 3 行。
     - `docs/context/`（中身は「context」）、`docs/context/commit.md`（「commit 規約」）
     - `LICENSE`（「リポジトリ」で選んだ場合）

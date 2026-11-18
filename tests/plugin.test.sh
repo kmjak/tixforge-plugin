@@ -70,6 +70,16 @@ while IFS= read -r p; do
 done <<< "$refs"
 [ "$n" -gt 20 ] && ok || ng "the documents name plugin files ($n found)"
 
+# --- config sample -----------------------------------------------------------
+# references/config.md: every key of the YAML sample has a row in the table,
+# and every row a key in the sample (commands' entries are the user's).
+section="config sample"
+yk=$(awk '/^```yaml/ { on = 1; next } /^```/ { on = 0 } on && !/^[ \t]*#/' references/config.md \
+  | awk '/^[a-z_]+:/ { p = $1; sub(/:.*/, "", p); if ($0 ~ /:[ \t]*(#.*)?$/) next; print p; next }
+         /^  [a-z_]+:/ { k = $1; sub(/:.*/, "", k); if (p == "commands") { print p; next } print p "." k }' | sort -u)
+tk=$(sed -n 's/^| `\([a-z_.]*\)` |.*/\1/p' references/config.md | sort -u)
+[ -n "$yk" ] && [ "$yk" = "$tk" ] && ok || ng "config.md: sample keys [$(echo $yk)] differ from table keys [$(echo $tk)]"
+
 # --- guard matcher -----------------------------------------------------------
 # hooks.json starts the guard only for the tools it decides on: Bash, the
 # edit tools and MCP tools whose name contains git (guard.sh skips other
