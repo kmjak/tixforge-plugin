@@ -68,7 +68,7 @@ gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる�
 | 3 | Plan | Base・ブランチ・**受け入れ条件 → 確かめ方の対応表**・commit 分割。確かめ方の種別（自動／Claude（ブラウザ）／Claude（API）／ユーザー）は項目ごとにユーザーが選ぶ。Plan は常に止まる |
 | 4 | Implement | 計画どおりに実装・commit し、検証コマンド（`verify.sh`）と手動確認を通す。context と矛盾しないかもここで確かめる |
 | 5 | Review | 2 つの reviewer agent を並列に起動する。`tixforge:reviewer` は合意とのズレ（相違・未実装・合意外の変更・決定の無い未決事項）、`tixforge:quality-reviewer` は品質を見る。2 ラウンド目からは前のラウンドからの差分と、直すと決めた指摘が直ったかを見る。指摘ごとに修正・計画の見直し・方針の見直し・受け入れをユーザーが選ぶ |
-| 6 | PR | 明示的な確認の後にだけ push して PR を出し、レビュー・CI を見届ける（tixforge はマージしない） |
+| 6 | PR | 明示的な確認の後にだけ push して PR を出し、レビュー・CI を見届ける（tixforge はマージしない）。PR 本文に受け入れ条件と検証の結果を載せ、PR を出した後の修正のたびに検証の結果を PR にコメントする |
 
 - **ゲート**：`gates` にあるフェーズでは必ず止まる。無いフェーズは、止まる条件（未決事項・ユーザーの判断・対処が決まっていない指摘など）が無ければ自動で通過する。PR の前は常に止まる。止まった所が再開点になる。
 - **Status**：`<phase>:in-progress`・`<phase>:awaiting-approval`、PR 後は `pr:awaiting-review`・`pr:ready-to-merge`（Approve・CI・コンフリクトの条件を満たしマージ待ち）。`done` はマージされたときだけ。
@@ -78,7 +78,7 @@ gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる�
 
 - issue が正本。チケットの全文と、tixforge が書いたことを確かめるハッシュを本文に載せる。本文とタイトルは GitHub 上で直接編集せず、`/tixforge:ticket edit` で変える（直接編集されると検知して、取り込むか尋ねる）。2 人が同時に edit しても、後から書き戻す人の古いコピーは拒否される。
 - GitHub の画面で作られた issue も、`/tixforge:ticket create #<番号>` で取り込める（`project init` で issue フォームを入れておくと、見出しがそろう）。
-- tixforge が投稿するコメントは、キャンセル・巻き戻し・手放すときの判断の記録と、クローズのときの一言だけ。コメントを編集・削除しない。
+- tixforge が issue に投稿するコメントは、キャンセル・巻き戻し・手放すときの判断の記録と、クローズのときの一言だけ（PR には、修正のたびに検証の結果をコメントする）。コメントを編集・削除しない。
 
 状態ラベル（`tixforge:todo`・`in-progress`・`in-review`・`merged`・`done`・`canceled`）は常に 1 つだけ付く。それぞれの意味は、GitHub のラベルの説明（`project init` がドキュメント言語で作る。すでにあるラベルの説明は変えない）にある。直接編集を知らせる `tixforge:out-of-sync` は、状態とは別に付く。
 
