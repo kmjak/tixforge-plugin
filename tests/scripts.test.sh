@@ -151,6 +151,8 @@ eq ja "$(user_lang "$tmp/uc")" "user_lang: ja with neither file"
 # msg: a language given as the second argument wins over config.yml's.
 has "This issue body is synced" "$(msg issue_notice en)" "msg <key> en"
 has "This issue body is synced" "$(TIXFORGE_MSG_LANG=ja msg issue_notice en)" "msg: the language argument wins over TIXFORGE_MSG_LANG"
+eq "Rewound (t1): x & {time} \\1" "$(msg_fill rewind_note en time t1 reason 'x & {time} \1')" "msg_fill replaces each name literally"
+eq "巻き戻し（t）：r" "$(msg_fill rewind_note ja time t reason r)" "msg_fill ja"
 
 # --- ticket-id.sh ----------------------------------------------------------
 section="ticket-id.sh"
@@ -340,6 +342,13 @@ has "body of Plan" "$(cat "$h")" "they are in the history file"
 has "Status before: review:in-progress" "$(cat "$h")" "history records the Status before"
 has "> 巻き戻し（" "$(cat "$f9")" "the target section notes the rewind"
 has "分割を変える" "$(cat "$f9")" "with the reason"
+# The note is in this person's language: config.local.yml's wins.
+printf 'language: en\n' > .tixforge/config.local.yml
+st set GT-000909 Status review:in-progress > /dev/null
+st rewind GT-000909 plan --reason "a & b" > /dev/null
+has "> Rewound (" "$(cat "$f9")" "the rewind note follows the personal language"
+has "): a & b" "$(cat "$f9")" "the reason is kept as is"
+rm -f .tixforge/config.local.yml
 sleep 1
 awk '$0 == "## Implementation Log" { print; print "kept log"; next } { print }' "$f9" > "$tmp/s9" && cat "$tmp/s9" > "$f9"
 st rewind GT-000909 approach --keep-log > /dev/null
@@ -557,6 +566,11 @@ printf 'language: ja\ncommands: {}\n' > "$tmp/empty.yml"
 cp .tixforge/config.yml "$tmp/keep.yml"
 cp "$tmp/empty.yml" .tixforge/config.yml
 has "検証コマンドなし" "$(bash "$scripts/verify.sh")" "commands: {}"
+printf 'language: en\n' > .tixforge/config.local.yml
+has ": no verification commands" "$(bash "$scripts/verify.sh")" "commands: {} in the personal language"
+rm -f .tixforge/config.local.yml
+printf 'language: en\ncommands: {}\n' > .tixforge/config.yml
+has ": no verification commands" "$(bash "$scripts/verify.sh")" "commands: {} in the team language without a personal one"
 printf 'language: ja\n' > .tixforge/config.yml
 bash "$scripts/verify.sh" 2> /dev/null
 eq 3 $? "no commands key"

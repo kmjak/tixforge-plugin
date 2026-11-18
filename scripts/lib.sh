@@ -83,6 +83,23 @@ msg() {
   printf '%s\n' "$v"
 }
 
+# msg_fill <key> <lang> [<name> <value>]...: msg with each {name} replaced
+# by its value (taken literally: no pattern or & expansion).
+msg_fill() {
+  local t
+  t=$(msg "$1" "$2")
+  shift 2
+  while [ $# -ge 2 ]; do
+    t=$(MF_T=$t MF_N="{$1}" MF_V=$2 awk 'BEGIN {
+      t = ENVIRON["MF_T"]; n = ENVIRON["MF_N"]; v = ENVIRON["MF_V"]
+      while ((i = index(t, n)) > 0) { out = out substr(t, 1, i - 1) v; t = substr(t, i + length(n)) }
+      printf "%s", out t
+    }')
+    shift 2
+  done
+  printf '%s\n' "$t"
+}
+
 # The YAML /tixforge:project init writes is flat: top-level keys and one level of
 # nesting, one key per line, `# comments`, optional quotes. Anything richer
 # (anchors, multi-line strings, deeper nesting) is not supported. CRLF line
