@@ -1,6 +1,6 @@
 # GitHub：チケットを取ってくる・探す
 
-「取ってくる」：dev・edit・cancel を始めるときと、dev の PR 作成の直前に行う。issue が正本で、手元のファイル（以下 `<ファイル>`）は issue から作るコピー。手元と issue が違えば、issue を採用する（例外は、下の「直接編集を取り消す」「手元の内容で issue を上書きする」をユーザーが選んだときだけ）。`<ファイル>` は、dev は `.tixforge/<ticket-id>/snapshot.md`、edit は `.tixforge/<ticket-id>/editing.md`。cancel は手順 1〜3 だけを行い、手元のファイルは作らない。呼び出し元には、チケットの状態（`check` の `status:`）と担当者（`assignees:`）、変わったかを返す。
+「取ってくる」：dev・edit・cancel を始めるときと、dev の PR 作成の直前に行う。issue が正本で、手元のファイル（以下 `<ファイル>`）は issue から作るコピー。手元と issue が違えば、issue を採用する（例外は、下でユーザーが手元の内容を選んだとき：手順 4 の「書き戻す」「直接編集を取り消す」「手元の内容で issue を上書きする」）。`<ファイル>` は、dev は `.tixforge/<ticket-id>/snapshot.md`、edit は `.tixforge/<ticket-id>/editing.md`。cancel は手順 1〜3 だけを行い、手元のファイルは作らない。呼び出し元には、チケットの状態（`check` の `status:`）と担当者（`assignees:`）、変わったかを返す。
 
 1. **事前チェック**：`bash <scripts>/github-preflight.sh`。`ok:` 以外なら、出力をそのまま示して止まる。
 2. **状況を見る**：`bash <scripts>/issue-sync.sh check <番号> <ファイル>`（cancel はファイルを渡さない）。1 行目が同期の判定、以降に `status`・`local`・`assignees` など。
