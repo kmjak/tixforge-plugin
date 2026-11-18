@@ -115,13 +115,14 @@ for f in skills/*/*.md; do
   got=$(sed -n 's/^## Phase \([0-9]*\) — .*/\1/p' "$f" | paste -sd' ' -)
   want=$(seq 1 "$(printf '%s\n' "$got" | wc -w)" | paste -sd' ' -)
   [ -n "$got" ] && [ "$got" = "$want" ] && ok || ng "$f: phases are ## Phase 1 — … numbered in order (got: $got)"
-  # dev's run.md numbers each phase from 1 (Status names the phase).
-  bad=$(awk -v steps="$([ "$f" = skills/dev/run.md ] && echo 0 || echo 1)" '
-    /^## Phase/ && !/^## Phase [0-9]+ — ./ { print FILENAME ":" FNR ": not ## Phase N — <name>" }
-    /^## Phase / { want = 1; next }
+  # dev's run.md numbers each phase from 1 (or 0; Status names the phase).
+  bad=$(awk -v per="$([ "$f" = skills/dev/run.md ] && echo 1 || echo 0)" '
+    BEGIN { if (per) last = -2 }
+    /^## Phase/ && !/^## Phase [0-9]+ — [^ ]/ { print FILENAME ":" FNR ": not ## Phase N — <name>" }
+    /^## Phase / { want = 1; if (per) last = -2; next }
     want && NF { if ($0 !~ /^目的：/) print FILENAME ":" FNR ": no 目的： after the heading"; want = 0 }
     /^```/ { fence = !fence }
-    steps && !fence && /^[0-9]+\. / { n = $0 + 0; if (n != last + 1) print FILENAME ":" FNR ": step " n " after " last; last = n }
+    !fence && /^[0-9]+\. / { n = $0 + 0; if (last == -2 && n <= 1) { last = n; next } if (n != last + 1) print FILENAME ":" FNR ": step " n " after " last; last = n }
   ' "$f")
   [ -z "$bad" ] && ok || ng "$bad"
 done

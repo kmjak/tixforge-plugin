@@ -62,7 +62,11 @@ if [ -f "$conf" ]; then
   [ -n "$(cfg repository.base_branch "$conf")" ] || missing=repository.base_branch
   cfg_has commands "$conf" || missing="${missing}${missing:+、}commands"
   [ -n "$(cfg ticket.tracker "$conf")" ] || missing="${missing}${missing:+、}ticket.tracker"
-  [ -z "$missing" ] || echo "- init が途中（無いキー：${missing}）。/tixforge:project init で続ける"
+  if [ -n "$missing" ]; then
+    echo "- init が途中（無いキー：${missing}）。/tixforge:project init で続ける"
+  elif ! git -C "$top" ls-files --error-unmatch .tixforge/config.yml > /dev/null 2>&1; then
+    echo "- init が途中（config.yml が commit されていない）。/tixforge:project init で続ける"
+  fi
 else
   echo "- .tixforge/config.yml が無い（/tixforge:project init が未実行）"
 fi

@@ -25,6 +25,7 @@
   - `review.required` → 人数に合わせる（1 人なら `false`）。
   - `language`・`gates` → そのまま書き換える。これはチームの値で、「この人が使う値」が `config.local.yml` から来ているなら本人の dev には効かないことと、自分だけ変えるなら `/tixforge:project setup` を使うことを伝える。`language` を変えたら、前の言語で作ったもの（issue フォーム `.github/ISSUE_TEMPLATE/tixforge-ticket.yml`・PR テンプレート・`docs/context/**`、フォームから取り込んだチケットの見出し）は前の言語のまま残ることを伝える（訳し直しはしない）。
 - `ticket.tracker` は `github` のままにする。`repository.host` のキーがあれば、使われていないことを伝えて消すか尋ねる。
+- 変わる内容を差分で示し、確認を得てから `config.yml` に書く。
 
 ### v2 の LT を issue に移す
 

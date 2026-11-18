@@ -28,7 +28,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
 
 - 結果が 1 つに決まる処理と、一字も変えずに写すべき処理は `scripts/` に置き、`tests/` で確かめる。gh はスタブに置き換える。手順ファイルの文章は、守られるとは限らないため。
 - 手順ファイルは使う場面で Read させ、SKILL.md と共通規約は短く保つ。毎回読まれるため。
-- 手順ファイルは phase 形式で書く：手順を `## Phase N — 名前` に分け、見出しの次の行に `目的：` を 1 行で書き、ファイルや GitHub に書く前にゲート（必ず止まって確認を得る）を置く。手順の中で 1 つの操作の確認を取るもの（init のリポジトリ作成など）と、答えそのものが確認になる init の config の書き込みは、その手順の中で済ませてよい。手順の番号はフェーズをまたいで通しにする（他のファイルが番号で参照するため）。フェーズの代わりに行う分岐（rewind の「手放す」）は番号を振らない。dev の `run.md` は、フェーズごとに 1 から振る（`Status` がフェーズを示すため）。質問やフェーズが多く、途中で中断・compact が起きうるスキル（dev・init）は、さらに途中の状態を残して同じ場所から再開できるようにする（dev は state.md、init は答えのたびに書く config.yml）。中断しても続きが分かり、どこで止まるかが読み取れるため。
+- `skills/` の手順ファイルは phase 形式で書く：手順を `## Phase N — 名前` に分け、見出しの次の段落に `目的：` を 1 行で書き、ファイルや GitHub に書く前にゲート（必ず止まって確認を得る）を置く。手順の中で 1 つの操作の確認を取るもの（init のリポジトリ作成など）、答えそのものが確認になる init の config の書き込み、git 管理外の作業ファイル（`.tixforge/.gitignore`・`editing.md`・`snapshot.md`）は、その手順の中で済ませてよい。手順の番号はフェーズをまたいで通しにする（他のファイルが番号で参照するため）。フェーズの代わりに行う分岐（rewind の「手放す」）は番号を振らない。dev の `run.md` は、フェーズごとに 1 から振る（`Status` がフェーズを示すため）。質問やフェーズが多く、途中で中断・compact が起きうるスキル（dev・init）は、さらに途中の状態を残して再開できるようにする（dev は state.md から同じ場所で、init は答えのたびに書く config.yml から再実行で）。中断しても続きが分かり、どこで止まるかが読み取れるため。
 - `templates/github/` を変えたら、先頭のコメントの版数（`(v3)` など）を上げる。`/tixforge:project update` は版数で更新の有無を判断する。`templates/github/tixforge/messages.yml` は版数を持たない（update が内容で比べる）。`templates/github/pull_request_template.md` も持たない（init が無い見出しを足すだけで、update は比べない）。
 - 共有するものは、種類で置き場所を決める。2 か所に書くと片方だけ直してずれるため：
 
@@ -52,7 +52,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
 | guard（hook）は jq に頼らない。`lib.sh` の `json_get` で読む | `tests/guard.test.sh`（jq の無い PATH で動かす）・`tests/json-get.test.sh` |
 | スクリプトの中で、`$var` の直後に全角文字を続けない（`${var}` と書く） | `tests/scripts.test.sh` の「all scripts」 |
 | `skills/`・`references/`・`agents/` でファイルの名前を変えたら、参照している側も直す | `tests/plugin.test.sh` |
-| 手順ファイル（SKILL.md と dev の Phase 6 の `pr.md` を除く）は `## Phase 1 — ` から順に番号を振ったフェーズに分け、各見出しの次に `目的：` を書き、手順の番号を通しにする | `tests/plugin.test.sh` の「phases」 |
+| `skills/` の手順ファイル（SKILL.md と dev の Phase 6 の `pr.md` を除く）は `## Phase 1 — ` から順に番号を振ったフェーズに分け、各見出しの次の段落に `目的：` を書き、手順の番号を通しにする（dev の `run.md` はフェーズごとに 1 から。`0.` で始めてよい） | `tests/plugin.test.sh` の「phases」 |
 | スクリプトは `make fmt` で整形する。手で整えない | `make lint` の `shfmt -d` |
 | PR のタイトルは Conventional Commits の形にする（下の「commit と PR」） | CI の `pr-title` |
 | ラベルの一覧と色は `issue-label.sh` の `label_defs` だけに書き、説明は `templates/github/tixforge/messages.yml` の `label_<名前>` に各言語で書く。Actions の雛形が使うラベル名は `label_defs` にあるものだけにする | `tests/scripts.test.sh` の issue-label.sh の節 |
