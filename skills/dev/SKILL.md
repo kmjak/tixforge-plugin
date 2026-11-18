@@ -10,7 +10,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 引数：`$ARGUMENTS`
 
-## 現在の状態（起動時に自動で取得）
+## 現在の状態
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/project-status.sh`
 
@@ -18,15 +18,15 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 | 起動 | 内容 | 手順ファイル |
 |------|------|--------------|
-| `/tixforge:dev <ticket-id>` | 6 フェーズで実装から PR まで進める（状態ファイルがあれば、その Status から再開する） | `${CLAUDE_SKILL_DIR}/run.md` |
-| `/tixforge:dev rewind <ticket-id>` | 前のフェーズに戻す（戻り先を選ぶ。Research なら最初から。チケットを手放すこともできる） | `${CLAUDE_SKILL_DIR}/rewind.md` |
+| `/tixforge:dev <ticket-id>` | 6 フェーズで実装から PR まで進める | `${CLAUDE_SKILL_DIR}/run.md` |
+| `/tixforge:dev rewind <ticket-id>` | 前のフェーズに戻す | `${CLAUDE_SKILL_DIR}/rewind.md` |
 | `/tixforge:dev` | 選択肢を出す（下記） | — |
 
 **引数の解釈：** 先頭の語が `rewind` なら rewind で、残りはチケット id。それ以外は引数全体をチケット id として dev で進める。
 
 ### 引数が無い場合（`/tixforge:dev`）
 
-上の「現在の状態」にある進行中の run（`done`・`canceled` 以外）を使い、AskUserQuestion で選んでもらう（単一選択）。推測で決めない。
+上の「現在の状態」にある進行中の run を使い、AskUserQuestion で選んでもらう（単一選択）。推測で決めない。
 
 1. **進行中の run を再開** — 進行中の run のチケット id と Status を説明に含める。**進行中の run が無ければこの選択肢は出さない。** 複数あるなら、どれを再開するか続けて尋ねる。
 2. **チケットを選んで始める** — チケット id を尋ねる（`references/github/fetch.md` を Read し、その「探す」の着手できるチケットを候補として示す）。
