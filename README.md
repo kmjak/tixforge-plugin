@@ -30,6 +30,7 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 | パス | 内容 | git |
 |------|------|-----|
 | `.tixforge/config.yml` | 設定（下記） | 管理する（チームで共有） |
+| `.tixforge/config.local.yml` | 個人の `language`・`gates`（`/tixforge:project setup` が書く） | 管理しない |
 | `.tixforge/.gitignore` | `*`・`!.gitignore`・`!config.yml`。それ以外を git から外す（プロジェクトの `.gitignore` は触らない） | 管理する |
 | `.tixforge/<id>/snapshot.md` | dev がチケットの issue から取った版（edit は `editing.md` で書き換え、書き戻したら消す） | 管理しない |
 | `.tixforge/<id>/state.md` | run の状態（Status・ブランチ・各フェーズの記録） | 管理しない |
@@ -41,7 +42,7 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 ## 設定（`.tixforge/config.yml`）
 
 ```yaml
-language: ja            # チケット・context・run の記録・PR を書く言語
+language: ja            # チケット・context・PR・issue を書く言語。会話と run の記録の言語の既定
 commands:               # dev が検証で書いた順に実行する（無ければ {}）
   test: npm test
 repository:
@@ -49,7 +50,7 @@ repository:
 gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる）
 ```
 
-`/tixforge:project init` が全てのキーを書く。値を変えるのは `/tixforge:project update`。全てのキーと意味・値・書き方は [`references/config.md`](references/config.md) にある。
+`/tixforge:project init` が全てのキーを書く。値を変えるのは `/tixforge:project update`。自分だけの `language`・`gates` は `/tixforge:project setup` で `.tixforge/config.local.yml` に書く（git に載らない）。全てのキーと意味・値・書き方は [`references/config.md`](references/config.md) にある。
 
 ## チケット
 

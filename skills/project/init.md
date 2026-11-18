@@ -36,7 +36,7 @@
    - **issue を閉じる時点**（`base_branch` が GitHub の default branch と違うときだけ尋ねる。同じなら尋ねずに `close_issues: merge` を書く）：
      - **リリースで閉じる**（`close_issues: release`）— develop へのマージでは閉じず、main に入ったとき（commit メッセージの `Closes #N` により GitHub が閉じる）。間は `tixforge:merged`。このときは squash の設定を確かめる：`gh api repos/{owner}/{repo} --jq '.squash_merge_commit_title + " " + .squash_merge_commit_message'` が `PR_TITLE BLANK`（squash の commit メッセージが PR タイトルだけ）なら、squash マージで `Closes` が消えて issue が閉じなくなることを伝え、設定を変えるか「マージで閉じる」にするか尋ねる。
      - **マージで閉じる**（`close_issues: merge`）— develop へのマージで閉じる。これには Actions の `tixforge-issue-sync` が要る（無いと dev を再開したときにしか閉じない）ので、「GitHub Actions」で強く勧める。
-5. **ドキュメント言語**（`language`）：「日本語（推奨・既定）」「English」を選択肢にして尋ねる（その他は自由入力）。以降のチケットと `docs/context/**` はこの言語で書き、この後の会話（質問・説明）もこの言語で行う。
+5. **ドキュメント言語**（`language`）：「日本語（推奨・既定）」「English」を選択肢にして尋ねる（その他は自由入力）。以降のチケットと `docs/context/**` はこの言語で書き、個人の設定（`config.local.yml`）が無ければ、この後の会話（質問・説明）もこの言語で行う。
 6. **検証コマンド**（`commands`）：dev の Implement・Review で Claude が実行する、テスト・lint・型チェックなどのコマンド。
    - 先にプロジェクトから候補を読み取る（`package.json` の scripts、`Makefile`、`justfile`、`Taskfile.yml`、`pyproject.toml`、`Cargo.toml`、`go.mod`、CI 設定（`.github/workflows/*`）など）。CI で実行しているコマンドがあれば優先して候補にする。
    - 候補を出典のファイル付きで示し、どれを使うかをユーザーに確定してもらう。**確認なしに推測のコマンドを書かない。**
@@ -127,7 +127,7 @@
 16. **CI**（`commands` が `{}` でないときだけ）：`.github/workflows/` に、検証コマンドを実行している workflow が無ければ、作るか尋ねる（dev の検証と同じ内容を CI でも動かすため、と添える）。
     - 作るなら `<plugin>/templates/github/tixforge-ci.yml` を下敷きにして、ユーザーと一緒に埋める：`__BRANCHES__` は `base_branch`（GitHub の default branch と違えば両方。main + develop なら `main, develop`）、`__COMMANDS__` は `commands` を書いた順に 1 ステップずつ、`__SETUP__`（言語のセットアップ・依存のインストール）はプロジェクトのファイル（`package.json` のロックファイル・`.nvmrc`・`pyproject.toml`・`go.mod` など）から候補を作って確認する。**確認していないセットアップ手順を推測で書かない。**
     - 全文を示し、確認を得てから `.github/workflows/tixforge-ci.yml` に書く。
-17. **まとめ**：作ったものを要約する。対話で作った場合は未決事項を示す。自分で作る場合は、`docs/context/overview.md` を埋めてから `/tixforge:ticket create` に進むよう促す。画面の下に run と Status を出したければ、README の「statusline」の設定を足せることを 1 行で伝える（ユーザーの設定ファイルは書き換えない）。
+17. **まとめ**：作ったものを要約する。対話で作った場合は未決事項を示す。自分で作る場合は、`docs/context/overview.md` を埋めてから `/tixforge:ticket create` に進むよう促す。画面の下に run と Status を出したければ、README の「statusline」の設定を足せることを 1 行で伝える（ユーザーの設定ファイルは書き換えない）。`.tixforge/config.local.yml` が無ければ、自分だけの言語・ゲートを `/tixforge:project setup` で決められることを 1 行で伝える。
 18. **commit**：init で作ったもの・変えたもの（`.tixforge/.gitignore`・`.tixforge/config.yml`・`docs/context/**`・`LICENSE`・`CLAUDE.md`・PR テンプレート・`.github/ISSUE_TEMPLATE/tixforge-ticket.yml`・`.github/workflows/tixforge-*.yml`・`.github/tixforge/*`）をまとめて commit する。対象ファイルと commit メッセージ（`docs/context/commit.md` の規約に従う）を提示し、確認を得てから commit する。init が作ったもの以外の変更は含めない。
     - **commit が 1 つも無いリポジトリ**では、必ずこの時点で commit する（後回しにする選択肢を出さない。commit が無いと dev が `base_branch` からブランチを切れない）。context が雛形のままでもよい。
     - **既存のリポジトリ**なら、「ブランチを切って PR にする（ブランチ保護や PR 必須の運用向け）」「`base_branch` に直接 commit する」を尋ねる。PR にするなら、Base がリモートに無ければ（`git ls-remote --heads origin <base_branch>`）先に Base を push し（コマンドを示して確認を得る）、それからブランチを切って commit し、push と PR 作成はコマンドを示して確認を得てから行う。

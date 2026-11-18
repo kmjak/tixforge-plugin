@@ -7,12 +7,16 @@ tf_top() { git rev-parse --show-toplevel 2> /dev/null || pwd; }
 
 # Everything tixforge keeps in a project lives under .tixforge/:
 #   .tixforge/config.yml        settings (in git, shared)
+#   .tixforge/config.local.yml  this person's language and gates (not in git)
 #   .tixforge/.gitignore        keeps everything else out of git
 #   .tixforge/<id>/snapshot.md  the ticket as dev took it from the issue
 #   .tixforge/<id>/editing.md   edit's copy while it edits (removed after)
 #   .tixforge/<id>/state.md     the run of that ticket
 tf_dir() { printf '%s/.tixforge\n' "${1:-$(tf_top)}"; }
 tf_config() { printf '%s/config.yml\n' "$(tf_dir "${1:-}")"; }
+# The person's own settings for this project (not in git): language and gates
+# there win over config.yml's (ucfg_file).
+tf_local_config() { printf '%s/config.local.yml\n' "$(tf_dir "${1:-}")"; }
 state_file() { printf '%s/%s/state.md\n' "$(tf_dir "${2:-}")" "$1"; }
 
 # ensure_workspace [top]: create .tixforge/.gitignore when it is missing, so
@@ -66,12 +70,13 @@ issue_of() { case "$1" in GT-*) printf '%s\n' "${1#GT-}" | sed 's/^0*//' ;; esac
 # msg <key>: a fixed message in the document language, from
 # templates/github/tixforge/messages.yml (the file init copies to the
 # project's .github/tixforge/ for the Actions). English when the language
-# has none. The language is TIXFORGE_MSG_LANG when set (init creates labels before
+# has none. The language is the second argument when given (user_lang for
+# what only this person reads), else TIXFORGE_MSG_LANG when set (init creates labels before
 # config.yml has one), else config.yml's language, else ja.
 msg() {
   local lang file v
   file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/templates/github/tixforge/messages.yml"
-  lang=${TIXFORGE_MSG_LANG:-$(cfg language)}
+  lang=${2:-${TIXFORGE_MSG_LANG:-$(cfg language)}}
   lang=${lang:-ja}
   v=$(cfg "$lang.$1" "$file")
   [ -n "$v" ] || v=$(cfg "en.$1" "$file")
@@ -127,6 +132,34 @@ cfg_has() {
   ' "$file"
 }
 
+# ucfg_file <top-level-key> [top]: the file this person's value of a key
+# comes from: config.local.yml when it has a value for the key (`gates: []`
+# counts; an empty `language:` does not), else config.yml. Only
+# language and gates are personal; every other key is the team's (cfg).
+ucfg_file() {
+  local l
+  l=$(tf_local_config "${2:-}")
+  case $1 in
+    language) [ -n "$(cfg language "$l")" ] && {
+      printf '%s\n' "$l"
+      return
+    } ;;
+    gates) [ -n "$(cfg gates "$l")" ] || [ -n "$(cfg_list gates "$l")" ] && {
+      printf '%s\n' "$l"
+      return
+    } ;;
+  esac
+  tf_config "${2:-}"
+}
+# ucfg <key> [top]: this person's value of a scalar key (language).
+ucfg() { cfg "$1" "$(ucfg_file "${1%%.*}" "${2:-}")"; }
+# user_lang [top]: the language this person talks and writes state.md in.
+user_lang() {
+  local v
+  v=$(ucfg language "${1:-}")
+  printf '%s\n' "${v:-ja}"
+}
+
 # cfg_map <top-level-key> [config-file]: "key<TAB>value" per nested key,
 # in file order (commands run in the order they are written).
 cfg_map() {
@@ -160,7 +193,7 @@ cfg_list() {
 }
 
 # The sections of state.md, in phase order. They start empty; the body is
-# written in the document language (skills/dev/run.md). A section starts only at one of
+# written in the person's language (user_lang, skills/dev/run.md). A section starts only at one of
 # these six headings, and not inside a ``` / ~~~ fence: an Approach may quote
 # Markdown that has "## " lines of its own. _section_awk defines
 # heading_index(line) for awk programs: 1..6 for a section heading, else 0.
