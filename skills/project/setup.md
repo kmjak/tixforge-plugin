@@ -4,8 +4,8 @@
 
 1. `.tixforge/config.yml` が無ければ、`/tixforge:project init` を案内して止まる。
 2. 「現在の状態」の「設定」（チームの値）と「この人が使う値」を示す。
-3. 次の 2 つを、1 つずつ AskUserQuestion で尋ねる。どちらも最初の選択肢は「チームの設定のままにする（<config.yml の値>）」。
+3. 次の 2 つを、1 つずつ AskUserQuestion で尋ねる。どちらも最初の選択肢は「チームの設定のままにする（<config.yml の値>。キーが無ければ `references/config.md` の既定値>）」。チームの値と同じ選択肢は出さない。
    - **language**（会話・`state.md`・reviewer の報告の言語）：チームの設定のまま・日本語（`ja`）・English（`en`）（その他は自由入力。書く値は `ja`・`en` などの言語コードか言語名）
-   - **gates**（必ず止まるゲート）：チームの設定のまま・`[approach, plan, pr]`・`[plan, pr]`・`[]`（`pr` は書かなくても必ず止まる。その他は自由入力）
+   - **gates**（必ず止まるゲート）：チームの設定のまま・`[approach, plan, pr]`・`[plan, pr]`・`[]`（`pr` は書かなくても必ず止まる。その他は自由入力。`references/config.md` の `gates` の値にない名前が入ったら尋ね直す）
 4. 変わる内容を差分で示し、確認を得てから `.tixforge/config.local.yml` に書く。「チームの設定のままにする」を選んだキーは、書かない（既にあれば消す）。2 つとも消えたら、ファイルごと消す。形は `config.yml` と同じ（`references/config.md` の「書き方」）。
-5. `bash <scripts>/project-status.sh` を実行し、「この人が使う値」が変わったことを示す。commit はしない。
+5. `bash <scripts>/project-status.sh` を実行し、「この人が使う値」が変わったことを示す。commit はしない。language を変えたときは、進行中の run の `state.md` は訳し直さないことを伝える。

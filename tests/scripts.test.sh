@@ -121,9 +121,6 @@ eq ja "$(cfg language "$tmp/crlf.yml")" "CRLF top-level value"
 eq "plan,pr" "$(cfg_list gates "$tmp/crlf.yml" | paste -sd, -)" "CRLF list"
 cfg_has commands && ok || ng "cfg_has commands"
 cfg_has nothing && ng "cfg_has nothing" || ok
-
-# --- ticket-id.sh ----------------------------------------------------------
-
 # ucfg / user_lang: config.local.yml's language and gates win; other keys
 # are always the team's.
 mkdir -p "$tmp/uc/.tixforge"
@@ -137,12 +134,22 @@ eq "$tmp/uc/.tixforge/config.yml" "$(ucfg_file gates "$tmp/uc")" "ucfg_file: gat
 eq "$tmp/uc/.tixforge/config.yml" "$(ucfg_file review "$tmp/uc")" "ucfg_file: only language and gates are personal"
 printf 'gates: [plan]\n' >> "$tmp/uc/.tixforge/config.local.yml"
 eq "plan" "$(cfg_list gates "$(ucfg_file gates "$tmp/uc")")" "ucfg_file: gates from the local file"
+printf 'language:\ngates:\n' > "$tmp/uc/.tixforge/config.local.yml"
+printf 'language: en\ngates: [plan, pr]\n' > "$tmp/uc/.tixforge/config.yml"
+eq en "$(user_lang "$tmp/uc")" "user_lang: an empty local language falls back to config.yml"
+eq "$tmp/uc/.tixforge/config.yml" "$(ucfg_file gates "$tmp/uc")" "ucfg_file: empty local gates fall back to config.yml"
+printf 'gates: []\n' > "$tmp/uc/.tixforge/config.local.yml"
+eq "$tmp/uc/.tixforge/config.local.yml" "$(ucfg_file gates "$tmp/uc")" "ucfg_file: gates: [] in the local file counts"
+printf 'language: en\n' > "$tmp/uc/.tixforge/config.local.yml"
 rm -f "$tmp/uc/.tixforge/config.yml"
 eq en "$(user_lang "$tmp/uc")" "user_lang: the local file alone"
 rm -f "$tmp/uc/.tixforge/config.local.yml"
 eq ja "$(user_lang "$tmp/uc")" "user_lang: ja with neither file"
 # msg: a language given as the second argument wins over config.yml's.
 has "This issue body is synced" "$(msg issue_notice en)" "msg <key> en"
+
+# --- ticket-id.sh ----------------------------------------------------------
+
 section="ticket-id.sh"
 tid() { bash "$scripts/ticket-id.sh" "$@"; }
 eq GT-000123 "$(tid normalize 123)" "a bare number is issue N"
@@ -264,6 +271,7 @@ eq .tixforge/GT-000901/state.md "$(st init GT-000901)" "init"
 [ -f .tixforge/.gitignore ] && ok || ng "init creates .tixforge/.gitignore"
 eq ".tixforge/.gitignore" "$(git status --porcelain --untracked-files=all .tixforge | cut -c4-)" "only .gitignore is visible to git"
 git add .tixforge/.gitignore && git commit -q -m gitignore
+git check-ignore -q .tixforge/config.local.yml && ok || ng "config.local.yml stays out of git"
 st init GT-000901 2> /dev/null
 eq 3 $? "init twice"
 st init T000001 2> /dev/null

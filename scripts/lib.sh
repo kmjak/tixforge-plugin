@@ -133,13 +133,14 @@ cfg_has() {
 }
 
 # ucfg_file <top-level-key> [top]: the file this person's value of a key
-# comes from: config.local.yml when it has the key, else config.yml. Only
+# comes from: config.local.yml when it has a value for the key (`gates: []`
+# counts; an empty `language:` does not), else config.yml. Only
 # language and gates are personal; every other key is the team's (cfg).
 ucfg_file() {
   local l
   l=$(tf_local_config "${2:-}")
   case $1 in language | gates)
-    if cfg_has "$1" "$l"; then
+    if [ -n "$(cfg "$1" "$l")" ] || [ -n "$(cfg_list "$1" "$l")" ]; then
       printf '%s\n' "$l"
       return
     fi

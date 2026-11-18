@@ -51,7 +51,9 @@ if [ -f "$conf" ]; then
   gf=$(ucfg_file gates "$top")
   ugates=$(cfg_list gates "$gf" | paste -sd, -)
   [ -z "$ugates" ] && cfg_has gates "$gf" && ugates="[]（pr のみ）"
-  echo "- この人が使う値: language=$(user_lang "$top")（${lf##*/}）" \
+  lsrc=${lf##*/}
+  [ -n "$(cfg language "$lf")" ] || lsrc=既定
+  echo "- この人が使う値: language=$(user_lang "$top")（${lsrc}）" \
     "gates=${ugates:-（未設定）}（${gf##*/}）"
 else
   echo "- .tixforge/config.yml が無い（/tixforge:project init が未実行）"
