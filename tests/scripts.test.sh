@@ -1179,8 +1179,11 @@ set -- "${args[@]}"
 case "$1 $2" in
   "issue view") n=$3; v=$(grep "^$n " "$WF_DIR/issues" | cut -d' ' -f2-); [ -n "$v" ] || exit 1; echo "$v" ;;
   "api repos/o/r/compare/"*) [ -z "${WF_API_FAIL:-}" ] || { echo "HTTP 403" >&2; exit 1; }; jq -r "$jqf" "$WF_DIR/compare.json" ;;
-  "api repos/o/r/commits/"*) sha=${2#repos/o/r/commits/}; sha=${sha%/pulls}
-    jq -r "$jqf" "$WF_DIR/pulls-$sha.json" 2> /dev/null || true ;;
+  "api repos/o/r/commits/"*) [ -z "${WF_PULLS_FAIL:-}" ] || { echo "HTTP 502" >&2; exit 1; }
+    sha=${2#repos/o/r/commits/}; sha=${sha%/pulls}
+    echo "$sha" >> "$WF_DIR/pulls-asked"
+    if [ -f "$WF_DIR/pulls-$sha.json" ]; then jq -r "$jqf" "$WF_DIR/pulls-$sha.json"; fi ;;
+  "issue list") awk '$2 == "OPEN" && $3 ~ /tixforge:merged/ { print $1 }' "$WF_DIR/issues" ;;
   "issue edit") echo "$*" >> "$WF_DIR/calls" ;;
   "issue close") echo "$*" >> "$WF_DIR/calls"; sed "s/^$3 OPEN /$3 CLOSED /" "$WF_DIR/issues" > "$WF_DIR/t" && mv "$WF_DIR/t" "$WF_DIR/issues" ;;
   *) echo "wf gh: unexpected $*" >&2; exit 1 ;;
@@ -1195,8 +1198,9 @@ mkdir -p "$WF_DIR"
 wf_code() { cat "$WF_DIR/code"; }
 wfrun() {
   : > "$WF_DIR/calls"
+  : > "$WF_DIR/pulls-asked"
   WF_DIR=$WF_DIR PATH="$wfbin:$PATH" EVENT=pull_request ACTION=${3:-closed} MERGED=true DRAFT=${4:-false} \
-    PR_STATE=$([ "${3:-closed}" = closed ] && echo closed || echo open) BODY=$2 PR_URL=https://github.com/o/r/pull/9 \
+    PR_STATE=${5:-$([ "${3:-closed}" = closed ] && echo closed || echo open)} BODY=$2 PR_URL=https://github.com/o/r/pull/9 \
     BASE_REF=$1 BASE_SHA=b0 HEAD_SHA=h1 DEFAULT_BRANCH=main GH_REPO=o/r \
     bash -e "$wf" > /dev/null 2>&1
   echo $? > "$WF_DIR/code"
@@ -1223,27 +1227,43 @@ has "issue close 1" "$out" "into main: closed"
 jq -n '{commits: [
   {sha: "s1", commit: {message: "feat: a\n\nCloses #2"}},
   {sha: "s2", commit: {message: "fix: b (squashed, no trailer)"}},
-  {sha: "s3", commit: {message: "chore: hotfix #4, hot_fix #4, Fixes: #3"}}]}' > "$WF_DIR/compare.json"
-printf '[{"body": "Resolves #6"}]' > "$WF_DIR/pulls-s2.json"
-printf '[{"body": "Closes #5"}]' > "$WF_DIR/pulls-s1.json"
-wfissues() { printf '1 OPEN tixforge:in-review\n2 OPEN tixforge:merged\n3 OPEN tixforge:in-review\n4 OPEN tixforge:merged\n5 CLOSED tixforge:merged\n6 OPEN tixforge:merged\n' > "$WF_DIR/issues"; }
+  {sha: "s3", commit: {message: "chore: hotfix #4, hot_fix #4, Fixes: #7"}}]}' > "$WF_DIR/compare.json"
+printf '[{"body": "Resolves #6", "merged_at": "x"}, {"body": "Closes #4", "merged_at": null}]' > "$WF_DIR/pulls-s2.json"
+printf '[{"body": "Closes #5", "merged_at": "x"}]' > "$WF_DIR/pulls-s1.json"
+wfissues() { printf '1 OPEN tixforge:in-review\n2 OPEN tixforge:merged\n3 OPEN tixforge:in-review\n4 OPEN tixforge:merged\n5 CLOSED tixforge:merged\n6 OPEN tixforge:merged\n7 OPEN tixforge:merged\n' > "$WF_DIR/issues"; }
 wfissues
 out=$(wfrun main "Release 1.2.0")
 eq 0 "$(wf_code)" "release: exit 0"
 has "issue edit 2 --remove-label tixforge:merged --add-label tixforge:done" "$out" "release: a merged issue in a commit message is done"
 has "issue close 2" "$out" "release: and closed"
 has "issue close 6" "$out" "release: one named only by the PR that brought the commit (squash) too"
-case "$out" in *"issue edit 4"*) ng "release: hotfix #4 / hot_fix #4 are not links" ;; *) ok ;; esac
+case "$out" in *"issue edit 4"*) ng "release: hotfix #4 / hot_fix #4 and an unmerged PR's body are not links" ;; *) ok ;; esac
+has "issue close 7" "$out" "release: Fixes: #7 (with a colon) is a link, as GitHub reads it"
 case "$out" in *"issue edit 3"*) ng "release: an issue not in tixforge:merged is left" ;; *) ok ;; esac
-case "$out" in *"issue edit 5"*) ng "release: a closed issue (not planned) is left" ;; *) ok ;; esac
+case "$out" in *"issue edit 5"*) ng "release: a closed issue is left" ;; *) ok ;; esac
 wfissues
 out=$(wfrun main "Release, Closes #2")
 eq 1 "$(printf '%s\n' "$out" | grep -c 'issue close 2')" "release: an issue the body names too is closed once"
-out=$(WF_API_FAIL=1 wfrun main "Release")
+wfissues
+out=$(WF_API_FAIL=1 wfrun main "Closes #1")
 eq 1 "$([ "$(wf_code)" -ne 0 ] && echo 1)" "release: a failed API call fails the job"
+has "issue close 1" "$out" "release: the PR's own issue moves before the release part fails"
+wfissues
+WF_PULLS_FAIL=1 wfrun main "Release" > /dev/null
+eq 1 "$([ "$(wf_code)" -ne 0 ] && echo 1)" "release: a failed pulls call fails the job"
+# The PR bodies are read only while a waiting issue is not found yet, and
+# nothing is read with no issue waiting.
+jq -n '{commits: [{sha: "s1", commit: {message: "Closes #2"}}, {sha: "s2", commit: {message: "x"}}]}' > "$WF_DIR/compare.json"
+printf '2 OPEN tixforge:merged\n' > "$WF_DIR/issues"
+wfrun main "Release" > /dev/null
+eq "" "$(cat "$WF_DIR/pulls-asked")" "release: no PR bodies once every waiting issue is found"
+printf '2 CLOSED tixforge:done\n' > "$WF_DIR/issues"
+eq "" "$(wfrun main "Release")" "release: nothing waiting, nothing read or written"
+eq "" "$(cat "$WF_DIR/pulls-asked")" "release: nothing waiting, no PR bodies"
 printf '{"commits": []}' > "$WF_DIR/compare.json"
 eq "" "$(wfrun main "Release")" "release: no commits, no linked issue: nothing"
-eq "" "$(wfrun main "Release" edited)" "an edit of a closed PR moves nothing"
+wfissues
+eq "" "$(wfrun develop "Closes #1" edited false closed)" "an edit of a closed PR moves nothing (W4)"
 wfissues
 eq "" "$(wfrun develop "Closes #2" opened)" "opened: a merged issue stays merged (a release PR links it again)"
 has "--add-label tixforge:in-review" "$(wfrun develop "Closes #1" opened)" "opened: in review"

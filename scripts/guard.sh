@@ -558,7 +558,7 @@ if [ $precise_pr -eq 1 ] && [ -n "$issue" ]; then
     [ -f "$body_file" ] && haystack="$haystack
 $(cat "$body_file")"
   fi
-  if ! printf '%s\n' "$haystack" | grep -Eiq "(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#${issue}([^0-9]|$)"; then
+  if ! printf '%s\n' "$haystack" | grep -Eiq "(^|[^[:alnum:]_])(close[sd]?|fix(e[sd])?|resolve[sd]?):?[[:space:]]+#${issue}([^0-9]|$)"; then
     deny "PR 本文に \"Closes #${issue}\" がありません。issue #${issue} を閉じる紐付けを本文に入れてから作成してください（--fill や本文なしでは作成できません）。"
   fi
 fi

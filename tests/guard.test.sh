@@ -177,6 +177,9 @@ expect deny "$tfrepo" 'git push origin +GT-000001-login'
 expect ask "$tfrepo" 'gh pr create --title t --body "Closes #1"'
 expect ask "$tfrepo" 'gh pr create --title t --body "fixes #1"'
 expect deny "$tfrepo" 'gh pr create --title t --body "Closes #12"'
+expect ask "$tfrepo" 'gh pr create --title t --body "Closes: #1"'
+expect deny "$tfrepo" 'gh pr create --title t --body "hotfix #1"'
+expect deny "$tfrepo" 'gh pr create --title t --body "hot_fix #1"'
 expect deny "$tfrepo" 'gh pr create --fill'
 printf 'Summary\n\nCloses #1\n' > "$tmp/body.md"
 expect ask "$tfrepo" "gh pr create --title t --body-file $tmp/body.md"

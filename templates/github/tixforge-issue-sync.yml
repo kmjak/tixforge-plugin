@@ -47,7 +47,6 @@ jobs:
           PR_STATE: ${{ github.event.pull_request.state }}
           BODY: ${{ github.event.pull_request.body }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -96,27 +95,10 @@ jobs:
           # An edit of a closed PR (merged or not) does not move its issues.
           if [ "$ACTION" = edited ] && [ "$PR_STATE" != open ]; then exit 0; fi
 
-          # A release: the open issues its commits close that wait in
-          # tixforge:merged are released now. The commits come from compare
-          # (no 250-commit cap); a failed call fails the job (bash -e).
-          if [ "$ACTION" = closed ] && [ "$MERGED" = true ] && [ "$BASE_REF" = "$DEFAULT_BRANCH" ]; then
-            shas=$(gh api "repos/$GH_REPO/compare/$BASE_SHA...$HEAD_SHA" --paginate --jq '.commits[].sha')
-            texts=$(gh api "repos/$GH_REPO/compare/$BASE_SHA...$HEAD_SHA" --paginate --jq '.commits[].commit.message')
-            for sha in $shas; do
-              bodies=$(gh api "repos/$GH_REPO/commits/$sha/pulls" --jq '.[].body // empty')
-              texts=$(printf '%s\n%s' "$texts" "$bodies")
-            done
-            released=$(printf '%s\n' "$texts" | linked)
-            for n in $released; do
-              info=$(gh issue view "$n" --json state,labels \
-                --jq '.state + " " + ([.labels[].name] | join(","))' 2>/dev/null) || continue
-              [ "${info%% *}" = OPEN ] || continue
-              case ",${info#* }," in *,tixforge:merged,*) done_and_close "$n" OPEN "${info#* }" ;; esac
-            done
-          fi
-
+          # The PR's own issues first: a release's API failure below must not
+          # keep them from moving.
           issues=$(printf '%s\n' "$BODY" | linked)
-          [ -n "$issues" ] || { echo "no linked issue"; exit 0; }
+          [ -n "$issues" ] || echo "no linked issue"
           for n in $issues; do
             info=$(gh issue view "$n" --json state,labels \
               --jq '.state + " " + ([.labels[].name] | join(","))' 2>/dev/null) || continue
@@ -136,3 +118,29 @@ jobs:
               set_status "$n" "$labels" tixforge:in-review
             fi
           done
+
+          # A release: the open issues waiting in tixforge:merged that its
+          # commits close are released now. Only when such issues exist; the
+          # commits come from compare (one call, paged past 250), and the
+          # bodies of the merged PRs that brought them are read only while
+          # some waiting issue is not found yet. A failed call fails the job.
+          if [ "$ACTION" = closed ] && [ "$MERGED" = true ] && [ "$BASE_REF" = "$DEFAULT_BRANCH" ]; then
+            waiting=$(gh issue list --state open --label tixforge:merged --limit 1000 --json number --jq '.[].number')
+            [ -n "$waiting" ] || exit 0
+            commits=$(gh api "repos/$GH_REPO/compare/$BASE_SHA...$HEAD_SHA" --paginate \
+              --jq '.commits[] | "tixforge-sha " + .sha, .commit.message')
+            texts=$(printf '%s\n' "$commits" | grep -v '^tixforge-sha ' || true)
+            # missing: the waiting issues the texts do not name yet.
+            missing() { printf '%s\n' "$texts" | linked | grep -vxF -f - <(printf '%s\n' "$waiting") || true; }
+            for sha in $(printf '%s\n' "$commits" | sed -n 's/^tixforge-sha //p'); do
+              [ -n "$(missing)" ] || break
+              bodies=$(gh api "repos/$GH_REPO/commits/$sha/pulls" --jq '.[] | select(.merged_at) | .body // empty')
+              texts=$(printf '%s\n%s' "$texts" "$bodies")
+            done
+            for n in $(printf '%s\n' "$texts" | linked | grep -xF -f <(printf '%s\n' "$waiting") || true); do
+              info=$(gh issue view "$n" --json state,labels \
+                --jq '.state + " " + ([.labels[].name] | join(","))' 2>/dev/null) || continue
+              [ "${info%% *}" = OPEN ] || continue
+              case ",${info#* }," in *,tixforge:merged,*) done_and_close "$n" OPEN "${info#* }" ;; esac
+            done
+          fi

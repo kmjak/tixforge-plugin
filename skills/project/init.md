@@ -44,7 +44,7 @@
      - **main + develop**（develop で開発し、main はリリース用）— `base_branch: develop`。GitHub の default branch は main のままにする。
      - **ブランチ名を合わせる**：commit がまだ無く、今のブランチ名（`git symbolic-ref --short HEAD`）が合わせる名前（main だけなら `base_branch`、main + develop なら main 側の名前）と違えば、「今のブランチは `<今の名前>`、`base_branch` は `<名前>`。`git branch -m <名前>` で名前を変えますか」と尋ねてから行う（`base_branch` を config に書く前に行う）。変えないと、commit は今のブランチに入り、`base_branch` のブランチが存在しないまま残る。
    - **既存のリポジトリ**：GitHub の default branch（`gh repo view --json defaultBranchRef`、取れなければ `git symbolic-ref --short refs/remotes/origin/HEAD`）を既定にする。ローカル（`git show-ref`）とリモート（`git ls-remote --heads origin`）に `develop`・`dev`・`development` があり、default と違えば、どちらを `base_branch` にするか尋ねる。見つからなければ尋ねない。
-   - `base_branch` が GitHub の default branch と違う（develop など）なら、issue は develop へのマージでは閉じず、リリース（main に入ったとき）で閉じることを伝え、「GitHub Actions」で `tixforge-issue-sync` を強く勧める。
+   - `base_branch` が GitHub の default branch と違う（develop など）なら、issue は develop へのマージでは閉じず、リリース（main に入ったとき）で閉じることを伝え、「GitHub Actions」で `tixforge-issue-sync` を強く勧める。入れないなら、squash の設定を確かめる：`gh api repos/{owner}/{repo} --jq '.squash_merge_commit_title + " " + .squash_merge_commit_message'` が `PR_TITLE BLANK`（squash の commit メッセージが PR タイトルだけ）なら、squash マージで `Closes` が消えてリリースでも issue が閉じないことを伝え、Actions を入れるか設定を変えるか尋ねる。
 5. **ドキュメント言語**（`language`）：「日本語（推奨・既定）」「English」を選択肢にして尋ねる（その他は自由入力）。以降のチケットと `docs/context/**` はこの言語で書き、個人の設定（`config.local.yml`）が無ければ、この後の会話（質問・説明）もこの言語で行う。
 6. **検証コマンド**（`commands`）：dev の Implement・Review で Claude が実行する、テスト・lint・型チェックなどのコマンド。
    - 先にプロジェクトから候補を読み取る（`package.json` の scripts、`Makefile`、`justfile`、`Taskfile.yml`、`pyproject.toml`、`Cargo.toml`、`go.mod`、CI 設定（`.github/workflows/*`）など）。CI で実行しているコマンドがあれば優先して候補にする。
