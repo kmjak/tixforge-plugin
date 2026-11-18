@@ -8,7 +8,7 @@
 
 - **`pr:in-progress`**：まず PR の有無を確かめる（下記「PR の存在確認」）。
   - PR が無い → 「PR の準備」から。
-  - PR がある（開いている）→ PR を出した後の対応（コンフリクト・CI の失敗・修正依頼）の途中。手元のブランチがリモートより進んでいるか（`git fetch origin <ブランチ>` の後、`git rev-list --count origin/<ブランチ>..<ブランチ>`）を確かめる。進んでいれば、push していない修正がある：「PR の状況確認」の対応の最後（検証 → 変更の提示 → 確認 → push）から続ける。進んでいなければ「PR の状況確認」から。
+  - PR がある（開いている）→ PR を出した後の対応（コンフリクト・CI の失敗・修正依頼）の途中。手元のブランチがリモートより進んでいるか（`git fetch origin <ブランチ>` の後、`git rev-list --count origin/<ブランチ>..<ブランチ>`）を確かめる。進んでいれば、push していない修正がある：「修正の push」から続ける。進んでいなくても、`## Implementation Log` に HEAD の「PR コメント @ <hash>」が無く、この run で PR の後に commit していれば、「修正の push」の手順 3（コメントの投稿）から続ける。それ以外は「PR の状況確認」から。
 - **`pr:awaiting-approval`**：ゲートを出し直す**前に**、PR が既にあるか確かめる（「PR の存在確認」）。開いている PR があれば、作成の後に中断したということなので、新しく作らずに URL を `## PR` に記録し、`Status: pr:awaiting-review` にして「PR の状況確認」へ。無ければゲートを出し直す。
 - **`pr:awaiting-review`・`pr:ready-to-merge`**：「PR の状況確認」から。
 
@@ -23,10 +23,11 @@
 ## PR の準備
 
 1. `Status: pr:in-progress` にする。「PR の存在確認」で PR が無いことを確かめる。
-   - 開いている PR があれば（PR を出した後に Implement 以前へ戻した run など）、新しく作らない：その URL を `## PR` に書き、push していない commit（`git fetch origin <ブランチ>` の後、`git log --oneline origin/<ブランチ>..<ブランチ>`）を示して確認を得てから push し、`Status: pr:awaiting-review` にして「PR の状況確認」へ進む。
+   - 開いている PR があれば（PR を出した後に Implement 以前へ戻した run など）、新しく作らない：その URL を `## PR` に書き、「修正の push」で push していない commit（`git fetch origin <ブランチ>` の後、`git log --oneline origin/<ブランチ>..<ブランチ>`）を push してから「PR の状況確認」へ進む。
 2. 取り返しのつかない操作の前に、次を提示する：**ブランチ**・**向き先ブランチ**（ヘッダ表の `Base`）・**PR タイトル**・**PR 本文の下書き**（タイトルと本文はドキュメント言語。`state.md` から写す内容も、ドキュメント言語で書き直す）。
    - **本文**：`bash <scripts>/pr-template.sh` が `path: <パス>` を出したら、その既定の PR テンプレートの見出しに沿って埋める。`path: none` なら `<plugin>/templates/github/pull_request_template.md` の見出しで書く（見出しはドキュメント言語に訳し、テンプレートのコメントは書かない）。
-   - **受け入れ条件**（対応表の各項目の確かめ方と結果）と**検証**は必ず書く。既定のテンプレートにその見出しが無ければ、本文の最後（紐付けの行の前）に足す。検証には、`## Implementation Log` の HEAD に対する最新の `Verification @ <hash>: …` の行（`Verification @` 以外はドキュメント言語に直してよい）と、手動確認の結果（誰が・どう確かめたか）を書く。テストのログは載せない（CI の画面で見られる）。
+   - **受け入れ条件**（対応表の各項目の確かめ方と結果）と**検証**は必ず書く。既定のテンプレートに同じ役割の見出し（Testing など）があればそこに書き、無ければ本文の最後に足す（紐付けの行が見出しの中にあれば、その見出しの前）。検証には、HEAD に対する `Verification @ <hash>: …` の行と、手動確認の結果（誰が・どう確かめたか）を書く。テストのログは載せない（CI の画面で見られる）。
+   - **検証の行**：`## Implementation Log` に HEAD（`+dirty` 無し）に対する全て pass の行が無ければ、下書きを示す前に `bash <scripts>/verify.sh` を実行し、1 行目を Log に書き写す（失敗があれば PR に進まず、`Status: implement:in-progress` に戻る）。行はそのまま写す。検証コマンドが無いときの行だけ、その言葉をドキュメント言語に直す。
    - **方針**は、Approach で合意した**結論と理由を 2〜3 行**だけ書く。
    - 本文に、「PR と紐づける」の紐付けを必ず入れる。
 3. `Status: pr:awaiting-approval` にして、**停止して明示的な確認を求める。**
@@ -52,4 +53,12 @@
 - `pending`（draft・未レビュー・CI 実行中など）→ その旨と詳細を伝え、`pr:awaiting-review` のまま停止する（`pr:ready-to-merge` から戻ったなら `pr:awaiting-review` にする）。`commented_by` がある（コメントだけのレビュー）場合は内容を示し、対応するかユーザーに尋ねる。
 - `closed`（マージされずにクローズ）→ 報告し、どうするか尋ねる。勝手に `done` にしない。
 
-`conflict`・`ci_failing`・`changes_requested` への対応はブランチに commit し、`## Implementation Log` に「PR 対応：<判定>」（個人の言語）として記録する。push の前に**検証**（`run.md`「検証」。影響する手動確認もやり直す）を行い、変更内容・検証結果と、push の後に PR に投稿するコメント（ドキュメント言語。何に対応したかを 1 行、新しい `Verification @ <hash>: …` の行、やり直した手動確認の結果）を一覧で示して**停止し、確認を得てから push する**。push したら、そのコメントを `gh pr comment <PR> --body-file <一時ファイル>` で投稿する（PR 本文の検証は書き換えない。いつ・どの commit で確かめたかを残し、レビュアーが変化に気づけるように）。push したら `Status: pr:awaiting-review` に戻して停止する。対応が方針や計画の変更を伴う大きさなら、その場で直さずに停止し、`rewind.md` を Read し、その手順で戻るかユーザーに尋ねる（PR を出した後に戻ると、追加の commit は既存の PR に入り、設定によっては Approve が外れる）。
+`conflict`・`ci_failing`・`changes_requested` への対応はブランチに commit し、`## Implementation Log` に「PR 対応：<判定>」（個人の言語）として記録してから、「修正の push」を行う。対応が方針や計画の変更を伴う大きさなら、その場で直さずに停止し、`rewind.md` を Read し、その手順で戻るかユーザーに尋ねる（PR を出した後に戻ると、追加の commit は既存の PR に入り、設定によっては Approve が外れる）。
+
+## 修正の push
+
+PR を出した後の commit を push する。PR 本文の検証は書き換えず、検証の結果を PR にコメントする（いつ・どの commit で確かめたかを残し、レビュアーが変化に気づけるように）。
+
+1. **検証**（`run.md`「検証」。影響する手動確認もやり直す）を行い、出力を `## Implementation Log` に書き写す。
+2. 変更内容・検証結果と、PR に投稿するコメント（ドキュメント言語。何に対応したかを 1 行、新しい `Verification @ <hash>: …` の行（「PR の準備」の検証の行と同じ写し方）、やり直した手動確認の結果）を一覧で示して**停止し、確認を得る**。push とコメントの投稿で、確認画面がそれぞれ出る（一覧で合意した内容だと伝える）。
+3. push し、コメントを `gh pr comment <PR> --body-file <一時ファイル>` で投稿して、`## Implementation Log` に「PR コメント @ <hash>」と記録する。`Status: pr:awaiting-review` にして停止する。

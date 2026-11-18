@@ -555,6 +555,9 @@ fi
 
 if [ $is_push -eq 0 ] && [ $is_pr_create -eq 0 ]; then
   [ -n "$other" ] || ask "git の hook を飛ばす可能性があります（${hook_ask}）。${where}。hook を飛ばさずに失敗の原因を直すのが原則です。承認しますか？"
+  # dev posts the verification on its PR after each fix (pr.md): a write,
+  # so it asks, but not as an unknown operation.
+  [ "$other" = "gh pr comment" ] && ask "PR へのコメントの投稿です（dev の「修正の push」なら、チャットで合意した内容か確かめてください）。${where}。承認しますか？${hook_note}"
   ask "${other} は tixforge の許可リストにない git / gh 操作です（merge・rebase・reset・gh pr merge など）。${where}。承認しますか？${hook_note}"
 fi
 

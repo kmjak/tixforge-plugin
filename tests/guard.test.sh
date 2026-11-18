@@ -331,6 +331,12 @@ done
 rm -rf "$tfrepo/.tixforge/GT-000002"
 set_state implement:in-progress
 
+# A PR comment asks, as a PR comment rather than an unknown operation.
+state="pr comment"
+set_state pr:in-progress
+expect ask "$tfrepo" 'gh pr comment 9 --body-file /tmp/x'
+reason_has "$tfrepo" 'gh pr comment 9 --body-file /tmp/x' "PR へのコメントの投稿"
+
 # Skipping the git hooks is denied on a run's branch and on the Base.
 state="hook bypass"
 set_state implement:in-progress

@@ -166,7 +166,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 1. **agent の確認**：利用できる agent に `tixforge:reviewer` と `tixforge:quality-reviewer` があることを確認する。無ければ停止し、tixforge plugin が有効になっているか（`/plugin`）を確かめるよう案内する。**general-purpose など別の agent で代用しない**。
 2. **再開のとき**：`## Review` の最新ラウンドに、「決定」が書かれていない指摘があれば、新しいラウンドを起こさずに、その指摘の対処を決めるところ（手順 6）から続ける。
-3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または `commands: {}` のときの行）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
+3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または `commands: {}` のときの行）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直し、出力の 1 行目を `## Implementation Log` に書き写す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
 4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。差分・チケット・`## Approach`・`## Plan` と、agent が最初に読む `index.md` が `.git/tixforge/review/<ticket-id>/` に書き出され、`index.md` のパスが出力される。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」（`<ファイル>` は `snapshot.md`）からやり直す。終了コード 4（state.md が無い、または `## Approach` か `## Plan` が空）なら、原因を伝えて止まる（Approach・Plan に戻して書き直すなら `rewind.md` の手順で）。書き出したものをこのセッションで読む必要はない。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し）。ラウンドごとに新しく起動する（前のラウンドの agent を使い回さない）。渡すのは次のものだけにする：
    - 両方に：4 で出力された `index.md` のあるディレクトリのパス、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
