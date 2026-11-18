@@ -8,9 +8,11 @@
 #   PR merged into the default branch        -> tixforge:done, and closed
 #       (an issue closes when it is released: it reaches the default branch)
 #   PR merged into another branch (develop)  -> tixforge:merged, left open
-#   release PR merged into the default branch: every tixforge:merged issue
-#       its commits close (Closes #N in a commit message) -> tixforge:done,
-#       and closed, whatever squash kept in the merge commit
+#   release PR merged into the default branch: every open tixforge:merged
+#       issue its commits close -> tixforge:done, and closed. The commits'
+#       messages and the bodies of the PRs that brought them into develop
+#       are read, so a squash that dropped Closes #N on either merge does
+#       not matter
 #   issue closed as completed while tixforge:merged -> tixforge:done (released;
 #       closed as not planned is a cancel, which tixforge:canceled records)
 # "Linked" means the PR body says Closes / Fixes / Resolves #N (as a word of
@@ -47,6 +49,8 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           ISSUE: ${{ github.event.issue.number }}
           ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
@@ -78,8 +82,8 @@ jobs:
           # linked: the issue numbers a text closes (Closes / Fixes / Resolves
           # #N, each a word of its own), one per line.
           linked() {
-            grep -Eio '(^|[^[:alnum:]])(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' \
-              | grep -Eo '[0-9]+' | sort -u
+            { grep -Eio '(^|[^[:alnum:]_])(close[sd]?|fix(e[sd])?|resolve[sd]?):?[[:space:]]+#[0-9]+' || true; } \
+              | grep -Eo '#[0-9]+' | tr -d '#' | sort -u
           }
           # done_and_close <n> <state> <labels,>
           done_and_close() {
@@ -92,14 +96,22 @@ jobs:
           # An edit of a closed PR (merged or not) does not move its issues.
           if [ "$ACTION" = edited ] && [ "$PR_STATE" != open ]; then exit 0; fi
 
-          # A release: the issues its commits close that wait in
-          # tixforge:merged are released now.
+          # A release: the open issues its commits close that wait in
+          # tixforge:merged are released now. The commits come from compare
+          # (no 250-commit cap); a failed call fails the job (bash -e).
           if [ "$ACTION" = closed ] && [ "$MERGED" = true ] && [ "$BASE_REF" = "$DEFAULT_BRANCH" ]; then
-            released=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER/commits" --paginate --jq '.[].commit.message' | linked)
+            shas=$(gh api "repos/$GH_REPO/compare/$BASE_SHA...$HEAD_SHA" --paginate --jq '.commits[].sha')
+            texts=$(gh api "repos/$GH_REPO/compare/$BASE_SHA...$HEAD_SHA" --paginate --jq '.commits[].commit.message')
+            for sha in $shas; do
+              bodies=$(gh api "repos/$GH_REPO/commits/$sha/pulls" --jq '.[].body // empty')
+              texts=$(printf '%s\n%s' "$texts" "$bodies")
+            done
+            released=$(printf '%s\n' "$texts" | linked)
             for n in $released; do
               info=$(gh issue view "$n" --json state,labels \
                 --jq '.state + " " + ([.labels[].name] | join(","))' 2>/dev/null) || continue
-              case ",${info#* }," in *,tixforge:merged,*) done_and_close "$n" "${info%% *}" "${info#* }" ;; esac
+              [ "${info%% *}" = OPEN ] || continue
+              case ",${info#* }," in *,tixforge:merged,*) done_and_close "$n" OPEN "${info#* }" ;; esac
             done
           fi
 

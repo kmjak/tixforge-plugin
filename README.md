@@ -82,7 +82,7 @@ gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる�
 
 状態ラベル（`tixforge:todo`・`in-progress`・`in-review`・`merged`・`done`・`canceled`）は常に 1 つだけ付く。それぞれの意味は、GitHub のラベルの説明（`project init` がドキュメント言語で作る。すでにあるラベルの説明は変えない）にある。直接編集を知らせる `tixforge:out-of-sync` は、状態とは別に付く。
 
-**issue が閉じる時点**：issue はリリースされたとき（GitHub の default branch に入ったとき）に閉じる。Base が default branch なら、PR のマージで閉じる。develop などの場合は、develop にマージした時点では開いたまま `tixforge:merged` になり、main に入った時点（リリース PR のマージ、または最初の commit の `Closes #N`）で閉じて `tixforge:done` になる。squash の設定に関係なく閉じるには、Actions の `tixforge-issue-sync` を入れる。
+**issue が閉じる時点**：issue はリリースされたとき（GitHub の default branch に入ったとき）に閉じる。Base が default branch なら、PR のマージで閉じる。develop などの場合は、develop にマージした時点では開いたまま `tixforge:merged` になり、main に入った時点で閉じる。Actions の `tixforge-issue-sync` を入れていれば、リリース PR のマージで（squash の設定に関係なく）閉じて `tixforge:done` になる。入れていなければ、最初の commit の `Closes #N` が main に入ったときに GitHub が閉じる（squash でそれが消えると閉じない。ラベルは `tixforge:merged` のまま）。リリース PR の commit 一覧は compare で取るので、件数の上限は無い。
 
 **2 つの「done」**：run の `Status: done` は Base にマージされた（開発者の作業が終わった）こと、issue の `tixforge:done` はリリースされた（世に出た）こと。develop 運用では、この 2 つの時点がずれるのが正しい動き。
 
