@@ -1,4 +1,4 @@
-# tixforge template: tixforge-issue-sync (v5). Installed by /tixforge:project init.
+# tixforge template: tixforge-issue-sync (v6). Installed by /tixforge:project init.
 # Keeps the status label of tixforge issues in step with pull requests, so
 # the issue shows the real state even when nobody runs /tixforge:dev:
 #   PR opened / reopened / ready for review  -> tixforge:in-review
@@ -6,10 +6,11 @@
 #       (not an issue already tixforge:merged: a release PR from develop
 #       links it again, and it is still waiting for the release)
 #   PR merged into the default branch        -> tixforge:done, and closed
-#   PR merged into another branch (develop)  -> repository.close_issues in
-#       .tixforge/config.yml: "release" -> tixforge:merged, left open until
-#       the release closes it (Closes #N in the commit message);
-#       "merge" (default) -> tixforge:done, and closed
+#       (an issue closes when it is released: it reaches the default branch)
+#   PR merged into another branch (develop)  -> tixforge:merged, left open
+#   release PR merged into the default branch: every tixforge:merged issue
+#       its commits close (Closes #N in a commit message) -> tixforge:done,
+#       and closed, whatever squash kept in the merge commit
 #   issue closed as completed while tixforge:merged -> tixforge:done (released;
 #       closed as not planned is a cancel, which tixforge:canceled records)
 # "Linked" means the PR body says Closes / Fixes / Resolves #N (as a word of
@@ -33,11 +34,6 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          sparse-checkout: .tixforge/config.yml
-          sparse-checkout-cone-mode: false
       - name: Update the status labels
         env:
           GH_TOKEN: ${{ github.token }}
@@ -49,6 +45,7 @@ jobs:
           PR_STATE: ${{ github.event.pull_request.state }}
           BODY: ${{ github.event.pull_request.body }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           ISSUE: ${{ github.event.issue.number }}
@@ -78,19 +75,35 @@ jobs:
             exit 0
           fi
 
-          close_on=$(awk '
-            /^[^ \t#]/ { cur = $0; sub(/:.*/, "", cur); next }
-            cur == "repository" && /^[ \t]+close_issues:/ {
-              v = $0; sub(/^[^:]*:[ \t]*/, "", v); sub(/[ \t]+#.*$/, "", v); gsub(/["\047\r]/, "", v); print v; exit
-            }' .tixforge/config.yml 2>/dev/null)
-          [ -n "$close_on" ] || close_on=merge
+          # linked: the issue numbers a text closes (Closes / Fixes / Resolves
+          # #N, each a word of its own), one per line.
+          linked() {
+            grep -Eio '(^|[^[:alnum:]])(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' \
+              | grep -Eo '[0-9]+' | sort -u
+          }
+          # done_and_close <n> <state> <labels,>
+          done_and_close() {
+            set_status "$1" "$3" tixforge:done
+            if [ "$2" = OPEN ]; then
+              gh issue close "$1" --comment "Closed by tixforge-issue-sync: $PR_URL merged"
+            fi
+          }
 
           # An edit of a closed PR (merged or not) does not move its issues.
           if [ "$ACTION" = edited ] && [ "$PR_STATE" != open ]; then exit 0; fi
 
-          issues=$(printf '%s\n' "$BODY" \
-            | grep -Eio '(^|[^[:alnum:]])(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' \
-            | grep -Eo '[0-9]+' | sort -u)
+          # A release: the issues its commits close that wait in
+          # tixforge:merged are released now.
+          if [ "$ACTION" = closed ] && [ "$MERGED" = true ] && [ "$BASE_REF" = "$DEFAULT_BRANCH" ]; then
+            released=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER/commits" --paginate --jq '.[].commit.message' | linked)
+            for n in $released; do
+              info=$(gh issue view "$n" --json state,labels \
+                --jq '.state + " " + ([.labels[].name] | join(","))' 2>/dev/null) || continue
+              case ",${info#* }," in *,tixforge:merged,*) done_and_close "$n" "${info%% *}" "${info#* }" ;; esac
+            done
+          fi
+
+          issues=$(printf '%s\n' "$BODY" | linked)
           [ -n "$issues" ] || { echo "no linked issue"; exit 0; }
           for n in $issues; do
             info=$(gh issue view "$n" --json state,labels \
@@ -99,14 +112,12 @@ jobs:
             case ",$labels," in *,tixforge:*) ;; *) echo "#$n is not a tixforge issue"; continue ;; esac
             if [ "$ACTION" = closed ]; then
               [ "$MERGED" = true ] || continue
-              if [ "$BASE_REF" != "$DEFAULT_BRANCH" ] && [ "$close_on" = release ]; then
+              # Merged into develop: waiting for the release, open.
+              if [ "$BASE_REF" != "$DEFAULT_BRANCH" ]; then
                 set_status "$n" "$labels" tixforge:merged
                 continue
               fi
-              set_status "$n" "$labels" tixforge:done
-              if [ "$state" = OPEN ]; then
-                gh issue close "$n" --comment "Closed by tixforge-issue-sync: $PR_URL merged"
-              fi
+              done_and_close "$n" "$state" "$labels"
             elif [ "$DRAFT" != true ] && [ "$state" = OPEN ]; then
               # Merged into the base, waiting for the release: keep it.
               case ",$labels," in *,tixforge:merged,*) continue ;; esac

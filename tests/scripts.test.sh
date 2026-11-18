@@ -1157,6 +1157,52 @@ has "ci: none" "$(TF_PR_JSON="$tmp/pr.json" bash "$scripts/pr-status.sh" x)" "no
 pr OPEN MERGEABLE "" '[]' "$ok_check"
 has "ci: success" "$(TF_PR_JSON="$tmp/pr.json" bash "$scripts/pr-status.sh" x)" "checks detail"
 
+# --- tixforge-issue-sync.yml ----------------------------------------------
+# The workflow's script, run as Actions runs it (bash -e) against a gh that
+# serves issue states and a PR's commit messages and logs every write.
+section="tixforge-issue-sync.yml"
+wf="$tmp/issue-sync-run.sh"
+awk '/^        run: \|$/ { on = 1; next } on { sub(/^          /, ""); print }' "$here/../templates/github/tixforge-issue-sync.yml" > "$wf"
+wfbin="$tmp/wf-bin"
+mkdir -p "$wfbin"
+cat > "$wfbin/gh" << 'EOF'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "issue view") n=$3; v=$(grep "^$n " "$WF_DIR/issues" | cut -d' ' -f2-); [ -n "$v" ] || exit 1; echo "$v" ;;
+  "api repos/"*) cat "$WF_DIR/commits" ;;
+  "issue edit" | "issue close") echo "$*" >> "$WF_DIR/calls" ;;
+  *) echo "wf gh: unexpected $*" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "$wfbin/gh"
+WF_DIR="$tmp/wf"
+mkdir -p "$WF_DIR"
+# wfrun <base> <body> [action]: a merged PR into <base> (default branch main).
+wfrun() {
+  : > "$WF_DIR/calls"
+  WF_DIR=$WF_DIR PATH="$wfbin:$PATH" EVENT=pull_request ACTION=${3:-closed} MERGED=true DRAFT=false PR_STATE=closed \
+    BODY=$2 PR_URL=https://github.com/o/r/pull/9 PR_NUMBER=9 BASE_REF=$1 DEFAULT_BRANCH=main GH_REPO=o/r \
+    bash -e "$wf" > /dev/null 2>&1
+  cat "$WF_DIR/calls"
+}
+printf '1 OPEN tixforge:in-review\n2 OPEN tixforge:merged\n3 OPEN tixforge:in-review\n4 OPEN bug\n' > "$WF_DIR/issues"
+: > "$WF_DIR/commits"
+out=$(wfrun develop "Closes #1")
+has "issue edit 1 --remove-label tixforge:in-review --add-label tixforge:merged" "$out" "into develop: merged"
+case "$out" in *"issue close"*) ng "into develop: not closed" ;; *) ok ;; esac
+out=$(wfrun main "Closes #1")
+has "--add-label tixforge:done" "$out" "into main: done"
+has "issue close 1" "$out" "into main: closed"
+# A release PR (develop -> main, squashed or not): its commits name the issues.
+printf 'feat: a\n\nCloses #2\nfix: b\n\nFixes #3\nchore: c (hotfix #4)\n' > "$WF_DIR/commits"
+out=$(wfrun main "Release 1.2.0")
+has "issue edit 2 --remove-label tixforge:merged --add-label tixforge:done" "$out" "release: a merged issue is done"
+has "issue close 2" "$out" "release: and closed"
+case "$out" in *"issue edit 3"* | *"issue close 3"* | *" 4 "*) ng "release: only tixforge:merged issues, only linked ones" ;; *) ok ;; esac
+: > "$WF_DIR/commits"
+out=$(wfrun main "Release" edited)
+eq "" "$out" "an edit of a closed PR moves nothing"
+
 # --- panel-data.sh ---------------------------------------------------------
 section="panel-data.sh"
 pd() { bash "$scripts/panel-data.sh" "$@"; }
