@@ -10,7 +10,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 引数：`$ARGUMENTS`
 
-## 現在の状態（起動時に自動で取得）
+## 現在の状態
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/project-status.sh`
 
@@ -18,7 +18,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 | 起動 | 内容 | 手順ファイル |
 |------|------|--------------|
-| `/tixforge:project init` | プロジェクトを初期化する。足りない設定を足すだけで、既にある値は変えない（再実行しても安全） | `${CLAUDE_SKILL_DIR}/init.md` |
+| `/tixforge:project init` | プロジェクトを初期化する。足りない設定を足すだけで、既にある値は変えない | `${CLAUDE_SKILL_DIR}/init.md` |
 | `/tixforge:project update` | 設定の値を変える・v2 の LT を issue に移す・テンプレートと Actions を最新にする | `${CLAUDE_SKILL_DIR}/update.md` |
 | `/tixforge:project` | `.tixforge/config.yml` が無ければ init。「現在の状態」に「移行が要る」があれば update。それ以外は init・update のどちらかを選択肢で尋ねる（単一選択） | — |
 
@@ -28,7 +28,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 | 参照ファイル | 読むとき |
 |--------------|----------|
-| `${CLAUDE_PLUGIN_ROOT}/references/github/<名前>.md` | 手順が指示したファイルだけ（`actions`・`create`） |
+| `${CLAUDE_PLUGIN_ROOT}/references/github/<名前>.md` | 手順が指示したファイルだけ |
 
 以下の置き場所・手順ファイルの読み方・共通規約は、このスキルのすべてに適用する。
 
