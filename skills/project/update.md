@@ -1,7 +1,5 @@
 # /tixforge:project update — 設定とテンプレートの更新
 
-目的：init の後に、既にある設定の値を変える・v2 のローカルのチケット（`LT-`）を issue に移す・プロジェクトにコピーしたテンプレートを最新にする。init は足りない設定を足すだけで既存の値を変えないので、変えるときはこちらを使う。
-
 `.tixforge/config.yml` が無ければ、`/tixforge:project init` を案内して止まる。
 
 1. **何を更新するか**を AskUserQuestion で尋ねる（単一選択。引数で指定されていればそれに従う）。SKILL.md の「現在の状態」に「移行が要る」があれば、引数に関係なく、尋ねずに「v2 の LT を issue に移す」を行う：
@@ -38,7 +36,7 @@ v2 の `LT-` のチケット・`tracker: local`・`repository.host: none` を移
 
 ## テンプレートと Actions を最新にする
 
-plugin を更新しても、プロジェクトにコピーしたファイルは自動では変わらない。plugin 側と比べて、古いものを更新する。
+plugin 側と比べて、古いものを更新する。
 
 | プロジェクトのファイル | plugin 側 | 比べ方 |
 |------------------------|-----------|--------|
@@ -48,5 +46,5 @@ plugin を更新しても、プロジェクトにコピーしたファイルは�
 | `.github/workflows/tixforge-ci.yml` | `<plugin>/templates/github/tixforge-ci.yml` | バージョンだけ。中身はプロジェクトに合わせて埋めたものなので置き換えない。雛形の変更点（差分）を示し、取り込むか尋ねる |
 
 - 違うものを一覧で示し（ファイルごとに差分）、置き換えるものを選んでもらってから書く。同じものは「最新」と伝える。
-- 足りないラベル（新しい版で増えたもの）を作る：init の「チケット管理」と同じく `bash <scripts>/issue-label.sh setup --dry-run` で無いラベルとその説明（何も出なければ全てある）を示して確認を得てから、`bash <scripts>/issue-label.sh setup` を実行する。
+- 足りないラベルを作る：init の「チケット管理」と同じく `bash <scripts>/issue-label.sh setup --dry-run` で無いラベルとその説明（何も出なければ全てある）を示して確認を得てから、`bash <scripts>/issue-label.sh setup` を実行する。
 - プロジェクトに無いファイルは作らない（入れたいなら init の「GitHub Actions」を案内する）。
