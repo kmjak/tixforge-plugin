@@ -402,3 +402,48 @@ $(each_run "$1")
 EOF
   printf '%s' "$early"
 }
+
+# PR_JUDGE_JQ: jq definitions shared by pr-status.sh and panel-data.sh.
+# pr_judge, on a PR from gh's --json (url, state, isDraft, mergeable,
+# reviewDecision, latestReviews, statusCheckRollup), gives {verdict, review,
+# ci, failing, requesters, approvers, commenters}; pr-status.sh documents the
+# verdicts.
+# shellcheck disable=SC2034 # used by the scripts that source this file
+PR_JUDGE_JQ='
+    def check_result:
+      if .__typename == "CheckRun" then
+        if .status != "COMPLETED" then "pending"
+        elif (.conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or .conclusion == "CANCELLED"
+              or .conclusion == "ACTION_REQUIRED" or .conclusion == "STARTUP_FAILURE") then "failure"
+        else "success" end
+      else
+        if (.state == "PENDING" or .state == "EXPECTED") then "pending"
+        elif (.state == "FAILURE" or .state == "ERROR") then "failure"
+        else "success" end
+      end;
+    def check_name: .name // .context;
+    def pr_judge:
+      [.statusCheckRollup[]? | {name: check_name, result: check_result}] as $checks
+      | ([$checks[] | select(.result == "failure") | .name]) as $failing
+      | (if ($failing | length) > 0 then "failure"
+         elif ([$checks[] | select(.result == "pending")] | length) > 0 then "pending"
+         elif ($checks | length) == 0 then "none"
+         else "success" end) as $ci
+      | ([.latestReviews[]? | select(.state == "CHANGES_REQUESTED") | .author.login]) as $requesters
+      | ([.latestReviews[]? | select(.state == "APPROVED") | .author.login]) as $approvers
+      | ([.latestReviews[]? | select(.state == "COMMENTED") | .author.login]) as $commenters
+      | (if .reviewDecision == "CHANGES_REQUESTED" or ($requesters | length) > 0 then "changes_requested"
+         elif .reviewDecision == "APPROVED" or ((.reviewDecision == null or .reviewDecision == "") and ($approvers | length) > 0) then "approved"
+         else "pending" end) as $review
+      | (if .state == "MERGED" then "merged"
+         elif .state == "CLOSED" then "closed"
+         elif .mergeable == "CONFLICTING" then "conflict"
+         elif $ci == "failure" then "ci_failing"
+         elif $review == "changes_requested" then "changes_requested"
+         elif .isDraft == true then "pending"
+         elif $review == "approved" and ($ci == "success" or $ci == "none") and .mergeable == "MERGEABLE" then "approved"
+         elif ($ci == "success" or $ci == "none") and .mergeable == "MERGEABLE" then "ready"
+         else "pending" end) as $verdict
+      | {verdict: $verdict, review: $review, ci: $ci, failing: $failing,
+         requesters: $requesters, approvers: $approvers, commenters: $commenters};
+'

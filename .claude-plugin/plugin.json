@@ -6,5 +6,6 @@
     "name": "kmjak"
   },
   "repository": "https://github.com/kmjak/tixforge",
-  "license": "MIT"
+  "license": "MIT",
+  "types": "./types/index.d.ts"
 }

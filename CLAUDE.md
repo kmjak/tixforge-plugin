@@ -8,7 +8,7 @@ Claude Code の plugin。利用者向けの説明は README にある。
 brew install shellcheck shfmt actionlint zizmor editorconfig-checker jq   # 初回だけ
 git config blame.ignoreRevsFile .git-blame-ignore-revs   # 初回だけ。整形だけの commit を blame から外す
 claude --plugin-dir .                     # 作業ツリーをそのまま読み込む
-make check                                # PR の前に。lint・4 つのテスト・macOS の bash 3.2 でのテスト・claude plugin validate
+make check                                # PR の前に。lint・4 つのテスト・macOS の bash 3.2 でのテスト・claude plugin validate と test（mod）
 make fmt                                  # shfmt で整形（設定は .editorconfig）
 ```
 
@@ -42,6 +42,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
   | 1 つのスキルの手続き | そのスキルの手順ファイル |
 
 - 手順ファイルが別の手順ファイルを参照するのは、手続きを任せるときだけにし、呼ぶ側と呼ばれる側を書く。一部の手順だけを使うなら、その手順の番号を書く（例：`references/ticket-changed.md` が `rewind.md` の手順 2・3・5・7 を使う）。番号で参照されている手順の番号を変えたら、参照している側も直す（`grep -rn '<ファイル名>' skills references` で探す。テストでは守っていない）。2 つのスキルから呼ばれる手続きは `references/` に置く。他のスキルの手順ファイルを丸ごと読ませると、要らない手順が文脈に混ざるため。
+- パネル（`hooks/panel.tsx` の mod）のデータは `scripts/panel-data.sh` で作り、mod は描画とボタンだけにする。mod は CI で確かめられない（`claude plugin test` は claude CLI のある手元の `make check` だけで回る）ため。
 - state.md の形を変えたら、`run-state.sh` の `STATE_FORMAT` を上げ、`migrate` に前の形式から移す段を足す。plugin を更新しても、利用者の手元の state.md は書き換わらないため。
 
 ### テストで守るもの

@@ -101,6 +101,7 @@ plugin を有効にしていれば、スキルを起動していないセッシ�
 | hook | イベント | 内容 |
 |------|----------|------|
 | `scripts/guard.sh` | PreToolUse（`Bash\|Edit\|Write\|MultiEdit\|NotebookEdit` と、名前に git を含む MCP） | push・PR 作成・許可リスト外の git / gh 操作に確認画面を出し、force push・hook を飛ばす操作・`Closes` の無い PR をブロックする。Plan の承認前の run があるときのコード編集と、Implement 中の lint などの設定の編集にも確認画面を出す |
+| `hooks/panel.tsx`（mod） | `/tixforge-panel` | 自分の PR とチケットを右側のパネルに出す。データは `scripts/panel-data.sh` が作り、mod は描画とボタンだけ |
 | `scripts/session-start.sh` | SessionStart（`compact\|resume`） | 会話の要約・再開の後、進行中の run と、読み直す手順ファイルを Claude に伝える |
 
 `guard.sh` の判定：
@@ -145,6 +146,15 @@ statusline を使っていなければ、`~/.claude/settings.json` に足す：
 input=$(cat)
 tf=$(printf '%s' "$input" | bash ~/.claude/plugins/marketplaces/tixforge/scripts/statusline.sh)
 ```
+
+## パネル（`/tixforge-panel`）
+
+`/tixforge-panel` で、自分の open の PR（`pr-status.sh` と同じ判定）と、tixforge の状態ラベルが付いた open のチケット（自分の担当 → 未割り当て → 他の人の順、`●` が自分の担当）を右側のパネルに出す。もう一度打つと閉じる。
+
+- チケットを押すと詳細を取り直して出し、`tixforge:todo` で未割り当てか自分の担当なら **開始** で `/tixforge:dev <id>` を送る（作業中なら、手が空いてから始まる）。
+- 開いている間は 3 分ごとに取り直す。**更新** ですぐ取り直す。閉じている間は取らない。区画の開閉は次のセッションにも残る。
+- Claude Code の mod（plugin の `hooks/panel.tsx`）で出す。mod が使えない環境（`claude -p` など）や、端末が狭いとき（110 列未満）は横に並ばない。
+- コマンド名に `:` を使えないので、`/tixforge:panel` ではなく `/tixforge-panel`。
 
 ## 困ったとき
 

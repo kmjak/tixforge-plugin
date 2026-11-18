@@ -32,5 +32,5 @@ test-bash32:
 	else echo "test-bash32: not macOS, skipped (CI runs it on macos-latest)"; fi
 
 validate:
-	@if command -v claude > /dev/null; then claude plugin validate .; \
+	@if command -v claude > /dev/null; then claude plugin validate . && claude plugin test .; \
 	else echo "validate: claude not found, skipped"; fi

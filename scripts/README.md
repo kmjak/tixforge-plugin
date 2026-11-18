@@ -18,6 +18,7 @@ tixforge のスクリプトの一覧（人向け。Claude は読まない）。�
 | `github-preflight.sh` | gh が使えるか（インストール・ログイン・リポジトリ）を確かめる | GitHub を使う手順 | なし |
 | `issue-sync.sh` | issue の作成・状態の判定と、手元のコピー（`snapshot.md`・`editing.md`）との同期 | ticket・dev の手順・project の update | `.tixforge/<id>/`・GitHub issue |
 | `issue-label.sh` | issue の状態ラベルと担当者を変える・ラベルを作る | ticket・dev の手順・project の init と update | GitHub issue |
+| `panel-data.sh` | `/tixforge-panel` のパネルに出す PR・チケット・チケットの詳細を出す | `hooks/panel.tsx`（mod） | なし（GitHub は読むだけ） |
 | `ticket-hash.sh` | issue の本文のハッシュを計算する（Actions と共通） | `issue-sync.sh`・Actions | なし |
 | `lib.sh` | 共通の関数（設定・state.md の読み取り、run の一覧など） | 多くのスクリプト | `.tixforge/.gitignore`（無いときに作る） |
 

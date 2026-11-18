@@ -733,6 +733,8 @@ done
 set -- "${args[@]}"
 case "$1 $2" in
   "issue view") jq -r "$jqf" "$GH_DIR/issue-$3.json" ;;
+  "pr list") jq -r "$jqf" "$GH_DIR/prs.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
+  "issue list") jq -r "$jqf" "$GH_DIR/issues.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
   "api user") echo me ;;
   "api repos/"*)   # .../issues/<n>: an issue, or a PR when the fixture has pull_request; .../issues/<n>/events
     case $2 in
@@ -1152,6 +1154,70 @@ pr OPEN MERGEABLE "" '[]' '[]'
 has "ci: none" "$(TF_PR_JSON="$tmp/pr.json" bash "$scripts/pr-status.sh" x)" "no checks detail"
 pr OPEN MERGEABLE "" '[]' "$ok_check"
 has "ci: success" "$(TF_PR_JSON="$tmp/pr.json" bash "$scripts/pr-status.sh" x)" "checks detail"
+
+# --- panel-data.sh ---------------------------------------------------------
+section="panel-data.sh"
+pd() { bash "$scripts/panel-data.sh" "$@"; }
+out=$(cd "$tmp" && bash "$scripts/panel-data.sh" list)
+eq 3 $? "outside a tixforge repository: exit 3"
+eq "$(printf 'error\tnot-tixforge')" "$out" "outside a tixforge repository: says so"
+# Two PRs (one in conflict, one draft with checks running) and tickets in
+# every order the panel sorts: mine, unassigned, others; a closed-state
+# label and a plain issue are left out.
+jq -n --argjson c "$run_check" '[
+  {number: 7, title: "Fix\tit", url: "https://github.com/o/r/pull/7", state: "OPEN", isDraft: false, mergeable: "CONFLICTING", reviewDecision: "", latestReviews: [], statusCheckRollup: []},
+  {number: 8, title: "Wip", url: "https://github.com/o/r/pull/8", state: "OPEN", isDraft: true, mergeable: "MERGEABLE", reviewDecision: "", latestReviews: [], statusCheckRollup: $c}
+]' > "$GH_DIR/prs.json"
+jq -n '[
+  {number: 5, title: "Others", labels: [{name: "tixforge:in-progress"}], assignees: [{login: "ann"}, {login: "bob"}]},
+  {number: 3, title: "Free", labels: [{name: "bug"}, {name: "tixforge:todo"}], assignees: []},
+  {number: 9, title: "Mine", labels: [{name: "tixforge:in-review"}], assignees: [{login: "me"}]},
+  {number: 1, title: "Done", labels: [{name: "tixforge:done"}], assignees: []},
+  {number: 2, title: "Plain", labels: [], assignees: []}
+]' > "$GH_DIR/issues.json"
+out=$(pd list)
+eq 0 $? "list: exit 0"
+eq "$(printf 'me\tme
+lang\tja
+pr\t7\tconflict\t-\thttps://github.com/o/r/pull/7\tFix it
+pr\t8\tpending\tdraft\thttps://github.com/o/r/pull/8\tWip
+ticket\tGT-000009\tin-review\tme\tmine\tMine
+ticket\tGT-000003\ttodo\t-\t-\tFree
+ticket\tGT-000005\tin-progress\tann +1\t-\tOthers')" "$out" "list: PRs with pr-status's verdict, tickets mine / unassigned / others"
+jq -n '[range(1; 33) | {number: ., title: "t", labels: [{name: "tixforge:todo"}], assignees: []}]' > "$GH_DIR/issues.json"
+out=$(pd list)
+eq 30 "$(printf '%s\n' "$out" | grep -c '^ticket')" "list: at most 30 tickets"
+has "$(printf 'more\t2')" "$out" "list: says how many more"
+eq "$(printf 'ticket\tGT-1234567\ttodo\t-\t-\tbig')" "$(
+  jq -n '[{number: 1234567, title: "big", labels: [{name: "tixforge:todo"}], assignees: []}]' > "$GH_DIR/issues.json"
+  pd list | grep '^ticket'
+)" "list: a number past six digits is not cut"
+rm -f "$GH_DIR/prs.json" "$GH_DIR/issues.json"
+eq "$(printf 'me\tme\nlang\tja')" "$(pd list)" "list: nothing open"
+# issue: the header, whether it can be started, and the ticket's body.
+printf '## 背景\n本文\n' > "$tmp/pd-ticket.md"
+issue 21 "Detail" "$tmp/pd-ticket.md" OPEN "" '[{"name":"tixforge:todo"}]'
+body=$(bash "$scripts/issue-sync.sh" body "$tmp/pd-ticket.md" 2> /dev/null) || body=""
+[ -n "$body" ] && jq --arg b "$body" '.body = $b | .number = 21' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
+out=$(pd issue 21)
+eq "$(printf 'issue\tGT-000021\ttodo\t-\tyes\tDetail')" "$(printf '%s\n' "$out" | sed -n 1p)" "issue: an unassigned todo can be started"
+has "本文" "$out" "issue: the ticket's body"
+case "$out" in *"tixforge:"*"-->"*) ng "issue: the markers are left out" ;; *) ok ;; esac
+jq '.assignees = [{login: "ann"}]' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
+has "$(printf '\tann\tassigned\t')" "$(pd issue GT-000021 | sed -n 1p)" "issue: someone else's todo"
+jq '.assignees = [{login: "me"}, {login: "ann"}]' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
+has "$(printf '\tme,ann\tyes\t')" "$(pd issue 21 | sed -n 1p)" "issue: a todo of mine"
+jq '.labels = [{name: "tixforge:in-progress"}]' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
+has "$(printf '\tin-progress\tme,ann\tstarted\t')" "$(pd issue 21 | sed -n 1p)" "issue: started already"
+printf 'no markers\n' > "$tmp/pd-plain.md"
+issue 22 "Plain" "$tmp/pd-plain.md"
+jq '.number = 22' "$GH_DIR/issue-22.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-22.json"
+out=$(pd issue 22)
+has "$(printf 'issue\tGT-000022\t-\t-\tstarted\tPlain')" "$out" "issue: no state label"
+has "no markers" "$out" "issue: the whole body when tixforge did not write it"
+out=$(PATH="$tmp/nogh:/usr/bin:/bin" bash "$scripts/panel-data.sh" list)
+eq 4 $? "no gh: exit 4"
+has "$(printf 'error\tgh\t')" "$out" "no gh: says so"
 
 # --- v2 data ---------------------------------------------------------------
 # What v2 left in users' repositories: the plugin update does not rewrite it.
