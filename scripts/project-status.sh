@@ -46,6 +46,13 @@ if [ -f "$conf" ]; then
     "close_issues=$(cfg repository.close_issues "$conf")" \
     "review.required=$(cfg review.required "$conf")" \
     "gates=${gates:-（未設定）}"
+  # What this person uses: config.local.yml's language and gates win.
+  lf=$(ucfg_file language "$top")
+  gf=$(ucfg_file gates "$top")
+  ugates=$(cfg_list gates "$gf" | paste -sd, -)
+  [ -z "$ugates" ] && cfg_has gates "$gf" && ugates="[]（pr のみ）"
+  echo "- この人が使う値: language=$(user_lang "$top")（${lf##*/}）" \
+    "gates=${ugates:-（未設定）}（${gf##*/}）"
 else
   echo "- .tixforge/config.yml が無い（/tixforge:project init が未実行）"
 fi

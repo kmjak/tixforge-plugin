@@ -8,7 +8,7 @@
 - `<scripts>` — `<plugin>/scripts`。スクリプトは `bash <scripts>/<名前>.sh …` で実行する
 - `references/<名前>.md` — `<plugin>/references/<名前>.md`
 
-**会話の言語**：ユーザーへの質問・説明・選択肢（AskUserQuestion の文言を含む）は、`.tixforge/config.yml` の `language` で書く。設定が無いとき（init で言語を決める前を含む）は日本語。ユーザーが明らかに別の言語の文章で書いてきたときだけ、その言語に合わせる。スラッシュコマンドや選択肢の回答だけでは言語を判断しない（英語に切り替えない）。
+**会話の言語**：ユーザーへの質問・説明・選択肢（AskUserQuestion の文言を含む）は、個人の言語（「現在の状態」の「この人が使う値」の `language`。`.tixforge/config.local.yml` に無ければ `config.yml` の値）で書く。設定が無いとき（init で言語を決める前を含む）は日本語。ユーザーが明らかに別の言語の文章で書いてきたときだけ、その言語に合わせる。スラッシュコマンドや選択肢の回答だけでは言語を判断しない（英語に切り替えない）。
 
 **会話が要約された後**は、続ける前に、今の手順ファイルと（dev なら）`.tixforge/<ticket-id>/state.md` を Read し直す。要約には手順の細部が残らないため。
 
@@ -57,7 +57,10 @@
 
 - プロジェクトの `.gitignore` は触らない（`.tixforge/` の中は `.tixforge/.gitignore` が git から外す）。
 - PR 本文に書くのは、合意した方針の**結論と理由**（2〜3 行）だけにする。チケットや検討の過程にレビュアーが引っ張られず、実装そのものを見たレビューにするため。
-- **ドキュメント言語**：チケット・`docs/context/**`・run の状態（`state.md`）の本文、および PR のタイトル・本文は `.tixforge/config.yml` の `language` で書く。既定は日本語（`ja`）。設定ファイルが無ければ日本語とする。チケットと context は見出しもこの言語にする（`state.md` の見出しは英語の固定キー）。
+- **言語**：チームで共有するものはドキュメント言語、本人だけが読むものは個人の言語で書く。どちらも無ければ日本語。
+  - **ドキュメント言語**（`.tixforge/config.yml` の `language`）：チケット・`docs/context/**`・PR のタイトルと本文・issue のコメント（判断の記録・閉じるときのコメント）・GitHub に出る決まった文言。チケットと context は見出しもこの言語にする。
+  - **個人の言語**（「この人が使う値」の `language`）：会話（質問・説明・ゲートでの要約）・run の状態（`state.md`）の本文・Review の reviewer の報告。`state.md` の見出し・ヘッダ表のキー・`Verification @` は英語の固定キーのまま。
+  - `state.md` の内容を GitHub に出すとき（PR 本文の方針・受け入れ条件、判断の記録）は、そのまま貼らずにドキュメント言語で書き直す。
 - **設定**（`.tixforge/config.yml`）のキー・値・無いときの扱い・書き方は `references/config.md` にある。キーの意味をユーザーに説明するとき、設定を書く・直すとき、キーが無いときに Read する。キーが無いときの既定：`gates` は `[approach, plan, pr]`、`review.required` は `true`、`close_issues` は `merge`、`language` は日本語。
 - 上記パスは固定規約。`init` はこの規約どおりの雛形を作るだけで、パスの選択はしない。
 - どのサブコマンドでも、既存ファイルを黙って上書きしない（`snapshot.md`・`editing.md` は issue から作り直すものなので例外。作り直すときは差分を示す）。

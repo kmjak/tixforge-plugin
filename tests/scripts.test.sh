@@ -123,6 +123,26 @@ cfg_has commands && ok || ng "cfg_has commands"
 cfg_has nothing && ng "cfg_has nothing" || ok
 
 # --- ticket-id.sh ----------------------------------------------------------
+
+# ucfg / user_lang: config.local.yml's language and gates win; other keys
+# are always the team's.
+mkdir -p "$tmp/uc/.tixforge"
+printf 'language: ja\ngates: [approach, plan, pr]\nreview:\n  required: true\n' > "$tmp/uc/.tixforge/config.yml"
+eq ja "$(user_lang "$tmp/uc")" "user_lang: config.yml when there is no local file"
+eq "$tmp/uc/.tixforge/config.yml" "$(ucfg_file gates "$tmp/uc")" "ucfg_file: config.yml without a local file"
+printf 'language: en\nreview:\n  required: false\n' > "$tmp/uc/.tixforge/config.local.yml"
+eq en "$(user_lang "$tmp/uc")" "user_lang: the local file wins"
+eq "$tmp/uc/.tixforge/config.local.yml" "$(ucfg_file language "$tmp/uc")" "ucfg_file: language from the local file"
+eq "$tmp/uc/.tixforge/config.yml" "$(ucfg_file gates "$tmp/uc")" "ucfg_file: gates from config.yml when the local file has none"
+eq "$tmp/uc/.tixforge/config.yml" "$(ucfg_file review "$tmp/uc")" "ucfg_file: only language and gates are personal"
+printf 'gates: [plan]\n' >> "$tmp/uc/.tixforge/config.local.yml"
+eq "plan" "$(cfg_list gates "$(ucfg_file gates "$tmp/uc")")" "ucfg_file: gates from the local file"
+rm -f "$tmp/uc/.tixforge/config.yml"
+eq en "$(user_lang "$tmp/uc")" "user_lang: the local file alone"
+rm -f "$tmp/uc/.tixforge/config.local.yml"
+eq ja "$(user_lang "$tmp/uc")" "user_lang: ja with neither file"
+# msg: a language given as the second argument wins over config.yml's.
+has "This issue body is synced" "$(msg issue_notice en)" "msg <key> en"
 section="ticket-id.sh"
 tid() { bash "$scripts/ticket-id.sh" "$@"; }
 eq GT-000123 "$(tid normalize 123)" "a bare number is issue N"
@@ -359,6 +379,10 @@ has "gates=[]（pr のみ）" "$(bash "$scripts/project-status.sh")" "explicit e
 grep -v '^gates:' "$tmp/keep-gates.yml" > .tixforge/config.yml
 has "gates=（未設定）" "$(bash "$scripts/project-status.sh")" "missing gates"
 cp "$tmp/keep-gates.yml" .tixforge/config.yml
+has "この人が使う値: language=ja（config.yml） gates=approach,plan,pr（config.yml）" "$(bash "$scripts/project-status.sh")" "personal values from config.yml"
+printf 'language: en\ngates: []\n' > .tixforge/config.local.yml
+has "この人が使う値: language=en（config.local.yml） gates=[]（pr のみ）（config.local.yml）" "$(bash "$scripts/project-status.sh")" "personal values from config.local.yml"
+rm -f .tixforge/config.local.yml
 # What v2 left: local tickets, tracker: local, host: none.
 case "$(bash "$scripts/project-status.sh")" in *移行が要る*) ng "nothing to migrate" ;; *) ok ;; esac
 mkdir -p .tixforge/LT-000003

@@ -24,7 +24,7 @@
 
 1. `Status: pr:in-progress` にする。「PR の存在確認」で PR が無いことを確かめる。
    - 開いている PR があれば（PR を出した後に Implement 以前へ戻した run など）、新しく作らない：その URL を `## PR` に書き、push していない commit（`git fetch origin <ブランチ>` の後、`git log --oneline origin/<ブランチ>..<ブランチ>`）を示して確認を得てから push し、`Status: pr:awaiting-review` にして「PR の状況確認」へ進む。
-2. 取り返しのつかない操作の前に、次を提示する：**ブランチ**・**向き先ブランチ**（ヘッダ表の `Base`）・**PR タイトル**・**PR 本文の下書き**（タイトルと本文はドキュメント言語）。
+2. 取り返しのつかない操作の前に、次を提示する：**ブランチ**・**向き先ブランチ**（ヘッダ表の `Base`）・**PR タイトル**・**PR 本文の下書き**（タイトルと本文はドキュメント言語。`state.md` から写す内容も、ドキュメント言語で書き直す）。
    - **本文**：`bash <scripts>/pr-template.sh` が `path: <パス>` を出したら、その既定の PR テンプレートの見出しに沿って埋める。`path: none` なら `<plugin>/templates/github/pull_request_template.md` の見出しで書く（見出しはドキュメント言語に訳し、テンプレートのコメントは書かない。受け入れ条件には、対応表の確かめ方と結果を書く）。
    - **方針**は、Approach で合意した**結論と理由を 2〜3 行**だけ書く。
    - 本文に、「PR と紐づける」の紐付けを必ず入れる。
@@ -51,4 +51,4 @@
 - `pending`（draft・未レビュー・CI 実行中など）→ その旨と詳細を伝え、`pr:awaiting-review` のまま停止する（`pr:ready-to-merge` から戻ったなら `pr:awaiting-review` にする）。`commented_by` がある（コメントだけのレビュー）場合は内容を示し、対応するかユーザーに尋ねる。
 - `closed`（マージされずにクローズ）→ 報告し、どうするか尋ねる。勝手に `done` にしない。
 
-`conflict`・`ci_failing`・`changes_requested` への対応はブランチに commit し、`## Implementation Log` に「PR 対応：<判定>」（ドキュメント言語）として記録する。push の前に**検証**（`run.md`「検証」）を行い、変更内容と検証結果を提示して**停止し、確認を得てから push する**。push したら `Status: pr:awaiting-review` に戻して停止する。対応が方針や計画の変更を伴う大きさなら、その場で直さずに停止し、`rewind.md` を Read し、その手順で戻るかユーザーに尋ねる（PR を出した後に戻ると、追加の commit は既存の PR に入り、設定によっては Approve が外れる）。
+`conflict`・`ci_failing`・`changes_requested` への対応はブランチに commit し、`## Implementation Log` に「PR 対応：<判定>」（個人の言語）として記録する。push の前に**検証**（`run.md`「検証」）を行い、変更内容と検証結果を提示して**停止し、確認を得てから push する**。push したら `Status: pr:awaiting-review` に戻して停止する。対応が方針や計画の変更を伴う大きさなら、その場で直さずに停止し、`rewind.md` を Read し、その手順で戻るかユーザーに尋ねる（PR を出した後に戻ると、追加の commit は既存の PR に入り、設定によっては Approve が外れる）。

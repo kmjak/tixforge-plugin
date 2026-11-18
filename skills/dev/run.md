@@ -4,7 +4,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 ## 起動と再開
 
-`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。この run の間、`state.md` のセクション本文と、状態ファイルに書く固定の文言（「ゲート自動通過」「手動確認」「Round」の見出しなど。スクリプトが読むキー `Verification @` は除く）はこの言語で書く。指定された id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
+`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。この run の間、`state.md` のセクション本文と、状態ファイルに書く固定の文言（「ゲート自動通過」「手動確認」「Round」の見出しなど。スクリプトが読むキー `Verification @` は除く）は個人の言語（共通規約）で書く。指定された id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
 
 **状態ファイルの形式**（最初に行う）：`.tixforge/<ticket-id>/state.md` があれば `bash <scripts>/run-state.sh migrate --check <ticket-id>` を実行する。何か出たら、変わる内容を示し、AskUserQuestion で次から選ばせる。今の形式でない state.md のまま先に進めない。
 
@@ -40,7 +40,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 このファイルを run の単一の真実とする。
 
 - **ヘッダ表**（`Status`・`Branch`・`Base`・`Updated`・`Format`）は `run-state.sh` だけで書き換える（`bash <scripts>/run-state.sh set <ticket-id> <Status|Branch|Base> <値>`）。表を手で編集しない。
-- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## Review`・`## PR`）は各フェーズが Edit で書く。本文はドキュメント言語、見出しは英語の固定キーのまま変えない。
+- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## Review`・`## PR`）は各フェーズが Edit で書く。本文は個人の言語、見出しは英語の固定キーのまま変えない。
 - フェーズのセクションを書いたら、**続けて** `Status` を更新する（セクション → Status の順）。
 - 承認を受けて（またはゲートを自動で通過して）次のフェーズへ進むときは、作業を始める前に `Status` を `<次のphase>:in-progress` にする。
 - 前のフェーズに戻ったときの古い内容は `history/` にある（`rewind.md`）。参考として読んでよいが、承認済みの内容として扱わない。
@@ -55,10 +55,10 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 ## 承認ゲート
 
-各フェーズの終わりがゲート。止まるかどうかは `.tixforge/config.yml` の `gates` と、下の「止まる条件」で決まる。
+各フェーズの終わりがゲート。止まるかどうかは `gates`（「現在の状態」の「この人が使う値」。`.tixforge/config.local.yml` に無ければ `config.yml` の値）と、下の「止まる条件」で決まる。
 
 - **`gates` にあるフェーズ**：必ず止まる。セクションを書く → `Status` を `<phase>:awaiting-approval` にする → ユーザーに短い要約を出す → **止まる**。ユーザーの「続けて」等で次へ進む。
-- **`gates` に無いフェーズ**：止まる条件が無ければ**自動で通過**する。セクションの末尾に「ゲート自動通過（gates に無く、止まる条件なし）」の 1 行（ドキュメント言語）を引用で書き、`Status` を `<次のphase>:in-progress` にし、ユーザーに一行で伝えて続ける（要約は次に止まるゲートでまとめて出す）。止まる条件があれば、`gates` にあるときと同じく止まる。
+- **`gates` に無いフェーズ**：止まる条件が無ければ**自動で通過**する。セクションの末尾に「ゲート自動通過（gates に無く、止まる条件なし）」の 1 行（個人の言語）を引用で書き、`Status` を `<次のphase>:in-progress` にし、ユーザーに一行で伝えて続ける（要約は次に止まるゲートでまとめて出す）。止まる条件があれば、`gates` にあるときと同じく止まる。
 - **`pr` は `gates` に関係なく必ず止まる**。
 
 | フェーズ | `gates` に無いときも止まる条件 |
@@ -131,7 +131,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 4. 承認された計画どおりに進められないと分かったら（ある commit を大きく変える必要がある、方針が誤っていた等）、停止して提起する。これは小さな確認ではなく本当の判断事項。戻るなら `rewind.md` を Read し、その手順で戻す。
 5. 計画した commit を全て終えたら、**検証**・**手動確認**・**context の確認**（下記）を行う。通ったら `## Implementation Log` を更新し、ゲート（`implement`）へ。要約には検証結果・手動確認の結果を含める。
 
-**Review からの差し戻しで戻ってきた場合**（Review で「修正」と決まった指摘がある）：直すのは `## Review` の最新ラウンドで「修正」とされた項目だけにする。それ以外に手を広げない。修正の commit は `## Implementation Log` に「Review Round N の修正」（ドキュメント言語）として記録する。修正後に検証（と、影響する手動確認）を行う。ユーザーにしてもらう手動確認が残っていれば、ここで止まる（止まる条件）。無ければ Implement のゲートは挟まずに `Status: review:in-progress` にして Review へ戻る。
+**Review からの差し戻しで戻ってきた場合**（Review で「修正」と決まった指摘がある）：直すのは `## Review` の最新ラウンドで「修正」とされた項目だけにする。それ以外に手を広げない。修正の commit は `## Implementation Log` に「Review Round N の修正」（個人の言語）として記録する。修正後に検証（と、影響する手動確認）を行う。ユーザーにしてもらう手動確認が残っていれば、ここで止まる（止まる条件）。無ければ Implement のゲートは挟まずに `Status: review:in-progress` にして Review へ戻る。
 
 ### 検証
 
@@ -153,7 +153,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 - `Claude（…）`：その手段で確かめる。その手段がこのセッションで使えなくなっていたときだけ、「自分で確認する」「今回は確認しない（理由を記録）」を尋ねる。
 - `ユーザー`：確認の手順（起動方法・操作・期待する結果）を示して、ユーザーに確かめてもらう。ユーザーの確認が残っている間は、Implement のゲートで止まる。
-- 結果を `## Implementation Log` に記録する（ドキュメント言語）：例 `手動確認 @ <短い commit hash>: #2 ok（Claude：スクリーンショットで確認）`・`#3 ok（ユーザー）`・`#4 未確認（理由：…）`。
+- 結果を `## Implementation Log` に記録する（個人の言語）：例 `手動確認 @ <短い commit hash>: #2 ok（Claude：スクリーンショットで確認）`・`#3 ok（ユーザー）`・`#4 未確認（理由：…）`。
 - 手動確認で問題が見つかったら、検証の失敗と同じく直してから、検証からやり直す。
 
 ### context の確認
@@ -169,7 +169,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または「検証コマンドなし」）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
 4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。出力されるパス（`.git/tixforge/review/<ticket-id>/`。最後の行がチケットの `ticket.md`）を使う。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」（`<ファイル>` は `snapshot.md`）からやり直す。差分の中身をこのセッションで読む必要はない。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し）。ラウンドごとに新しく起動する（前のラウンドの agent を使い回さない）。渡すのは次のものだけにする：
-   - 両方に：4 のファイルのうち `ticket.md` 以外のパス（`delta.patch` を含む）、検証の行、ドキュメント言語、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
+   - 両方に：4 のファイルのうち `ticket.md` 以外のパス（`delta.patch` を含む）、検証の行、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
    - `tixforge:reviewer` にだけ：4 で書き出したチケットのパス（`ticket.md`）、`## Approach` と `## Plan` の本文（そのまま貼る。未決事項の解決の表と対応表を含む）、手動確認の行
 
    **`## Research`・`## Implementation Log` の判断・実装中の経緯は渡さない**（実装者の意図に引きずられず、合意と成果物だけで判定させるため）。`.tixforge/` 配下のパスは渡さない。
@@ -189,7 +189,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
    - 「修正」がある（見直しは無い） → `Status: implement:in-progress` にして Implement へ（「Review からの差し戻し」）。修正後に Review へ戻り、次のラウンドを行う。
    - 指摘なし、または全て「受け入れ」 → ゲート（`review`）へ。`gates` に `review` が無ければ自動で通過して `Status: pr:in-progress` にし、`pr.md` へ。`gates` にあれば `Status: review:awaiting-approval` にして要約を出し、停止。
 
-`## Review` のラウンドの書き方（見出しと本文はドキュメント言語。reviewer の報告をそのまま貼り、`推奨`・`決定` の行だけをこのセッションが足す。日本語の例）：
+`## Review` のラウンドの書き方（見出しと本文は個人の言語。reviewer の報告をそのまま貼り、`推奨`・`決定` の行だけをこのセッションが足す。日本語の例）：
 
 ```markdown
 ### Round 1
@@ -218,7 +218,7 @@ Verification @ a1b2c3d: test pass, lint pass
 
 ### ゲートでの示し方
 
-`## Review` を開かなくても判断できるように、手順 7 で尋ねる前に、最新ラウンドの指摘をチャットに示す（ドキュメント言語）。
+`## Review` を開かなくても判断できるように、手順 7 で尋ねる前に、最新ラウンドの指摘をチャットに示す（個人の言語）。
 
 - R と Q をまとめて、重大度の高い順に並べる（同じ重大度なら確度の高い順）。
 - 次のどれかに当たる指摘は**詳しく**示す：
