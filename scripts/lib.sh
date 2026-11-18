@@ -225,6 +225,15 @@ cfg_list() {
 # heading_index(line) for awk programs: 1..6 for a section heading, else 0.
 # Call it on every line, in order (it tracks the fences).
 STATE_SECTIONS="Research|Approach|Plan|Implementation Log|Review|PR"
+# section_index <name>: the 1-based place of a section in STATE_SECTIONS.
+section_index() {
+  local IFS='|' n=0 s
+  for s in $STATE_SECTIONS; do
+    n=$((n + 1))
+    [ "$s" = "$1" ] && echo $n && return
+  done
+  return 1
+}
 _section_awk='
 function heading_index(line,   m, name, i, n, s) {
   if (!_sec_n) { _sec_n = split("'"$STATE_SECTIONS"'", s, "|"); for (i = 1; i <= _sec_n; i++) _sec_idx[s[i]] = i }

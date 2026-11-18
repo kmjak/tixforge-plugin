@@ -36,7 +36,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
   |---|---|
   | 結果が 1 つに決まる事実・判定、検査にも使う値（Status の一覧など） | `scripts/`（手順ファイルは出力を使う） |
   | プロジェクトにコピーするファイル（workflow・issue フォーム・PR テンプレート・Actions の文言） | `templates/github/` |
-  | スクリプトが state.md に書く決まった文言（コピーしない） | `scripts/messages.yml` |
+  | state.md に書く決まった文言（コピーしない） | `scripts/messages.yml` |
   | Claude が読んで埋める雛形 | `templates/docs/` |
   | 複数のスキルが従う規則・定義・手続き | `references/` |
   | 1 つのスキルの手続き | そのスキルの手順ファイル |

@@ -1,11 +1,14 @@
-# Fixed messages the tixforge scripts write into state.md, per language
-# (this person's language: user_lang). Only the scripts read this file; what
-# goes to GitHub is in templates/github/tixforge/messages.yml, which init
+# Fixed messages written into state.md, per language (this person's
+# language: user_lang). The scripts write them, except gate_auto_pass, which
+# dev writes (skills/dev/run.md) and review-input.sh finds again. What goes
+# to GitHub is in templates/github/tixforge/messages.yml, which init
 # copies for the Actions. A language that is not listed falls back to en.
 # One message per line.
 ja:
   verify_no_commands: "検証コマンドなし"
   rewind_note: "巻き戻し（{time}）：{reason}"
+  gate_auto_pass: "ゲート自動通過（gates に無く、止まる条件なし）"
 en:
   verify_no_commands: "no verification commands"
   rewind_note: "Rewound ({time}): {reason}"
+  gate_auto_pass: "Gate passed automatically (not in gates, nothing to stop for)"
