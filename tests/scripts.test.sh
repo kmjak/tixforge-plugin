@@ -915,6 +915,17 @@ eq "closed_as: completed" "$(is check 45 | sed -n 2p)" "closed by tixforge (the 
 issue 45 "やめた" "$tmp/body45" CLOSED NOT_PLANNED
 jq '.comments = [{"body":"<!-- tixforge:closed -->\n完了"}]' "$GH_DIR/issue-45.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-45.json"
 eq "closed_as: unexpected" "$(is check 45 | sed -n 2p)" "the closed mark on an issue closed as not planned is not a cancel"
+# markc <reason> <comments-json>: closed_as for #45 closed with them.
+markc() {
+  issue 45 "やめた" "$tmp/body45" CLOSED "$1"
+  jq --argjson c "$2" '.comments = $c' "$GH_DIR/issue-45.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-45.json"
+  is check 45 | sed -n 2p
+}
+eq "closed_as: canceled" "$(markc NOT_PLANNED '[{"body":"<!-- tixforge:canceled -->\r\nキャンセル"}]')" "the mark with CRLF"
+eq "closed_as: canceled" "$(markc NOT_PLANNED '[{"body":"\n  <!-- tixforge:canceled -->\nキャンセル"}]')" "the mark after blank space"
+eq "closed_as: unexpected" "$(markc NOT_PLANNED '[{"body":"何か\n<!-- tixforge:canceled -->"}]')" "the mark on a second line does not count"
+eq "closed_as: unexpected" "$(markc COMPLETED '[{"body":"<!-- tixforge:canceled -->\nx"}]')" "the canceled mark on an issue closed as completed is not a close"
+eq "closed_as: canceled" "$(markc NOT_PLANNED '[{"body":"thanks"},{"body":"<!-- tixforge:canceled -->\nx"}]')" "the mark in a later comment"
 # v2 closed issues with English comments. GitHub comments are never
 # migrated, so they keep being read (here with the labels taken off).
 for c in "Closed by tixforge: https://github.com/o/r/pull/3 merged" "Closed by tixforge-issue-sync: https://github.com/o/r/pull/3 merged"; do

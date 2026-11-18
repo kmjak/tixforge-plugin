@@ -162,7 +162,7 @@ closed_as() {
     return
   fi
   local comments by_pr by_commit
-  comments=$(gh issue view "$1" --json comments --jq '[.comments[].body | split("\n")[0]] | join("\n")' 2> /dev/null || true)
+  comments=$(gh issue view "$1" --json comments --jq '[.comments[].body | sub("^\\s+"; "") | split("\n")[0]] | join("\n")' 2> /dev/null || true)
   # tixforge's comments open with an invisible mark (<!-- tixforge:closed -->,
   # <!-- tixforge:canceled -->), the words after it in the document
   # language; the English openings of v2 and of the Actions still count.
