@@ -22,9 +22,10 @@
 #   ticket.md    the ticket as dev took it (.tixforge/<id>/snapshot.md)
 #   approach.md  the body of ## Approach in .tixforge/<id>/state.md
 #   plan.md      the body of ## Plan in .tixforge/<id>/state.md
-#                (both without the "> " notes at their start and end: a
-#                rewind note or an auto-passed gate is the implementer's
-#                history, which the reviewers must not see)
+#                (both without a rewind note at their start or an
+#                auto-passed gate note at their end, in any language of
+#                scripts/messages.yml: the implementer's history, which the
+#                reviewers must not see; other quotes stay)
 #   index.md     the paths of these files, and then the common rules of the
 #                reviewers (references/review.md); the agents read it first
 # Prints the path of index.md. Writes nothing and exits 3 when there is no
@@ -74,16 +75,32 @@ state=$(state_file "$id" "$top")
   echo "no run: ${state}（dev の run が無い）" >&2
   exit 4
 }
-# section_body <name>: a section of state.md without its heading, and
-# without the blank lines and "> " notes at its start and end.
+# The notes the run leaves in a section, per language: "> " and the
+# rewind note up to {time} (run-state.sh writes it under the heading), and
+# "> " and the auto-passed gate line (run.md has it written at the end).
+notes_rewind="" notes_pass=""
+for l in $(sed -n 's/^\([a-z][a-z_-]*\):$/\1/p' "$(cd "$(dirname "$0")" && pwd)/messages.yml"); do
+  r=$(msg rewind_note "$l")
+  notes_rewind="${notes_rewind}> ${r%%\{time\}*}
+"
+  notes_pass="${notes_pass}> $(msg gate_auto_pass "$l")
+"
+done
+# section_body <name>: a section of state.md without its heading, the
+# blank lines around it and those notes.
 section_body() {
-  awk -v want="$(section_index "$1")" "$_section_awk"'
+  NR_REWIND=$notes_rewind NR_PASS=$notes_pass awk -v want="$(section_index "$1")" "$_section_awk"'
+    function starts(s, list,   n, p, i) {
+      n = split(list, p, "\n")
+      for (i = 1; i <= n; i++) if (p[i] != "" && index(s, p[i]) == 1) return 1
+      return 0
+    }
     { h = heading_index($0) }
     h { on = (h == want); next }
     on { sub(/\r$/, ""); line[++n] = $0 }
     END {
-      a = 1; while (a <= n && line[a] ~ /^([ \t]*$|>)/) a++
-      b = n; while (b >= a && line[b] ~ /^([ \t]*$|>)/) b--
+      a = 1; while (a <= n && (line[a] ~ /^[ \t]*$/ || starts(line[a], ENVIRON["NR_REWIND"]))) a++
+      b = n; while (b >= a && (line[b] ~ /^[ \t]*$/ || starts(line[b], ENVIRON["NR_PASS"]))) b--
       for (i = a; i <= b; i++) print line[i]
     }
   ' "$state"

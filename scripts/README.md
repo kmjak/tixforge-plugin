@@ -21,4 +21,4 @@ tixforge のスクリプトの一覧（人向け。Claude は読まない）。�
 | `ticket-hash.sh` | issue の本文のハッシュを計算する（Actions と共通） | `issue-sync.sh`・Actions | なし |
 | `lib.sh` | 共通の関数（設定・state.md の読み取り、run の一覧など） | 多くのスクリプト | `.tixforge/.gitignore`（無いときに作る） |
 
-Actions がコピーして使う文言（`messages.yml`）は、コピー先に合わせて `templates/github/tixforge/` にある。state.md にスクリプトが書く文言は `scripts/messages.yml`。
+Actions がコピーして使う文言（`messages.yml`）は、コピー先に合わせて `templates/github/tixforge/` にある。state.md に書く決まった文言は `scripts/messages.yml`。

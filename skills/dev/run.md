@@ -4,7 +4,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 ## 起動と再開
 
-`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。この run の間、`state.md` のセクション本文と、状態ファイルに書く固定の文言（「ゲート自動通過」「手動確認」「Round」の見出しなど。スクリプトが読むキー `Verification @` は除く）は個人の言語（共通規約）で書く。指定された id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
+`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。この run の間、`state.md` のセクション本文と、状態ファイルに書く固定の文言（「手動確認」「Round」の見出しなど。スクリプトが読むキー `Verification @` は除く）は個人の言語（共通規約）で書く。指定された id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
 
 **状態ファイルの形式**（最初に行う）：`.tixforge/<ticket-id>/state.md` があれば `bash <scripts>/run-state.sh migrate --check <ticket-id>` を実行する。何か出たら、変わる内容を示し、AskUserQuestion で次から選ばせる。今の形式でない state.md のまま先に進めない。
 
@@ -58,7 +58,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 各フェーズの終わりがゲート。止まるかどうかは `gates`（「現在の状態」の「この人が使う値」）と、下の「止まる条件」で決まる。
 
 - **`gates` にあるフェーズ**：必ず止まる。セクションを書く → `Status` を `<phase>:awaiting-approval` にする → ユーザーに短い要約を出す → **止まる**。ユーザーの「続けて」等で次へ進む。
-- **`gates` に無いフェーズ**：止まる条件が無ければ**自動で通過**する。セクションの末尾に「ゲート自動通過（gates に無く、止まる条件なし）」の 1 行（個人の言語）を引用で書き、`Status` を `<次のphase>:in-progress` にし、ユーザーに一行で伝えて続ける（要約は次に止まるゲートでまとめて出す）。止まる条件があれば、`gates` にあるときと同じく止まる。
+- **`gates` に無いフェーズ**：止まる条件が無ければ**自動で通過**する。セクションの末尾に、`> ` に続けて `<scripts>/messages.yml` の `gate_auto_pass`（個人の言語の行。無ければ `en`）をそのまま書き、`Status` を `<次のphase>:in-progress` にし、ユーザーに一行で伝えて続ける（要約は次に止まるゲートでまとめて出す）。止まる条件があれば、`gates` にあるときと同じく止まる。
 - **`pr` は `gates` に関係なく必ず止まる**。
 
 | フェーズ | `gates` に無いときも止まる条件 |
@@ -167,10 +167,10 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 1. **agent の確認**：利用できる agent に `tixforge:reviewer` と `tixforge:quality-reviewer` があることを確認する。無ければ停止し、tixforge plugin が有効になっているか（`/plugin`）を確かめるよう案内する。**general-purpose など別の agent で代用しない**。
 2. **再開のとき**：`## Review` の最新ラウンドに、「決定」が書かれていない指摘があれば、新しいラウンドを起こさずに、その指摘の対処を決めるところ（手順 6）から続ける。
 3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または `commands: {}` のときの行）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
-4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。差分・チケット・`## Approach`・`## Plan` と、agent が最初に読む `index.md` が `.git/tixforge/review/<ticket-id>/` に書き出され、`index.md` のパスが出力される。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」（`<ファイル>` は `snapshot.md`）からやり直す。終了コード 4（`## Approach` か `## Plan` が空）なら、原因を伝えて止まる。書き出したものをこのセッションで読む必要はない。
+4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。差分・チケット・`## Approach`・`## Plan` と、agent が最初に読む `index.md` が `.git/tixforge/review/<ticket-id>/` に書き出され、`index.md` のパスが出力される。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」（`<ファイル>` は `snapshot.md`）からやり直す。終了コード 4（state.md が無い、または `## Approach` か `## Plan` が空）なら、原因を伝えて止まる（Approach・Plan に戻して書き直すなら `rewind.md` の手順で）。書き出したものをこのセッションで読む必要はない。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し）。ラウンドごとに新しく起動する（前のラウンドの agent を使い回さない）。渡すのは次のものだけにする：
    - 両方に：4 で出力された `index.md` のあるディレクトリのパス、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
-   - `tixforge:reviewer` にだけ：`## Implementation Log` の手動確認の行（全て）
+   - `tixforge:reviewer` にだけ：`## Implementation Log` の手動確認の行（全て。無ければ「無し」）
 
    **`## Research`・`## Implementation Log` の判断・実装中の経緯・検証の行は渡さない**（実装者の意図に引きずられず、合意と成果物だけで判定させるため。検証は 3 で全て pass になっている）。`.tixforge/` 配下のパスは渡さない。
 6. **結果を記録する**：`## Review` に**ラウンドとして追記する**（`### Round 1`、`### Round 2` …）。前のラウンドは書き換えない。各ラウンドには、検証の行と、両方の reviewer の指摘を**全件そのまま**載せる（指摘が無ければ「指摘なし」）。
@@ -189,7 +189,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
    - 「修正」がある（見直しは無い） → `Status: implement:in-progress` にして Implement へ（「Review からの差し戻し」）。修正後に Review へ戻り、次のラウンドを行う。
    - 指摘なし、または全て「受け入れ」 → ゲート（`review`）へ。`gates` に `review` が無ければ自動で通過して `Status: pr:in-progress` にし、`pr.md` へ。`gates` にあれば `Status: review:awaiting-approval` にして要約を出し、停止。
 
-`## Review` のラウンドの書き方（見出しと本文は個人の言語。reviewer の報告をそのまま貼り、`推奨`・`受け入れた場合`・`決定` の行だけをこのセッションが足す。日本語の例）：
+`## Review` のラウンドの書き方（見出しと本文は個人の言語。reviewer の報告をそのまま貼り、`推奨`・`受け入れた場合`・`決定` の行（と、手順 6 の実装者による追加の項目）だけをこのセッションが足す。日本語の例）：
 
 ```markdown
 ### Round 1
@@ -216,7 +216,7 @@ Verification @ a1b2c3d: test pass, lint pass
   - `[未修正]`
   - 推奨が「受け入れ」以外（作業が発生するので、中身を見てから決めてもらう）
 - それ以外は **1 行**で示す。省かない（`## Review` には全件ある。示さずに受け入れたことにしないため）。
-- 最初に件数を 1 行で書く（例：「合意とのズレ 5 件・品質 2 件。詳しく 3 件、1 行 4 件」）。
+- 最初に件数を 1 行で書く（例：「合意とのズレ 5 件・品質 2 件。詳しく 3 件、1 行 4 件」）。Round 3 以降の見直しの勧め（手順 7）は、その直後に 1 段落で示す（`## Review` には書かない）。見直すなら、どれかの指摘の対処を「方針の見直し」か「計画の見直し」にする。
 
 日本語の例：
 

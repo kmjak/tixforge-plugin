@@ -127,5 +127,15 @@ for f in skills/*/*.md; do
   [ -z "$bad" ] && ok || ng "$bad"
 done
 
+# --- review rules ------------------------------------------------------------
+# The agents name the sections of references/review.md they follow.
+section="review rules"
+for sec in 受け取るもの 進め方 守ること 報告の規則; do
+  grep -qx "## $sec" references/review.md && ok || ng "references/review.md has ## $sec"
+done
+for f in agents/reviewer.md agents/quality-reviewer.md; do
+  grep -q '共通の規則（受け取るもの・進め方・守ること・報告の規則）' "$f" && ok || ng "$f names the sections of references/review.md"
+done
+
 echo "plugin: $pass passed, $fail failed"
 [ $fail -eq 0 ]

@@ -645,14 +645,14 @@ eq 4 $? "an empty Plan: exit 4"
 has "empty ## Plan" "$err" "an empty Plan: names it"
 # The "> " notes at a section's start and end (a rewind, an auto-passed gate)
 # are the implementer's history, not part of the agreement.
-awk '$0 == "## Approach" { print; print "> 巻き戻し（t）：Review R2"; print ""; print "approach body"; print "> quoted inside"; print "```"; print "## Plan"; print "```"; print "> ゲート自動通過"; next }
+awk '$0 == "## Approach" { print; print "> [!NOTE]"; print "> approach body"; print "> quoted inside"; print "```"; print "## Plan"; print "```"; print "> Gate passed automatically (not in gates, nothing to stop for)"; next }
   $0 == "## Plan" { print; print "plan body"; print ""; next } { print }' "$tmp/keep-state.md" | sed 's/$/\r/' > "$f1"
 idx=$(bash "$scripts/review-input.sh" GT-000901 main)
 d=$(dirname "$idx")
 has "/.git/tixforge/review/GT-000901/index.md" "$idx" "prints index.md, outside .tixforge"
 has "+change" "$(cat "$d/diff.patch")" "diff"
 has "スナップショット" "$(cat "$d/ticket.md")" "the ticket is the snapshot"
-eq "$(printf 'approach body\n> quoted inside\n```\n## Plan\n```')" "$(cat "$d/approach.md")" "approach.md: the Approach body (CRLF, a fenced ## line, notes at the ends dropped)"
+eq "$(printf '> [!NOTE]\n> approach body\n> quoted inside\n```\n## Plan\n```')" "$(cat "$d/approach.md")" "approach.md: the Approach body (CRLF, a fenced ## line and quotes kept, the auto-pass note dropped)"
 eq "plan body" "$(cat "$d/plan.md")" "plan.md: the Plan body, without the blank lines around it"
 has "\`delta.patch\`：無し" "$(cat "$idx")" "index.md: no delta.patch in round 1"
 has "- \`$d/plan.md\`" "$(cat "$idx")" "index.md lists the files by absolute path"
@@ -672,6 +672,19 @@ bash "$scripts/review-input.sh" GT-000901 main > /dev/null
 has "\`delta.patch\`：無し" "$(cat "$idx")" "index.md: back to no delta.patch without --since"
 bash "$scripts/review-input.sh" GT-000901 main --since nope 2> /dev/null
 eq 2 $? "unknown --since commit"
+# A real rewind note (run-state.sh) is dropped; a section with only notes is empty.
+cp "$f1" "$tmp/keep-state2.md"
+awk '$0 == "## Approach" { print; print "approach body"; next } $0 == "## Plan" { print; print "plan body"; next } { print }' "$tmp/keep-state.md" > "$f1"
+st set GT-000901 Status review:in-progress > /dev/null
+st rewind GT-000901 plan --reason "Review R2" > /dev/null
+awk '$0 == "## Plan" { print; getline; print; print ""; print "new plan"; next } { print }' "$f1" > "$tmp/s1" && cat "$tmp/s1" > "$f1"
+has "> 巻き戻し（" "$(cat "$f1")" "the rewind left its note"
+bash "$scripts/review-input.sh" GT-000901 main > /dev/null
+eq "new plan" "$(cat "$d/plan.md")" "plan.md: the rewind note is dropped"
+awk '$0 == "## Plan" { print; getline; print; skip = 1; next } skip && /^## / { skip = 0 } !skip { print }' "$f1" > "$tmp/s1" && cat "$tmp/s1" > "$f1"
+bash "$scripts/review-input.sh" GT-000901 main > /dev/null 2>&1
+eq 4 $? "a Plan with only the rewind note is empty: exit 4"
+cp "$tmp/keep-state2.md" "$f1"
 # A local base behind origin/<base>: others' commits there are not this run's.
 git switch -q main
 echo other > other.txt && git add other.txt && git commit -q -m other
