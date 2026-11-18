@@ -7,7 +7,7 @@
 | create | （`issue-sync.sh create` が付ける） | `tixforge:todo` |
 | dev の開始 | `bash <scripts>/issue-label.sh <番号> start` | `tixforge:in-progress`、assignee に自分 |
 | PR の作成 | `bash <scripts>/issue-label.sh <番号> review` | `tixforge:in-review` |
-| Base にマージ（リリース待ち） | `bash <scripts>/issue-label.sh <番号> merged` | `tixforge:merged` |
+| Base にマージ（リリース待ち。Base が default branch でない運用だけ） | `bash <scripts>/issue-label.sh <番号> merged` | `tixforge:merged` |
 | 完了 | `bash <scripts>/issue-label.sh <番号> done` | `tixforge:done` |
 | cancel | `bash <scripts>/issue-label.sh <番号> canceled` | `tixforge:canceled` |
 | チケットを手放す | `bash <scripts>/issue-label.sh <番号> reset` | `tixforge:todo`、assignee から自分を外す |

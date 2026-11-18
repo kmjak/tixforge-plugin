@@ -43,7 +43,6 @@ if [ -f "$conf" ]; then
   echo "- 設定（.tixforge/config.yml）: language=$(cfg language "$conf")" \
     "tracker=$(cfg ticket.tracker "$conf")" \
     "base_branch=$(cfg repository.base_branch "$conf")" \
-    "close_issues=$(cfg repository.close_issues "$conf")" \
     "review.required=$(cfg review.required "$conf")" \
     "gates=${gates:-（未設定）}"
   # What this person uses: config.local.yml's language and gates win.

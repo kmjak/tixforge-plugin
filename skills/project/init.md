@@ -38,15 +38,13 @@
    - **push するか** — 既定は「する」。public のときは、先に `.env`・鍵ファイルなどの秘密情報が git で追跡されていないか確かめ、あれば示して止まる。
 
    config にはオーナー・リポジトリ名・公開範囲は書かない。
-4. **ブランチ運用**（`repository.base_branch`・`repository.close_issues`）：`base_branch` は、dev がブランチを切る元であり、PR の向き先。
+4. **ブランチ運用**（`repository.base_branch`）：`base_branch` は、dev がブランチを切る元であり、PR の向き先。
    - **新しく作るリポジトリ**（`git init` した・「リポジトリを作る場合」・commit がまだ 1 つも無い）：運用を尋ねる。ブランチ名は自由入力で変えられる。
      - **main だけ**（1 人なら推奨）— `base_branch: main`。
      - **main + develop**（develop で開発し、main はリリース用）— `base_branch: develop`。GitHub の default branch は main のままにする。
      - **ブランチ名を合わせる**：commit がまだ無く、今のブランチ名（`git symbolic-ref --short HEAD`）が合わせる名前（main だけなら `base_branch`、main + develop なら main 側の名前）と違えば、「今のブランチは `<今の名前>`、`base_branch` は `<名前>`。`git branch -m <名前>` で名前を変えますか」と尋ねてから行う（`base_branch` を config に書く前に行う）。変えないと、commit は今のブランチに入り、`base_branch` のブランチが存在しないまま残る。
    - **既存のリポジトリ**：GitHub の default branch（`gh repo view --json defaultBranchRef`、取れなければ `git symbolic-ref --short refs/remotes/origin/HEAD`）を既定にする。ローカル（`git show-ref`）とリモート（`git ls-remote --heads origin`）に `develop`・`dev`・`development` があり、default と違えば、どちらを `base_branch` にするか尋ねる。見つからなければ尋ねない。
-   - **issue を閉じる時点**（`base_branch` が GitHub の default branch と違うときだけ尋ねる。同じなら尋ねずに `close_issues: merge` を書く）：
-     - **リリースで閉じる**（`close_issues: release`）— develop へのマージでは閉じず、main に入ったとき（commit メッセージの `Closes #N` により GitHub が閉じる）。間は `tixforge:merged`。このときは squash の設定を確かめる：`gh api repos/{owner}/{repo} --jq '.squash_merge_commit_title + " " + .squash_merge_commit_message'` が `PR_TITLE BLANK`（squash の commit メッセージが PR タイトルだけ）なら、squash マージで `Closes` が消えて issue が閉じなくなることを伝え、設定を変えるか「マージで閉じる」にするか尋ねる。
-     - **マージで閉じる**（`close_issues: merge`）— develop へのマージで閉じる。これには Actions の `tixforge-issue-sync` が要る（無いと dev を再開したときにしか閉じない）ので、「GitHub Actions」で強く勧める。
+   - `base_branch` が GitHub の default branch と違う（develop など）なら、issue は develop へのマージでは閉じず、リリース（main に入ったとき）で閉じることを伝え、「GitHub Actions」で `tixforge-issue-sync` を強く勧める。入れないなら、squash の設定を確かめる：`gh api repos/{owner}/{repo} --jq '.squash_merge_commit_title + " " + .squash_merge_commit_message'` が `PR_TITLE BLANK`（squash の commit メッセージが PR タイトルだけ）なら、squash マージで `Closes` が消えてリリースでも issue が閉じないことを伝え、Actions を入れるか設定を変えるか尋ねる。
 5. **ドキュメント言語**（`language`）：「日本語（推奨・既定）」「English」を選択肢にして尋ねる（その他は自由入力）。以降のチケットと `docs/context/**` はこの言語で書き、個人の設定（`config.local.yml`）が無ければ、この後の会話（質問・説明）もこの言語で行う。
 6. **検証コマンド**（`commands`）：dev の Implement・Review で Claude が実行する、テスト・lint・型チェックなどのコマンド。
    - 先にプロジェクトから候補を読み取る（`package.json` の scripts、`Makefile`、`justfile`、`Taskfile.yml`、`pyproject.toml`、`Cargo.toml`、`go.mod`、CI 設定（`.github/workflows/*`）など）。CI で実行しているコマンドがあれば優先して候補にする。
@@ -141,7 +139,7 @@
     - **入れる・既定のテンプレートが無い** — `.github/pull_request_template.md` として新しく作る。
     - **入れる・ある** — 既存の内容は一切変えず、既存のテンプレートに**無い見出しだけ**を末尾に追記する。追記する差分を示し、確認を得てから書く。
     - **入れない** — 何もしない。
-15. **GitHub Actions**：`references/github/actions.md` を Read し、サーバー側の workflow を入れるか尋ねる（複数選択。既に `.github/workflows/` にあるものは除く）。`close_issues: merge` で `base_branch` が default branch と違うなら、`tixforge-issue-sync` は「強く推奨」と添える。選ばれたものを `<plugin>/templates/github/` から `.github/workflows/` にそのままコピーする（内容は変えない）。`tixforge-issue-guard` か `tixforge-pr-link` なら `<plugin>/templates/github/tixforge/messages.yml` を、`tixforge-issue-guard` なら `<scripts>/ticket-hash.sh` も `.github/tixforge/` にコピーする。作るファイルを一覧で示し、確認を得てから作る。plugin を更新しても、コピーした workflow は自動では更新されない（`/tixforge:project update` で更新できる）ことを伝える。
+15. **GitHub Actions**：`references/github/actions.md` を Read し、サーバー側の workflow を入れるか尋ねる（複数選択。既に `.github/workflows/` にあるものは除く）。`base_branch` が default branch と違うなら、`tixforge-issue-sync` は「強く推奨」と添える（リリース PR のマージで、squash の設定に関係なく issue を閉じるため）。選ばれたものを `<plugin>/templates/github/` から `.github/workflows/` にそのままコピーする（内容は変えない）。`tixforge-issue-guard` か `tixforge-pr-link` なら `<plugin>/templates/github/tixforge/messages.yml` を、`tixforge-issue-guard` なら `<scripts>/ticket-hash.sh` も `.github/tixforge/` にコピーする。作るファイルを一覧で示し、確認を得てから作る。plugin を更新しても、コピーした workflow は自動では更新されない（`/tixforge:project update` で更新できる）ことを伝える。
 16. **CI**（`commands` が `{}` でないときだけ）：`.github/workflows/` に、検証コマンドを実行している workflow が無ければ、作るか尋ねる（dev の検証と同じ内容を CI でも動かすため、と添える）。
     - 作るなら `<plugin>/templates/github/tixforge-ci.yml` を下敷きにして、ユーザーと一緒に埋める：`__BRANCHES__` は `base_branch`（GitHub の default branch と違えば両方。main + develop なら `main, develop`）、`__COMMANDS__` は `commands` を書いた順に 1 ステップずつ、`__SETUP__`（言語のセットアップ・依存のインストール）はプロジェクトのファイル（`package.json` のロックファイル・`.nvmrc`・`pyproject.toml`・`go.mod` など）から候補を作って確認する。**確認していないセットアップ手順を推測で書かない。**
     - 全文を示し、確認を得てから `.github/workflows/tixforge-ci.yml` に書く。
