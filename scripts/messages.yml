@@ -1,0 +1,11 @@
+# Fixed messages the tixforge scripts write into state.md, per language
+# (this person's language: user_lang). Only the scripts read this file; what
+# goes to GitHub is in templates/github/tixforge/messages.yml, which init
+# copies for the Actions. A language that is not listed falls back to en.
+# One message per line.
+ja:
+  verify_no_commands: "検証コマンドなし"
+  rewind_note: "巻き戻し（{time}）：{reason}"
+en:
+  verify_no_commands: "no verification commands"
+  rewind_note: "Rewound ({time}): {reason}"

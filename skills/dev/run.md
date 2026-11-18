@@ -145,7 +145,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
   - 直すのにチケットの範囲外の変更や、方針・計画の変更が必要
   - 環境の問題（依存が無い、サービスが起動していない等）で実行できない
 - **テストを通すために、テストの削除・スキップ・期待値の書き換え・lint の無効化をしない。** それが本当に正しい場合は、理由を示してユーザーの承認を得る。
-- 出力が「検証コマンドなし」（`commands: {}`）なら、その行をそのまま記録して進む。終了コード 3（`commands` が無い）なら、`/tixforge:project init` で足せることを伝えて止まる。
+- `commands: {}` のときは、終了コード 0 で、出力が pass・fail の無い 1 行（検証コマンドが無いことを示す）になる。その行をそのまま記録して進む。終了コード 3（`commands` が無い）なら、`/tixforge:project init` で足せることを伝えて止まる。
 
 ### 手動確認
 
@@ -166,7 +166,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 1. **agent の確認**：利用できる agent に `tixforge:reviewer` と `tixforge:quality-reviewer` があることを確認する。無ければ停止し、tixforge plugin が有効になっているか（`/plugin`）を確かめるよう案内する。**general-purpose など別の agent で代用しない**。
 2. **再開のとき**：`## Review` の最新ラウンドに、「決定」が書かれていない指摘があれば、新しいラウンドを起こさずに、その指摘の対処を決めるところ（手順 6）から続ける。
-3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または「検証コマンドなし」）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
+3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または `commands: {}` のときの行）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
 4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。出力されるパス（`.git/tixforge/review/<ticket-id>/`。最後の行がチケットの `ticket.md`）を使う。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」（`<ファイル>` は `snapshot.md`）からやり直す。差分の中身をこのセッションで読む必要はない。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し）。ラウンドごとに新しく起動する（前のラウンドの agent を使い回さない）。渡すのは次のものだけにする：
    - 両方に：4 のファイルのうち `ticket.md` 以外のパス（`delta.patch` を含む）、検証の行、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
