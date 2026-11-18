@@ -153,7 +153,7 @@ tf=$(printf '%s' "$input" | bash ~/.claude/plugins/marketplaces/tixforge/scripts
 
 - チケットを押すと詳細を取り直して出し、`tixforge:todo` で未割り当てか自分の担当なら **開始** で `/tixforge:dev <id>` を送る（作業中なら、手が空いてから始まる）。
 - 開いている間は 3 分ごとに取り直す。**更新** ですぐ取り直す。閉じている間は取らない。区画の開閉は次のセッションにも残る。
-- Claude Code の mod（plugin の `hooks/panel.tsx`）で出す。mod が使えない環境（`claude -p` など）や、端末が狭いとき（110 列未満）は横に並ばない。
+- Claude Code の mod（plugin の `hooks/panel.tsx`）で出す。mod が使える Claude Code が要る（2.1.327 の `claude plugin test` で確かめた）。mod が使えない環境（`claude -p` など）や、端末が狭いとき（110 列未満）は横に並ばない。
 - コマンド名に `:` を使えないので、`/tixforge:panel` ではなく `/tixforge-panel`。
 
 ## 困ったとき

@@ -53,6 +53,8 @@ make fmt                                  # shfmt で整形（設定は .editorc
 | guard（hook）は jq に頼らない。`lib.sh` の `json_get` で読む | `tests/guard.test.sh`（jq の無い PATH で動かす）・`tests/json-get.test.sh` |
 | スクリプトの中で、`$var` の直後に全角文字を続けない（`${var}` と書く） | `tests/scripts.test.sh` の「all scripts」 |
 | `skills/`・`references/`・`agents/` でファイルの名前を変えたら、参照している側も直す | `tests/plugin.test.sh` |
+| パネルが出すチケットの状態（`panel-data.sh` の `PANEL_STATES`）は、`label_defs` の open な状態と同じにする | `tests/scripts.test.sh` の panel-data.sh の節 |
+| パネルの mod（`hooks/panel.tsx`）に型エラーを残さない | `make validate`（claude CLI があるときだけ） |
 | `skills/` の手順ファイル（SKILL.md と dev の Phase 6 の `pr.md` を除く）は `## Phase 1 — ` から順に番号を振ったフェーズに分け、各見出しの次の段落に `目的：` を書き、手順の番号を通しにする（dev の `run.md` はフェーズごとに 1 から。`0.` で始めてよい） | `tests/plugin.test.sh` の「phases」 |
 | スクリプトは `make fmt` で整形する。手で整えない | `make lint` の `shfmt -d` |
 | PR のタイトルは Conventional Commits の形にする（下の「commit と PR」） | CI の `pr-title` |

@@ -37,6 +37,7 @@ const list = (lang: string) =>
 const ISSUES: Record<string, string> = {
   'GT-000003': ['lang\tja', 'issue\tGT-000003\ttodo\t-\tyes\tFree', '## 背景', '', '段落'].join('\n'),
   'GT-000005': ['lang\tja', 'issue\tGT-000005\ttodo\tann\tassigned\tTaken', '## 背景'].join('\n'),
+  'GT-000009': ['lang\tja', 'issue\tGT-000009\tin-review\tme\tstarted\tMine', '## 背景'].join('\n'),
 }
 
 type Answer = { exitCode: number; stdout: string } | Error
@@ -44,6 +45,7 @@ type Answer = { exitCode: number; stdout: string } | Error
 // The world beneath the pane: one pane, panel-data.sh answering `answer`.
 function world(on: any, answer: (argv: readonly string[]) => Answer) {
   let panes: string[] = []
+  let fetches = 0
   const runs: string[] = []
   on('command.register', () => ({ value: { command: 'tixforge-panel' } }))
   on('ui.open', (_: unknown, e: { id: string }) => {
@@ -59,6 +61,7 @@ function world(on: any, answer: (argv: readonly string[]) => Answer) {
   }))
   on('ui.toast', () => ({ value: undefined }))
   on('process.run', (_: unknown, e: { argv: readonly string[] }) => {
+    if (e.argv.includes('list')) fetches++
     const a = answer(e.argv)
     if (a instanceof Error) throw a
     return { value: { ...a, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
@@ -68,11 +71,11 @@ function world(on: any, answer: (argv: readonly string[]) => Answer) {
     return { text: '' }
   })
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  mock.clock(on)
+  const clock = mock.clock(on)
   mock.store(on)
   on('session.root', () => ({ value: '/repo' }))
 
-  return { runs, panes: () => panes }
+  return { runs, panes: () => panes, clock, fetches: () => fetches }
 }
 
 const ok =
@@ -149,5 +152,42 @@ test('outside a tixforge repository the pane says so', async ($, on) => {
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'refresh' })
   expect(await ui.find({ type: 'Text', text: /tixforge のリポジトリではありません/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('while open it fetches every 3 minutes, and stops once closed', async ($, on) => {
+  const w = world(on, ok())
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.command.run(RUN)
+  await w.clock.advance(1)
+  const first = w.fetches()
+  await w.clock.advance(3 * 60 * 1000)
+  expect(w.fetches()).toBe(first + 1)
+  await $.command.run(RUN)
+  await w.clock.advance(10 * 60 * 1000)
+  expect(w.fetches()).toBe(first + 1)
+})
+
+test('a ticket in progress cannot be started, and a section folds', async ($, on) => {
+  world(on, ok())
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.command.run(RUN)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'refresh' })
+  await ui.press({ key: 't-GT-000009' })
+  expect(await ui.find({ type: 'Text', text: /すでに進行中/ })).toBeDefined()
+  await ui.press({ key: 'back' })
+  await ui.press({ key: 'prs' })
+  expect(await ui.find({ type: 'Link', text: /#7/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('not signed in to gh: the pane says how to sign in', async ($, on) => {
+  world(on, () => ({ exitCode: 4, stdout: 'lang\tja\nerror\tgh-auth\tHTTP 401\n' }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.command.run(RUN)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'refresh' })
+  expect(await ui.find({ type: 'Text', text: /gh auth login/ })).toBeDefined()
   await ui.unmount()
 })

@@ -7,7 +7,6 @@ import type { EngineInterface, Register, Timer } from 'claude-code'
 import type { PanelData, PanelIssue, PanelView } from '../types'
 
 const PANE = 'tixforge-panel'
-const COMMAND = 'tixforge-panel'
 const FRESH_MS = 3 * 60 * 1000
 const MAX_ROWS = 30
 
@@ -40,6 +39,7 @@ const WORDS = {
     noAuth: 'gh にログインしていません。! gh auth login でログインしてください',
     failed: '取得に失敗',
     opened: 'パネルを開きました',
+    notPlaced: 'パネルを出せません',
     closed: 'パネルを閉じました',
   },
   en: {
@@ -61,11 +61,13 @@ const WORDS = {
     noAuth: 'gh is not signed in: run ! gh auth login',
     failed: 'Fetch failed',
     opened: 'Opened the panel',
+    notPlaced: 'The panel cannot be shown',
     closed: 'Closed the panel',
   },
 }
 type Words = (typeof WORDS)['ja']
-const wordsFor = (lang: string | undefined): Words => (lang === 'en' ? WORDS.en : WORDS.ja)
+// Japanese for ja, else English (as msg falls back to en).
+const wordsFor = (lang: string | undefined): Words => (lang === 'ja' ? WORDS.ja : WORDS.en)
 
 // The module's own timers: dropped on a reload, started again at session.start.
 let timers: Timer[] = []
@@ -85,7 +87,10 @@ async function run($: EngineInterface, args: string[]): Promise<{ lines: string[
   const all = out.stdout.split('\n')
   if (all[0]?.startsWith('lang\t')) {
     const got = all.shift()?.split('\t')[1] ?? 'ja'
-    await update($, lang, () => got)
+    if (got !== (await read($, lang))) {
+      await update($, lang, () => got)
+      await $.store.set('panel.lang', got)
+    }
   }
   const w = wordsFor(await read($, lang))
   const first = (all[0] ?? '').split('\t')
@@ -197,11 +202,14 @@ async function isShown($: EngineInterface): Promise<boolean> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
-      name: COMMAND,
+      name: 'tixforge-panel',
       description: 'tixforge: my PRs and the tickets in a side pane (run again to close)',
       // Opens while Claude works too: the handler reads no turn state.
       immediate: true,
     })
+    // The language last fetched, so the first words before a fetch match.
+    const known = await $.store.get('panel.lang')
+    if (typeof known === 'string') await update($, lang, () => known)
     const saved = await $.store.get('panel.sections')
     if (saved && typeof saved === 'object') await update($, sections, () => saved as { prs: boolean; tickets: boolean })
     // A reload while the pane stayed up: keep it fed.
@@ -210,7 +218,7 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: COMMAND }, async $ => {
+  on('command.run', { command: 'tixforge-panel' }, async $ => {
     const w = wordsFor(await read($, lang))
     // Shown: close it. Open but behind another pane: bring it up.
     if (await isShown($)) {
@@ -220,7 +228,12 @@ export const register: Register = on => {
     }
     await update($, view, () => ({ kind: 'list' }) as PanelView)
     const opened = await $.ui.open({ id: PANE, title: w.title })
-    if (!opened.isPlaced && !(await isUp($))) return { text: `${w.failed}: ${opened.reason ?? ''}` }
+    // Not drawn (-p, no surface, a narrow terminal): no timers, and say why.
+    if (!opened.isPlaced) {
+      stop()
+      await $.ui.close({ id: PANE })
+      return { text: `${w.notPlaced}: ${opened.reason ?? ''}` }
+    }
     startTimers($)
     const t = await $.clock.now()
     await update($, now, () => t)
@@ -230,13 +243,13 @@ export const register: Register = on => {
     return { text: w.opened }
   })
 
-  on('ui.close', ($, e, next) => {
-    if ((e as { id?: string }).id === PANE) stop()
+  on('ui.close', { id: PANE }, ($, e, next) => {
+    stop()
     return next(e)
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button, Markdown, Link } = $.ui.resolve(e) as any
+    const { Box, Text, Button, Markdown, Link } = $.ui.resolve(e)
     const d = await read($, data)
     const err = await read($, error)
     const v = await read($, view)
@@ -290,7 +303,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Box flexDirection="row">
           <Text dimColor>{d ? w.ago(minutes) : err ? '' : `${w.loading}…`} </Text>
-          {err && <Text color="error">{d ? `${w.failed}: ${err}` : err} </Text>}
+          {err && <Text color="error">{err} </Text>}
           <Button key="refresh" label={w.refresh} onPress={() => refresh($)} />
         </Box>
         {d && (

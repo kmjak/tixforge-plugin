@@ -54,12 +54,16 @@ command -v gh > /dev/null 2>&1 || gh_fail gh-missing
 err=$(mktemp) || exit 1
 trap 'rm -f "$err"' EXIT
 if ! me=$(gh api user --jq .login 2> "$err"); then
-  if ! gh auth status > /dev/null 2>&1; then gh_fail gh-auth "$(cat "$err")"; fi
+  # Only what gh says about signing in counts as not signed in: offline,
+  # gh auth status fails as well.
+  case $(cat "$err") in
+    *"HTTP 401"* | *"gh auth login"* | *"not logged"*) gh_fail gh-auth "$(cat "$err")" ;;
+  esac
   gh_fail gh "$(cat "$err")"
 fi
-# A login is letters, digits and hyphens: anything else would break the jq
-# it is written into below.
-case $me in '' | *[!A-Za-z0-9-]*) gh_fail gh "unexpected login: ${me}" ;; esac
+# A login is letters, digits, hyphens and (Enterprise Managed Users) an
+# underscore: anything else could break the jq it is written into below.
+case $me in '' | *[!A-Za-z0-9_-]*) gh_fail gh "unexpected login: ${me}" ;; esac
 
 # The state labels the panel lists, in the order of the work: label_defs in
 # issue-label.sh without done, canceled and out-of-sync (a test holds them
@@ -76,14 +80,14 @@ ticket_jq='
 case $1 in
   list)
     [ $# -eq 1 ] || usage
-    printf 'me\t%s\n' "$me"
-    out=$(gh pr list --author @me --state open --limit 100 \
+    # Nothing but the language before both lists are in: an error line
+    # comes right after it.
+    prs=$(gh pr list --author @me --state open --limit 100 \
       --json number,title,url,state,isDraft,mergeable,reviewDecision,latestReviews,statusCheckRollup \
       --jq "${PR_JUDGE_JQ}"'
         .[] | . as $p | pr_judge
         | ["pr", ($p.number | tostring), .verdict, (if $p.isDraft then "draft" else "-" end), $p.url,
            ($p.title | gsub("[\t\r\n]"; " "))] | join("\t")' 2> "$err") || gh_fail gh "$(cat "$err")"
-    [ -z "$out" ] || printf '%s\n' "$out"
     # Only issues with one of the labels (the search ORs them).
     search="label:$(printf '"%s",' $PANEL_STATES | sed 's/,$//')"
     out=$(gh issue list --state open --search "$search" --limit 1000 --json number,title,labels,assignees \
@@ -98,6 +102,8 @@ case $1 in
               (if mine then "mine" else "-" end), (.title | clean)] | join("\t")),
           (if ($all | length) > 30 then "more\t\($all | length - 30)" else empty end)' 2> "$err") \
       || gh_fail gh "$(cat "$err")"
+    printf 'me\t%s\n' "$me"
+    [ -z "$prs" ] || printf '%s\n' "$prs"
     [ -z "$out" ] || printf '%s\n' "$out"
     ;;
   issue)
@@ -124,7 +130,7 @@ EOF
             (.title | clean)] | join("\t")),
           .body' 2> "$err") || gh_fail gh "$(cat "$err")"
     printf '%s\n' "$out" | sed -n 1p
-    body=$(printf '%s\n' "$out" | sed '1d')
+    body=$(printf '%s\n' "$out" | sed '1d' | tr -d '\r')
     ticket=$(printf '%s\n' "$body" | bash "$(dirname "$0")/ticket-hash.sh" extract 2> /dev/null) || ticket=$body
     printf '%s\n' "$ticket"
     ;;

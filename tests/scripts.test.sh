@@ -734,8 +734,10 @@ set -- "${args[@]}"
 case "$1 $2" in
   "issue view") jq -r "$jqf" "$GH_DIR/issue-$3.json" ;;
   "pr list") jq -r "$jqf" "$GH_DIR/prs.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
-  "issue list") jq -r "$jqf" "$GH_DIR/issues.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
-  "api user") [ -z "${GH_FAIL_USER:-}" ] || { echo offline >&2; exit 1; }; echo me ;;
+  "issue list") [ -z "${GH_FAIL_ISSUES:-}" ] || { echo "${GH_FAIL_ISSUES}" >&2; exit 1; }
+    printf '%s\n' "$*" | grep -q -- 'label:"tixforge:todo","tixforge:in-progress","tixforge:in-review","tixforge:merged"' || { echo "stub gh: issue list without the label search" >&2; exit 1; }
+    jq -r "$jqf" "$GH_DIR/issues.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
+  "api user") [ -z "${GH_FAIL_USER:-}" ] || { echo "${GH_FAIL_USER}" >&2; exit 1; }; echo "${GH_LOGIN:-me}" ;;
   "api repos/"*)   # .../issues/<n>: an issue, or a PR when the fixture has pull_request; .../issues/<n>/events
     case $2 in
       */events) n=${2%/events}; n=${n##*/}; jq -r "(.events // []) | $jqf" "$GH_DIR/issue-$n.json" ;;
@@ -1236,11 +1238,16 @@ done
 out=$(PATH="$nogh" bash "$scripts/panel-data.sh" list)
 eq 4 $? "no gh: exit 4"
 has "$(printf 'error\tgh-missing')" "$out" "no gh: says so"
-out=$(GH_NO_AUTH=1 GH_FAIL_USER=1 bash "$scripts/panel-data.sh" list)
+out=$(GH_FAIL_USER="HTTP 401: Bad credentials" bash "$scripts/panel-data.sh" list)
 eq 4 $? "not signed in: exit 4"
 has "$(printf 'error\tgh-auth\t')" "$out" "not signed in: says so"
-out=$(GH_FAIL_USER=1 bash "$scripts/panel-data.sh" list)
-has "$(printf 'error\tgh\toffline')" "$out" "gh fails otherwise: the reason"
+out=$(GH_NO_AUTH=1 GH_FAIL_USER=offline bash "$scripts/panel-data.sh" list)
+has "$(printf 'error\tgh\toffline')" "$out" "offline: not taken for signed out"
+out=$(GH_FAIL_ISSUES=boom bash "$scripts/panel-data.sh" list)
+eq "$(printf 'lang\tja\nerror\tgh\tboom')" "$out" "a list that fails half way: the error right after the language"
+has "$(printf 'me\tm_e1')" "$(GH_LOGIN=m_e1 bash "$scripts/panel-data.sh" list)" "an EMU login (with _) is fine"
+out=$(GH_LOGIN='a"b' bash "$scripts/panel-data.sh" list)
+has "$(printf 'error\tgh\tunexpected login')" "$out" "a login that would break the jq is refused"
 
 # --- v2 data ---------------------------------------------------------------
 # What v2 left in users' repositories: the plugin update does not rewrite it.
