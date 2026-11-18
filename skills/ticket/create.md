@@ -1,9 +1,9 @@
 # /tixforge:ticket create — チケット作成
 
-目的：チケットを、ユーザーとの対話で作る。**中身を書くのはユーザー**で、Claude は質問で引き出して形を整える。id は自分で決めず、issue を作って得る（`GT-<issue 番号>`）。
+目的：チケットを、ユーザーとの対話で作る。**中身を書くのはユーザー**で、Claude は質問で引き出して形を整える。
 
-1. `.tixforge/config.yml` が無い（init 未実行の）場合は、その旨を伝えて `/tixforge:project init` を案内し、止まる（設定なしでは進めない）。
-2. `.tixforge/config.yml` の `language`（無ければ日本語）を使う（SKILL.md の「現在の状態」にある）。`references/github/create.md` を Read し、その「事前チェック」を行う。
+1. `.tixforge/config.yml` が無い場合は、その旨を伝えて `/tixforge:project init` を案内し、止まる。
+2. `.tixforge/config.yml` の `language` を使う（SKILL.md の「現在の状態」にある）。`references/github/create.md` を Read し、その「事前チェック」を行う。
 3. **既存のチケットを指していないか**を確かめる：引数を `bash <scripts>/ticket-id.sh detect "<引数>"` に渡す（自分で解釈しない）。
    - `invalid: <語>` なら、`bash <scripts>/ticket-id.sh normalize <語>` のエラーを示し、正しい id を尋ねる。`rest:` が空でなければ、「説明の中で触れているだけ」も選択肢に出し、選ばれたら引数全体を説明として新しく作る（手順 4 へ）。
    - `id: <id>` で `rest:` も空でない（説明の中に id がある）なら、先に「既存のチケット `<id>` を指しているか、説明の中で触れているだけか」を尋ねる。触れているだけなら、引数全体を説明として新しく作る（手順 4 へ）。
@@ -28,5 +28,4 @@
    - **別のチケットを作る** — このセッションのまま、手順 3 からもう一度行う（まとめて何枚も作るとき）。
    - **ここで終わる** — `/tixforge:dev <ticket-id>` で始められることを伝えて終わる。
 
-   状態ファイル（`.tixforge/<ticket-id>/state.md`）は create では作らない（dev の役目）。
-9. **commit はしない。** チケットは issue が正本で、git では管理しない。
+   状態ファイル（`.tixforge/<ticket-id>/state.md`）は create では作らない。
