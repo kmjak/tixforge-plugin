@@ -12,7 +12,7 @@ tixforge のスクリプトの一覧（人向け。Claude は読まない）。�
 | `ticket-id.sh` | チケット id の取り出し・正規化・実在の確認・issue 番号への変換 | ticket・dev の手順 | なし（GitHub は読むだけ） |
 | `run-state.sh` | state.md の作成・ヘッダの読み書き・巻き戻し・前の形式からの更新 | dev の手順・ticket の cancel・project の update | `.tixforge/<id>/` |
 | `verify.sh` | 検証コマンドを実行し、結果を 1 行で出す | dev の手順 | `.git/tixforge/verify/`（ログ） |
-| `review-input.sh` | Review の agent が読む入力（差分・チケット）を書き出す | dev の Review | `.git/tixforge/review/` |
+| `review-input.sh` | Review の agent が読む入力（差分・チケット・Approach・Plan・共通の規則の `index.md`）を書き出す | dev の Review | `.git/tixforge/review/` |
 | `pr-template.sh` | リポジトリの既定の PR テンプレートを探す | dev の PR・project の init | なし |
 | `pr-status.sh` | PR の状況（レビュー・CI・コンフリクト）を判定する | dev の PR | なし（GitHub は読むだけ） |
 | `github-preflight.sh` | gh が使えるか（インストール・ログイン・リポジトリ）を確かめる | GitHub を使う手順 | なし |

@@ -626,24 +626,32 @@ eq 3 $? "no snapshot: exit 3"
 eq "" "$out" "no snapshot: nothing written or printed"
 [ ! -e .git/tixforge/review/GT-000901 ] && ok || ng "no snapshot: no review folder"
 printf '# GT-000901: A\n\n## 背景\nスナップショット\n' > .tixforge/GT-000901/snapshot.md
-paths=$(bash "$scripts/review-input.sh" GT-000901 main)
-diff_file=$(printf '%s\n' "$paths" | sed -n 1p)
-has "+change" "$(cat "$diff_file")" "diff"
-has "/.git/tixforge/review/GT-000901/" "$diff_file" "outside .tixforge"
-eq 4 "$(printf '%s\n' "$paths" | grep -c .)" "four paths without --since"
-tk=$(printf '%s\n' "$paths" | tail -1)
-has "/.git/tixforge/review/GT-000901/ticket.md" "$tk" "the ticket goes with the review input, outside .tixforge"
-has "スナップショット" "$(cat "$tk")" "the ticket is the snapshot"
+# The Approach and the Plan are what the reviewers judge against.
+f1=.tixforge/GT-000901/state.md
+cp "$f1" "$tmp/keep-state.md"
+out=$(bash "$scripts/review-input.sh" GT-000901 main 2> /dev/null)
+eq 4 $? "an empty Approach: exit 4"
+awk '$0 == "## Approach" { print; print ""; print "approach body"; print "```"; print "## Plan"; print "```"; next }
+  $0 == "## Plan" { print; print "plan body"; print ""; next } { print }' "$tmp/keep-state.md" > "$f1"
+idx=$(bash "$scripts/review-input.sh" GT-000901 main)
+d=$(dirname "$idx")
+has "/.git/tixforge/review/GT-000901/index.md" "$idx" "prints index.md, outside .tixforge"
+has "+change" "$(cat "$d/diff.patch")" "diff"
+has "スナップショット" "$(cat "$d/ticket.md")" "the ticket is the snapshot"
+eq "$(printf 'approach body\n```\n## Plan\n```')" "$(cat "$d/approach.md")" "approach.md: the Approach body, a fenced ## line included"
+eq "plan body" "$(cat "$d/plan.md")" "plan.md: the Plan body, without the blank lines around it"
+has "\`delta.patch\`：無し" "$(cat "$idx")" "index.md: no delta.patch in round 1"
+has "# Review の共通の規則" "$(cat "$idx")" "index.md carries references/review.md"
+has "このディレクトリ：\`$d\`" "$(cat "$idx")" "index.md names the folder"
 # --since writes the change after a given commit as delta.patch.
 since=$(git rev-parse HEAD)
 echo more > more.txt && git add more.txt && git commit -q -m more
-paths=$(bash "$scripts/review-input.sh" GT-000901 main --since "$since")
-delta=$(printf '%s\n' "$paths" | sed -n 4p)
-has "ticket.md" "$(printf '%s\n' "$paths" | sed -n 5p)" "the ticket comes after delta.patch"
-has "delta.patch" "$delta" "delta path"
+idx=$(bash "$scripts/review-input.sh" GT-000901 main --since "$since")
+delta="$d/delta.patch"
+has "\`delta.patch\`：あり" "$(cat "$idx")" "index.md: delta.patch from round 2"
 has "+more" "$(cat "$delta")" "delta has the new change"
 case "$(cat "$delta")" in *"+change"*) ng "delta has only the new change" ;; *) ok ;; esac
-has "+change" "$(cat "$(printf '%s\n' "$paths" | sed -n 1p)")" "full diff still has everything"
+has "+change" "$(cat "$d/diff.patch")" "full diff still has everything"
 bash "$scripts/review-input.sh" GT-000901 main > /dev/null
 [ -f "$delta" ] && ng "delta removed without --since" || ok
 bash "$scripts/review-input.sh" GT-000901 main --since nope 2> /dev/null
@@ -655,9 +663,10 @@ git update-ref refs/remotes/origin/main HEAD
 git reset -q --hard HEAD~1
 git switch -q GT-000901-a
 git merge -q --no-edit origin/main
-paths=$(bash "$scripts/review-input.sh" GT-000901 main)
-case "$(cat "$(printf '%s\n' "$paths" | sed -n 1p)")" in *"+other"*) ng "stale local base: others' commit excluded" ;; *) ok ;; esac
-has "+change" "$(cat "$(printf '%s\n' "$paths" | sed -n 1p)")" "stale local base: own change kept"
+bash "$scripts/review-input.sh" GT-000901 main > /dev/null
+case "$(cat "$d/diff.patch")" in *"+other"*) ng "stale local base: others' commit excluded" ;; *) ok ;; esac
+has "+change" "$(cat "$d/diff.patch")" "stale local base: own change kept"
+cp "$tmp/keep-state.md" "$f1"
 git update-ref -d refs/remotes/origin/main
 git switch -q main
 
