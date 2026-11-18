@@ -735,7 +735,7 @@ case "$1 $2" in
   "issue view") jq -r "$jqf" "$GH_DIR/issue-$3.json" ;;
   "pr list") jq -r "$jqf" "$GH_DIR/prs.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
   "issue list") jq -r "$jqf" "$GH_DIR/issues.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
-  "api user") echo me ;;
+  "api user") [ -z "${GH_FAIL_USER:-}" ] || { echo offline >&2; exit 1; }; echo me ;;
   "api repos/"*)   # .../issues/<n>: an issue, or a PR when the fixture has pull_request; .../issues/<n>/events
     case $2 in
       */events) n=${2%/events}; n=${n##*/}; jq -r "(.events // []) | $jqf" "$GH_DIR/issue-$n.json" ;;
@@ -1160,7 +1160,10 @@ section="panel-data.sh"
 pd() { bash "$scripts/panel-data.sh" "$@"; }
 out=$(cd "$tmp" && bash "$scripts/panel-data.sh" list)
 eq 3 $? "outside a tixforge repository: exit 3"
-eq "$(printf 'error\tnot-tixforge')" "$out" "outside a tixforge repository: says so"
+eq "$(printf 'lang\tja\nerror\tnot-tixforge')" "$out" "outside a tixforge repository: says so, after the language"
+# The labels the panel lists are label_defs' states, without the ends.
+eq "$(sed -n '/^label_defs() {/,/^}/p' "$scripts/issue-label.sh" | grep -o 'tixforge:[a-z-]*' | grep -v -e done -e canceled -e out-of-sync | paste -sd' ' -)" \
+  "$(sed -n 's/^PANEL_STATES="\(.*\)"$/\1/p' "$scripts/panel-data.sh")" "PANEL_STATES are label_defs' open states"
 # Two PRs (one in conflict, one draft with checks running) and tickets in
 # every order the panel sorts: mine, unassigned, others; a closed-state
 # label and a plain issue are left out.
@@ -1177,8 +1180,8 @@ jq -n '[
 ]' > "$GH_DIR/issues.json"
 out=$(pd list)
 eq 0 $? "list: exit 0"
-eq "$(printf 'me\tme
-lang\tja
+eq "$(printf 'lang\tja
+me\tme
 pr\t7\tconflict\t-\thttps://github.com/o/r/pull/7\tFix it
 pr\t8\tpending\tdraft\thttps://github.com/o/r/pull/8\tWip
 ticket\tGT-000009\tin-review\tme\tmine\tMine
@@ -1193,31 +1196,51 @@ eq "$(printf 'ticket\tGT-1234567\ttodo\t-\t-\tbig')" "$(
   pd list | grep '^ticket'
 )" "list: a number past six digits is not cut"
 rm -f "$GH_DIR/prs.json" "$GH_DIR/issues.json"
-eq "$(printf 'me\tme\nlang\tja')" "$(pd list)" "list: nothing open"
+eq "$(printf 'lang\tja\nme\tme')" "$(pd list)" "list: nothing open"
 # issue: the header, whether it can be started, and the ticket's body.
 printf '## 背景\n本文\n' > "$tmp/pd-ticket.md"
 issue 21 "Detail" "$tmp/pd-ticket.md" OPEN "" '[{"name":"tixforge:todo"}]'
 body=$(bash "$scripts/issue-sync.sh" body "$tmp/pd-ticket.md" 2> /dev/null) || body=""
 [ -n "$body" ] && jq --arg b "$body" '.body = $b | .number = 21' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
 out=$(pd issue 21)
-eq "$(printf 'issue\tGT-000021\ttodo\t-\tyes\tDetail')" "$(printf '%s\n' "$out" | sed -n 1p)" "issue: an unassigned todo can be started"
+eq "$(printf 'issue\tGT-000021\ttodo\t-\tyes\tDetail')" "$(printf '%s\n' "$out" | sed -n 2p)" "issue: an unassigned todo can be started"
+mkdir -p .tixforge/GT-000021 && printf '| Field | Value |\n|---|---|\n| Status | plan:in-progress |\n| Branch | — |\n' > .tixforge/GT-000021/state.md
+has "$(printf '\tstarted\t')" "$(pd issue 21 | sed -n 2p)" "issue: a run of it open here is started"
+rm -rf .tixforge/GT-000021
 has "本文" "$out" "issue: the ticket's body"
 case "$out" in *"tixforge:"*"-->"*) ng "issue: the markers are left out" ;; *) ok ;; esac
 jq '.assignees = [{login: "ann"}]' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
-has "$(printf '\tann\tassigned\t')" "$(pd issue GT-000021 | sed -n 1p)" "issue: someone else's todo"
+has "$(printf '\tann\tassigned\t')" "$(pd issue GT-000021 | sed -n 2p)" "issue: someone else's todo"
 jq '.assignees = [{login: "me"}, {login: "ann"}]' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
-has "$(printf '\tme,ann\tyes\t')" "$(pd issue 21 | sed -n 1p)" "issue: a todo of mine"
+has "$(printf '\tme,ann\tyes\t')" "$(pd issue 21 | sed -n 2p)" "issue: a todo of mine"
 jq '.labels = [{name: "tixforge:in-progress"}]' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
-has "$(printf '\tin-progress\tme,ann\tstarted\t')" "$(pd issue 21 | sed -n 1p)" "issue: started already"
+has "$(printf '\tin-progress\tme,ann\tstarted\t')" "$(pd issue 21 | sed -n 2p)" "issue: started already"
 printf 'no markers\n' > "$tmp/pd-plain.md"
 issue 22 "Plain" "$tmp/pd-plain.md"
 jq '.number = 22' "$GH_DIR/issue-22.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-22.json"
 out=$(pd issue 22)
 has "$(printf 'issue\tGT-000022\t-\t-\tstarted\tPlain')" "$out" "issue: no state label"
 has "no markers" "$out" "issue: the whole body when tixforge did not write it"
-out=$(PATH="$tmp/nogh:/usr/bin:/bin" bash "$scripts/panel-data.sh" list)
+# A blank line in the body stays; broken markers give the whole body once.
+printf '## 背景\n\n段落\n' > "$tmp/pd-blank.md"
+body=$(bash "$scripts/issue-sync.sh" body "$tmp/pd-blank.md" 2> /dev/null)
+jq --arg b "$body" '.body = $b' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
+has "$(printf '## 背景\n\n段落')" "$(pd issue 21)" "issue: blank lines in the body stay"
+jq --arg b "$(printf '<!-- tixforge:ticket -->\n## 背景\nhalf\n')" '.body = $b' "$GH_DIR/issue-21.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-21.json"
+eq 1 "$(pd issue 21 | grep -c half)" "issue: broken markers: the body once"
+nogh="$tmp/panel-nogh"
+mkdir -p "$nogh"
+for t in bash git awk sed grep tr head cat dirname paste mktemp rm; do
+  p=$(command -v "$t") && ln -sf "$p" "$nogh/$t"
+done
+out=$(PATH="$nogh" bash "$scripts/panel-data.sh" list)
 eq 4 $? "no gh: exit 4"
-has "$(printf 'error\tgh\t')" "$out" "no gh: says so"
+has "$(printf 'error\tgh-missing')" "$out" "no gh: says so"
+out=$(GH_NO_AUTH=1 GH_FAIL_USER=1 bash "$scripts/panel-data.sh" list)
+eq 4 $? "not signed in: exit 4"
+has "$(printf 'error\tgh-auth\t')" "$out" "not signed in: says so"
+out=$(GH_FAIL_USER=1 bash "$scripts/panel-data.sh" list)
+has "$(printf 'error\tgh\toffline')" "$out" "gh fails otherwise: the reason"
 
 # --- v2 data ---------------------------------------------------------------
 # What v2 left in users' repositories: the plugin update does not rewrite it.

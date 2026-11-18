@@ -1,4 +1,4 @@
-// The values the /tixforge:panel pane (hooks/panel.tsx) keeps in $.state.
+// The values the /tixforge-panel pane (hooks/panel.tsx) keeps in $.state.
 // scripts/panel-data.sh makes them; the pane only draws them.
 
 export type PanelPr = {
@@ -46,6 +46,7 @@ declare module 'claude-code' {
       error: string
       view: Shaped<PanelView>
       now: number
+      lang: string
       sections: Shaped<{ prs: boolean; tickets: boolean }>
     }
   }
