@@ -25,7 +25,8 @@
 # rewind moves the sections of the target phase and every later phase into
 # .tixforge/<id>/history/<time>.md (so they are not read as approved any
 # more, but can be looked up), leaves them empty in state.md, puts
-# "> <rewind_note>" (messages.yml, in this person's language) under the
+# "> <rewind_note>" (scripts/messages.yml, in this person's language; a newline in
+# the reason becomes a space) under the
 # target section, and sets Status
 # to <phase>:in-progress. Going back to implement keeps the Implementation
 # Log (the commits are still there) and moves Review and PR. --keep-log
@@ -261,7 +262,7 @@ case $cmd in
     # Implementation Log (4) with --keep-log. Text goes in through ENVIRON:
     # awk -v would turn the \t of C:\temp into a tab.
     RW_HIST=$hist RW_HEAD="# Rewound to $phase ($now)" RW_WAS="Status before: $before" \
-      RW_WHY=$reason RW_NOTE="> $(msg_fill rewind_note "$(user_lang)" time "$now" reason "$reason")" \
+      RW_WHY=$reason RW_NOTE="> $(msg_fill rewind_note "$(user_lang "$top")" time "$now" reason "$(printf '%s' "$reason" | tr '\n' ' ')")" \
       awk -v from="$from" -v keep="$keep" -v target="$target" \
       "$_section_awk"'
       BEGIN {

@@ -63,7 +63,7 @@ $(cfg_map commands "$conf")
 EOF
 
 if [ $ran -eq 0 ]; then
-  echo "Verification @ $hash: $(msg verify_no_commands "$(user_lang)")"
+  echo "Verification @ $hash: $(msg verify_no_commands "$(user_lang "$top")")"
   exit 0
 fi
 changed=""
