@@ -10,7 +10,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 引数：`$ARGUMENTS`
 
-## 現在の状態（起動時に自動で取得）
+## 現在の状態
 
 !`bash ${CLAUDE_PLUGIN_ROOT}/scripts/project-status.sh`
 
@@ -18,10 +18,9 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 | 起動 | 内容 | 手順ファイル |
 |------|------|--------------|
-| `/tixforge:ticket create [作りたいもの]` | チケットを対話で作る。id は自動で決まる（共通規約） | `${CLAUDE_SKILL_DIR}/create.md` |
+| `/tixforge:ticket create [作りたいもの]` | チケットを対話で作る | `${CLAUDE_SKILL_DIR}/create.md` |
 | `/tixforge:ticket edit <ticket-id>` | 既存のチケットを対話で書き換える。進行中の run があれば、影響に応じてフェーズを戻す | `${CLAUDE_SKILL_DIR}/edit.md` |
-| `/tixforge:ticket cancel <ticket-id>` | チケットを `canceled` として残し、以後どのサブコマンドからも操作しない | `${CLAUDE_SKILL_DIR}/cancel.md` |
-| `/tixforge:ticket <作りたいもの>` | create と同じ。引数全体を作りたいものの説明として扱う | `${CLAUDE_SKILL_DIR}/create.md` |
+| `/tixforge:ticket cancel <ticket-id>` | チケットを `canceled` として残す | `${CLAUDE_SKILL_DIR}/cancel.md` |
 | `/tixforge:ticket` | 選択肢を出す（下記） | — |
 
 **引数の解釈：** 先頭の語が `create` / `edit` / `cancel` ならそのサブコマンド。残りは、edit・cancel ではチケット id、create では作りたいものの説明（省略可）として扱う。先頭の語がサブコマンド名でなければ、引数全体を create の説明として扱う。
