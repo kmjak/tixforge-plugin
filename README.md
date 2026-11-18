@@ -100,7 +100,7 @@ plugin を有効にしていれば、スキルを起動していないセッシ�
 
 | hook | イベント | 内容 |
 |------|----------|------|
-| `scripts/guard.sh` | PreToolUse（`Bash\|Edit\|Write\|MultiEdit\|NotebookEdit` と、名前に git を含む MCP） | push・PR 作成・許可リスト外の git / gh 操作に確認画面を出し、force push と `Closes` の無い PR をブロックする。Plan の承認前の run があるときのコード編集にも確認画面を出す |
+| `scripts/guard.sh` | PreToolUse（`Bash\|Edit\|Write\|MultiEdit\|NotebookEdit` と、名前に git を含む MCP） | push・PR 作成・許可リスト外の git / gh 操作に確認画面を出し、force push・hook を飛ばす操作・`Closes` の無い PR をブロックする。Plan の承認前の run があるときのコード編集と、Implement 中の lint などの設定の編集にも確認画面を出す |
 | `scripts/session-start.sh` | SessionStart（`compact\|resume`） | 会話の要約・再開の後、進行中の run と、読み直す手順ファイルを Claude に伝える |
 
 `guard.sh` の判定：
@@ -108,11 +108,13 @@ plugin を有効にしていれば、スキルを起動していないセッシ�
 | 場所 | 判定 | 対象 |
 |------|------|------|
 | run のブランチ・進行中の run の Base | **deny** | force push（`-f`・`--force-with-lease`・`+refspec`、`bash -c`・`eval` 経由も）。必要ならユーザーが `! git push --force-with-lease` で自分で実行する |
+| run のブランチ・進行中の run の Base | **deny** | git の hook を飛ばす commit・push・merge（`--no-verify`・`commit -n`・`git -c core.hooksPath=`・`include.path=`）。必要ならユーザーが `!` で自分で実行する |
 | run のブランチ | **deny** | 本文に `Closes #<番号>` の無い `gh pr create` |
 | run のブランチ | **ask** | それ以外のすべての push・PR 作成（確認画面に Status・ブランチ・Base・PR の状況が出る） |
 | run のブランチ・進行中の run の Base | **ask** | 許可リストに無い git / gh 操作（merge・rebase・reset・cherry-pick・clean・`commit --amend`・`branch -D`・`switch -f`・`checkout -B`・`fetch +refspec`・`gh pr merge`・書き込みの `gh api` など）と、GitHub / git の MCP ツールの読み取り以外 |
 | 進行中の run の Base | **ask** | Base への commit・push |
 | Plan の承認前の run があるとき | **ask** | `docs/`・`.tixforge/` 以外のファイルへの Edit / Write（Implement 以降の run のブランチの上では出さない） |
+| Implement 中の run のブランチ | **ask** | 既にある lint・formatter・型チェックの設定ファイル（`eslint.config.*`・`.prettierrc*`・`tsconfig*.json`・`ruff.toml`・`.golangci.yml` など）の Edit / Write。`pyproject.toml` と CI の workflow は対象外 |
 
 - `permissionDecision: "ask"` は、`permissions.allow` に `git push` を入れていても、auto モードでも確認画面を出す。
 - 検知はあえて広めにしている（引用符を外して `git` と `push` の組み合わせを拾うなど）。誤検知しても確認画面が出るだけ。commit メッセージに「push -f」と書いただけならブロックしない（確認画面に注記が付く）。

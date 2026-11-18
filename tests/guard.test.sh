@@ -331,6 +331,45 @@ done
 rm -rf "$tfrepo/.tixforge/GT-000002"
 set_state implement:in-progress
 
+# Skipping the git hooks is denied on a run's branch and on the Base.
+state="hook bypass"
+set_state implement:in-progress
+expect deny "$tfrepo" 'git commit --no-verify -m x'
+expect deny "$tfrepo" 'git commit -n -m x'
+expect deny "$tfrepo" 'git commit -anm x'
+expect deny "$tfrepo" 'git -c core.hooksPath=/dev/null commit -m x'
+expect deny "$tfrepo" 'git -c CORE.HOOKSPATH=/tmp commit -m x'
+expect deny "$tfrepo" 'git -c include.path=/tmp/x commit -m x'
+expect deny "$tfrepo" 'git -c includeIf.gitdir:/x.path=/tmp/x commit -m x'
+expect deny "$tfrepo" 'bash -c "git commit --no-verify -m x"'
+expect deny "$tfrepo" 'git push --no-verify origin GT-000001-login'
+expect deny "$tfrepo" 'git merge --no-verify main'
+expect pass "$tfrepo" 'git commit -m "no flag here" --no-edit'
+expect pass "$tfrepo" 'git -c user.name=x commit -m x'
+expect ask "$tfrepo" 'git push -n origin GT-000001-login'
+git -C "$tfrepo" checkout -q main
+expect deny "$tfrepo" 'git commit --no-verify -m x'
+git -C "$tfrepo" checkout -q GT-000001-login
+expect pass "$plain" 'git commit --no-verify -m x'
+
+# Editing an existing check config in Implement asks; a new one does not.
+state="check config in Implement"
+printf '{}\n' > "$tfrepo/eslint.config.js"
+printf '{}\n' > "$tfrepo/tsconfig.json"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+expect_tool ask "$tfrepo" Write "{\"file_path\":\"tsconfig.json\"}"
+expect_tool pass "$tfrepo" Write "{\"file_path\":\"$tfrepo/.prettierrc\"}"
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/pyproject.toml\"}"
+set_state review:in-progress
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+set_state plan:awaiting-approval
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+git -C "$tfrepo" checkout -q main
+set_state implement:in-progress
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+git -C "$tfrepo" checkout -q GT-000001-login
+rm -f "$tfrepo/eslint.config.js" "$tfrepo/tsconfig.json"
+
 # A branch with no issue (a local ticket v2 left behind) needs no Closes line.
 state="v2 local ticket"
 mkdir -p "$tfrepo/.tixforge/LT-000003"

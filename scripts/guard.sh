@@ -14,8 +14,15 @@
 #   ask   any git / gh subcommand outside the allow list below (merge,
 #         rebase, reset, gh pr merge, gh api writes, ...), and GitHub / git
 #         MCP tools that are not reads
+#   deny  a commit / push / merge that skips the git hooks (--no-verify,
+#         commit -n, git -c core.hooksPath= / include.path= / includeIf.*.path=)
 # On the Base of an open run (the branch a run merges into):
 #   the same, and a commit on the Base asks too (work goes on ticket branches)
+# On the branch of a run in Implement, editing an existing lint / formatter /
+#   type-check config (eslint, prettier, biome, tsconfig, ruff, golangci,
+#   rubocop, ...) asks: loosening the checks to pass them is not allowed
+#   (run.md), and a planned change is confirmed on the prompt. pyproject.toml
+#   and CI workflows hold more than checks, so they are left alone.
 # While a run is before Implement (research / approach / plan), editing a
 #   file of the repository outside docs/ and .tixforge/ asks: nothing is
 #   implemented before the Plan is approved. Not on the branch of a run that
@@ -70,6 +77,7 @@ top=$(git -C "$cwd" rev-parse --show-toplevel 2> /dev/null) || exit 0
 case "$tool" in
   Edit | Write | MultiEdit | NotebookEdit)
     early=""
+    own=""
     cur=$(git -C "$cwd" symbolic-ref --short -q HEAD 2> /dev/null || true)
     while IFS="$RUN_SEP" read -r id s b _; do
       [ -n "$id" ] || continue
@@ -79,15 +87,31 @@ case "$tool" in
       fi
       # On the branch of a run past its Plan: that run's work.
       case "$s" in implement:* | review:* | pr:*)
-        [ -n "$cur" ] && [ "$b" = "$cur" ] && exit 0
+        if [ -n "$cur" ] && [ "$b" = "$cur" ]; then
+          own="${id}（${s}）"
+          break
+        fi
         ;;
       esac
     done << EOF
 $(each_run "$top")
 EOF
-    [ -n "$early" ] || exit 0
+    case "$own" in "" | *"（implement:"*) ;; *) exit 0 ;; esac
+    [ -n "$early" ] || [ -n "$own" ] || exit 0
     path=$(printf '%s' "$input" | json_get tool_input.file_path)
     [ -n "$path" ] || path=$(printf '%s' "$input" | json_get tool_input.notebook_path)
+    if [ -n "$own" ]; then
+      # Implement: only an existing check config asks.
+      case "${path##*/}" in
+        .eslintrc* | eslint.config.* | .prettierrc* | prettier.config.* | biome.json | biome.jsonc | tsconfig*.json | jsconfig*.json | \
+          ruff.toml | .ruff.toml | .flake8 | .pylintrc | pylintrc | mypy.ini | .mypy.ini | .golangci.yml | .golangci.yaml | .golangci.toml | \
+          .rubocop.yml | .stylelintrc* | stylelint.config.* | .markdownlint* | .shellcheckrc | .swiftlint.yml | detekt.yml | phpstan.neon*)
+          case "$path" in /*) ;; *) path="$cwd/$path" ;; esac
+          [ -f "$path" ] && ask "Implement 中の run ${own} で、lint・formatter・型チェックの設定（${path##*/}）を編集しようとしています。Plan にある変更か確かめてください。テストや lint を通すために検査を緩める変更なら止めてください（run.md）。承認しますか？"
+          ;;
+      esac
+      exit 0
+    fi
     [ -n "$path" ] || ask "Plan の承認前の run があります：${early}。hook の入力から編集するファイルを読み取れなかったため、docs/・.tixforge/ の中かを判定できません。承認しますか？"
     case "$path" in /*) ;; *) path="$cwd/$path" ;; esac
     # Resolve symlinks (/tmp, /var on macOS) through the nearest existing
@@ -186,6 +210,7 @@ has_word git && has_word push && is_push=1
 # Allow list: every git / gh in command position must be a read or a local,
 # recoverable step. The first one that is not becomes $other.
 other=""
+bypass=""
 has_arg() { # has_arg <pattern>...: one of the remaining words matches
   local w p
   for w in $rest; do for p in "$@"; do
@@ -250,13 +275,31 @@ while IFS= read -r seg; do
         j=$((i + 1))
         while [ $j -lt $n ]; do
           case "${words[$j]}" in
-            -C | -c | --git-dir | --work-tree | --namespace) j=$((j + 2)) ;;
+            -c)
+              # A config that points the hooks elsewhere skips them.
+              case "$(printf '%s' "${words[$((j + 1))]:-}" | tr '[:upper:]' '[:lower:]')" in
+                core.hookspath=* | include.path=* | includeif.*.path=*) bypass="git -c ${words[$((j + 1))]}" ;;
+              esac
+              j=$((j + 2))
+              ;;
+            -C | --git-dir | --work-tree | --namespace) j=$((j + 2)) ;;
             -*) j=$((j + 1)) ;;
             *) break ;;
           esac
         done
         sub=${words[$j]:-}
         rest="${words[*]:$((j + 1))}"
+        case "$sub" in
+          commit | push | merge)
+            has_arg --no-verify && bypass="git ${sub} --no-verify"
+            # commit -n is --no-verify (push -n is a dry run).
+            if [ "$sub" = commit ]; then
+              for w in $rest; do
+                case "$w" in --*) ;; -*n*) bypass="git commit ${w}" ;; esac
+              done
+            fi
+            ;;
+        esac
         git_ok "$sub" || other="git ${sub}"
         ;;
       gh | */gh)
@@ -281,6 +324,7 @@ $segments
 EOF
 set +f
 
+[ -z "$bypass" ] || deny "git の hook を飛ばす操作は禁止です（${bypass}。${where}）。hook を飛ばさずに、失敗の原因を直してください。本当に必要なら、ユーザー自身が ! で実行してください。"
 [ $is_push -eq 1 ] || [ $is_pr_create -eq 1 ] || [ -n "$other" ] || exit 0
 
 # deny: force push, in any form, inside a segment that is a git push (quotes
