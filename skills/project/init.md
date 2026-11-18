@@ -135,7 +135,7 @@
     - 全文を示し、確認を得てから `.github/workflows/tixforge-ci.yml` に書く。
 17. **まとめ**：作ったものを要約する。対話で作った場合は未決事項を示す。自分で作る場合は、`docs/context/overview.md` を埋めてから `/tixforge:ticket create` に進むよう促す。画面の下に run と Status を出したければ、README の「statusline」の設定を足せることを 1 行で伝える（ユーザーの設定ファイルは書き換えない）。
 18. **commit**：init で作ったもの・変えたもの（`.tixforge/.gitignore`・`.tixforge/config.yml`・`docs/context/**`・`LICENSE`・`CLAUDE.md`・PR テンプレート・`.github/ISSUE_TEMPLATE/tixforge-ticket.yml`・`.github/workflows/tixforge-*.yml`・`.github/tixforge/*`）をまとめて commit する。対象ファイルと commit メッセージ（`docs/context/commit.md` の規約に従う）を提示し、確認を得てから commit する。init が作ったもの以外の変更は含めない。
-    - **commit が 1 つも無いリポジトリ**では、必ずこの時点で commit する（後回しにする選択肢を出さない）。context が雛形のままでもよい。
+    - **commit が 1 つも無いリポジトリ**では、必ずこの時点で commit する（後回しにする選択肢を出さない。commit が無いと dev が `base_branch` からブランチを切れない）。context が雛形のままでもよい。
     - **既存のリポジトリ**なら、「ブランチを切って PR にする（ブランチ保護や PR 必須の運用向け）」「`base_branch` に直接 commit する」を尋ねる。PR にするなら、Base がリモートに無ければ（`git ls-remote --heads origin <base_branch>`）先に Base を push し（コマンドを示して確認を得る）、それからブランチを切って commit し、push と PR 作成はコマンドを示して確認を得てから行う。
     - 新しく作ったリポジトリで context を自分で書く場合も、上のとおり今 commit する（書き終えた後の変更は、ユーザーが別に commit する）。
     - **main + develop を選んだ場合**：commit の後に `git branch develop`。
