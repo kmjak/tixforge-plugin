@@ -67,7 +67,7 @@ git -C "$plain" commit -q --allow-empty -m init
 
 # json_str <s>: s as a JSON string literal (enough for these fixtures).
 json_str() {
-  printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'NR > 1 { printf "\\n" } { printf "%s", $0 }')"
 }
 
 # verdict_of <dir> <json> [PATH]: prints pass | ask | deny
@@ -345,6 +345,28 @@ expect deny "$tfrepo" 'bash -c "git commit --no-verify -m x"'
 expect deny "$tfrepo" 'git push --no-verify origin GT-000001-login'
 expect deny "$tfrepo" 'git merge --no-verify main'
 expect pass "$tfrepo" 'git commit -m "no flag here" --no-edit'
+# Words in a message or a PR body are not flags: not denied, though the
+# loose reading (quotes removed) still asks.
+expect ask "$tfrepo" 'git commit -m "fix -n handling"'
+expect ask "$tfrepo" 'git commit -m "docs: mention --no-verify"'
+expect pass "$tfrepo" 'git commit -m"initial"'
+expect pass "$tfrepo" 'git commit -uno -m x'
+expect pass "$tfrepo" 'git commit -am x'
+expect ask "$tfrepo" "$(printf 'git commit -F - <<EOF\n- git commit -n is denied\nEOF')"
+expect ask "$tfrepo" "$(printf 'gh pr create --title t --body "Closes #1\n- git commit --no-verify is denied"')"
+expect deny "$tfrepo" 'git commit --no-verif -m x'
+expect deny "$tfrepo" 'git rebase main && git commit --no-verify -m x'
+expect deny "$tfrepo" 'if git commit --no-verify -m x; then echo ok; fi'
+expect deny "$tfrepo" 'timeout 60 git commit -n -m x'
+expect deny "$tfrepo" 'nice -n 5 git commit --no-verify -m x'
+expect deny "$tfrepo" 'git --config-env=core.hooksPath=HP commit -m x'
+expect deny "$tfrepo" 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null git commit -m x'
+expect ask "$tfrepo" 'HUSKY=0 git commit -m x'
+expect ask "$tfrepo" 'SKIP=eslint git commit -m x'
+expect pass "$tfrepo" 'git -c core.hooksPath=/dev/null status'
+expect ask "$tfrepo" 'git merge -n main'
+expect pass "$tfrepo" 'git commit -m x' "$nojq"
+expect deny "$tfrepo" 'git commit --no-verify -m x' "$nojq"
 expect pass "$tfrepo" 'git -c user.name=x commit -m x'
 expect ask "$tfrepo" 'git push -n origin GT-000001-login'
 git -C "$tfrepo" checkout -q main
@@ -360,6 +382,21 @@ expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
 expect_tool ask "$tfrepo" Write "{\"file_path\":\"tsconfig.json\"}"
 expect_tool pass "$tfrepo" Write "{\"file_path\":\"$tfrepo/.prettierrc\"}"
 expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/pyproject.toml\"}"
+expect_tool ask "$tfrepo" MultiEdit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+mkdir -p "$tfrepo/.husky" && printf 'x\n' > "$tfrepo/.husky/pre-commit" && printf 'x\n' > "$tfrepo/.eslintignore"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/.husky/pre-commit\"}"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/.eslintignore\"}"
+rm -rf "$tfrepo/.husky" "$tfrepo/.eslintignore"
+printf '{}\n' > "$tmp/tsconfig.json"
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tmp/tsconfig.json\"}"
+# Another run before its Plan does not change this: configs ask, code passes.
+mkdir -p "$tfrepo/.tixforge/GT-000002"
+printf '| Field   | Value |\n|---|---|\n| Status  | approach:in-progress |\n| Branch  | — |\n' > "$tfrepo/.tixforge/GT-000002/state.md"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/src/a.ts\"}"
+rm -rf "$tfrepo/.tixforge/GT-000002"
+set_state pr:in-progress
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
 set_state review:in-progress
 expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
 set_state plan:awaiting-approval

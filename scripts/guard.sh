@@ -14,15 +14,18 @@
 #   ask   any git / gh subcommand outside the allow list below (merge,
 #         rebase, reset, gh pr merge, gh api writes, ...), and GitHub / git
 #         MCP tools that are not reads
-#   deny  a commit / push / merge that skips the git hooks (--no-verify,
-#         commit -n, git -c core.hooksPath= / include.path= / includeIf.*.path=)
+#   deny  a commit / push / merge / pull / rebase / am that skips the git
+#         hooks (--no-verify, commit -n, -c / --config-env / GIT_CONFIG_*
+#         moving core.hooksPath or include.path); asked when seen only with
+#         the quotes removed, or through a hook tool's variable (HUSKY=0, SKIP=)
 # On the Base of an open run (the branch a run merges into):
 #   the same, and a commit on the Base asks too (work goes on ticket branches)
-# On the branch of a run in Implement, editing an existing lint / formatter /
-#   type-check config (eslint, prettier, biome, tsconfig, ruff, golangci,
-#   rubocop, ...) asks: loosening the checks to pass them is not allowed
-#   (run.md), and a planned change is confirmed on the prompt. pyproject.toml
-#   and CI workflows hold more than checks, so they are left alone.
+# On the branch of a run in Implement or pr:in-progress, editing an existing
+#   lint / formatter / type-check / git hook config of the repository
+#   (eslint, prettier, tsconfig, ruff, golangci, .husky/, pre-commit, ...)
+#   asks: loosening the checks to pass them is not allowed (run.md), and a
+#   planned change is confirmed on the prompt. pyproject.toml and CI
+#   workflows hold more than checks, so they are left alone.
 # While a run is before Implement (research / approach / plan), editing a
 #   file of the repository outside docs/ and .tixforge/ asks: nothing is
 #   implemented before the Plan is approved. Not on the branch of a run that
@@ -96,21 +99,36 @@ case "$tool" in
     done << EOF
 $(each_run "$top")
 EOF
-    case "$own" in "" | *"（implement:"*) ;; *) exit 0 ;; esac
+    # Implement, and the PR phase, where CI failures and review comments are
+    # fixed on the branch.
+    case "$own" in "" | *"（implement:"* | *"（pr:in-progress）") ;; *) exit 0 ;; esac
     [ -n "$early" ] || [ -n "$own" ] || exit 0
     path=$(printf '%s' "$input" | json_get tool_input.file_path)
     [ -n "$path" ] || path=$(printf '%s' "$input" | json_get tool_input.notebook_path)
     if [ -n "$own" ]; then
-      # Implement: only an existing check config asks.
-      case "${path##*/}" in
-        .eslintrc* | eslint.config.* | .prettierrc* | prettier.config.* | biome.json | biome.jsonc | tsconfig*.json | jsconfig*.json | \
-          ruff.toml | .ruff.toml | .flake8 | .pylintrc | pylintrc | mypy.ini | .mypy.ini | .golangci.yml | .golangci.yaml | .golangci.toml | \
-          .rubocop.yml | .stylelintrc* | stylelint.config.* | .markdownlint* | .shellcheckrc | .swiftlint.yml | detekt.yml | phpstan.neon*)
-          case "$path" in /*) ;; *) path="$cwd/$path" ;; esac
-          [ -f "$path" ] && ask "Implement 中の run ${own} で、lint・formatter・型チェックの設定（${path##*/}）を編集しようとしています。Plan にある変更か確かめてください。テストや lint を通すために検査を緩める変更なら止めてください（run.md）。承認しますか？"
+      # Implement: only an existing check config inside the repository asks
+      # (by the name it is edited under: a symlink's target is not looked at).
+      case "$path" in /*) ;; *) path="$cwd/$path" ;; esac
+      [ -f "$path" ] || exit 0
+      path="$(cd "${path%/*}" && pwd -P)/${path##*/}"
+      case "$path" in "$top"/*) ;; *) exit 0 ;; esac
+      case "$path" in
+        */.husky/*) ;;
+        *)
+          case "${path##*/}" in
+            .eslintrc* | eslint.config.* | .eslintignore | .prettierrc* | prettier.config.* | .prettierignore | biome.json | biome.jsonc | \
+              tsconfig*.json | jsconfig*.json | tslint.json | .jshintrc | .oxlintrc.json | dprint.json | deno.json | deno.jsonc | \
+              ruff.toml | .ruff.toml | .flake8 | .pylintrc | pylintrc | mypy.ini | .mypy.ini | pyrightconfig.json | \
+              .golangci.yml | .golangci.yaml | .golangci.toml | .golangci.json | .rubocop.yml | .rubocop_todo.yml | \
+              .stylelintrc* | stylelint.config.* | .stylelintignore | .markdownlint* | .yamllint* | .shellcheckrc | \
+              rustfmt.toml | .rustfmt.toml | clippy.toml | .clang-format | .clang-tidy | .swiftlint.yml | .swiftformat | detekt.yml | \
+              phpstan.neon* | .php-cs-fixer* | phpcs.xml* | \
+              .pre-commit-config.yaml | lefthook.yml | lefthook.yaml | .lefthook.yml | .lintstagedrc* | lint-staged.config.*) ;;
+            *) exit 0 ;;
+          esac
           ;;
       esac
-      exit 0
+      ask "run ${own} で、lint・formatter・型チェック・git hook の設定（${path#"$top"/}）を編集しようとしています。Plan にある変更か確かめてください。テストや lint を通すために検査を緩める変更（ルールの無効化・除外の追加・strict を外すなど）なら止めてください（run.md）。承認しますか？"
     fi
     [ -n "$path" ] || ask "Plan の承認前の run があります：${early}。hook の入力から編集するファイルを読み取れなかったため、docs/・.tixforge/ の中かを判定できません。承認しますか？"
     case "$path" in /*) ;; *) path="$cwd/$path" ;; esac
@@ -210,7 +228,6 @@ has_word git && has_word push && is_push=1
 # Allow list: every git / gh in command position must be a read or a local,
 # recoverable step. The first one that is not becomes $other.
 other=""
-bypass=""
 has_arg() { # has_arg <pattern>...: one of the remaining words matches
   local w p
   for w in $rest; do for p in "$@"; do
@@ -258,7 +275,6 @@ gh_ok() { # gh_ok <sub> <sub2>
 segments=$(printf '%s\n' "$unquoted" | tr ';&|(){}`' '\n\n\n\n\n\n\n\n')
 set -f
 while IFS= read -r seg; do
-  [ -n "$other" ] && break
   # shellcheck disable=SC2206 # word splitting (globbing off) is the point
   words=($seg)
   n=${#words[@]}
@@ -275,32 +291,14 @@ while IFS= read -r seg; do
         j=$((i + 1))
         while [ $j -lt $n ]; do
           case "${words[$j]}" in
-            -c)
-              # A config that points the hooks elsewhere skips them.
-              case "$(printf '%s' "${words[$((j + 1))]:-}" | tr '[:upper:]' '[:lower:]')" in
-                core.hookspath=* | include.path=* | includeif.*.path=*) bypass="git -c ${words[$((j + 1))]}" ;;
-              esac
-              j=$((j + 2))
-              ;;
-            -C | --git-dir | --work-tree | --namespace) j=$((j + 2)) ;;
+            -C | -c | --git-dir | --work-tree | --namespace) j=$((j + 2)) ;;
             -*) j=$((j + 1)) ;;
             *) break ;;
           esac
         done
         sub=${words[$j]:-}
         rest="${words[*]:$((j + 1))}"
-        case "$sub" in
-          commit | push | merge)
-            has_arg --no-verify && bypass="git ${sub} --no-verify"
-            # commit -n is --no-verify (push -n is a dry run).
-            if [ "$sub" = commit ]; then
-              for w in $rest; do
-                case "$w" in --*) ;; -*n*) bypass="git commit ${w}" ;; esac
-              done
-            fi
-            ;;
-        esac
-        git_ok "$sub" || other="git ${sub}"
+        git_ok "$sub" || [ -n "$other" ] || other="git ${sub}"
         ;;
       gh | */gh)
         j=$((i + 1))
@@ -314,7 +312,7 @@ while IFS= read -r seg; do
         sub=${words[$j]:-}
         sub2=${words[$((j + 1))]:-}
         rest="${words[*]:$((j + 1))}"
-        gh_ok "$sub" "$sub2" || other="gh ${sub} ${sub2}"
+        gh_ok "$sub" "$sub2" || [ -n "$other" ] || other="gh ${sub} ${sub2}"
         ;;
     esac
     cmdpos=0
@@ -322,9 +320,142 @@ while IFS= read -r seg; do
 done << EOF
 $segments
 EOF
-set +f
 
-[ -z "$bypass" ] || deny "git の hook を飛ばす操作は禁止です（${bypass}。${where}）。hook を飛ばさずに、失敗の原因を直してください。本当に必要なら、ユーザー自身が ! で実行してください。"
+# --- skipping the git hooks -------------------------------------------------
+# hook_skip <segment>: sets hook_deny or hook_ask when the git commit / push /
+# merge / pull / rebase / am in the segment skips the hooks: --no-verify (or
+# a prefix of it, which git accepts), commit -n, a config that moves the
+# hooks (-c / --config-env / GIT_CONFIG_* with core.hooksPath, include.path,
+# includeIf.*.path), or a hook tool's skip variable (HUSKY=0, SKIP=, ... :
+# asked, as they are per tool).
+hook_deny="" hook_ask=""
+lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+moves_hooks() {
+  case "$(lc "$1")" in *core.hookspath* | *include.path* | includeif.*.path* | *"includeif."*".path"*) return 0 ;; esac
+  return 1
+}
+hook_skip() {
+  local ws n i w cfg="" tool="" j sub k a x ch
+  # shellcheck disable=SC2206 # word splitting (globbing off) is the point
+  ws=($1)
+  n=${#ws[@]}
+  i=0
+  while [ $i -lt $n ]; do
+    w=${ws[$i]}
+    case "$w" in
+      GIT_CONFIG_PARAMETERS=* | GIT_CONFIG_KEY_*=*) moves_hooks "${w#*=}" && cfg="$w" ;;
+      HUSKY=0 | HUSKY_SKIP_HOOKS=* | LEFTHOOK=0 | SKIP=*) tool="$w" ;;
+      [A-Za-z_]*=* | command | env | sudo | exec | xargs | eval | time | nohup | nice | timeout | bash | sh | zsh | \
+        if | then | do | else | elif | while | until | '!' | -* | [0-9]*) ;;
+      git | */git)
+        j=$((i + 1))
+        while [ $j -lt $n ]; do
+          case "${ws[$j]}" in
+            -c | --config-env)
+              moves_hooks "${ws[$((j + 1))]:-}" && cfg="git ${ws[$j]} ${ws[$((j + 1))]}"
+              j=$((j + 2))
+              ;;
+            --config-env=*)
+              moves_hooks "${ws[$j]#--config-env=}" && cfg="git ${ws[$j]}"
+              j=$((j + 1))
+              ;;
+            -C | --git-dir | --work-tree | --namespace) j=$((j + 2)) ;;
+            -*) j=$((j + 1)) ;;
+            *) break ;;
+          esac
+        done
+        sub=${ws[$j]:-}
+        case "$sub" in commit | push | merge | pull | rebase | am) ;; *) return ;; esac
+        [ -n "$cfg" ] && hook_deny=$cfg && return
+        k=$((j + 1))
+        while [ $k -lt $n ]; do
+          a=${ws[$k]}
+          case "$a" in
+            --) break ;;
+            --no-veri*)
+              hook_deny="git ${sub} ${a}"
+              return
+              ;;
+            --message | --file | --template | --author | --date | --reuse-message | --reedit-message | --fixup | --squash | --cleanup | --trailer | --strategy | --strategy-option) k=$((k + 1)) ;;
+            --*) ;;
+            -?*)
+              # A cluster of short flags, read up to the first that takes a
+              # value (the rest of the word, or the next word, is the value).
+              # Only commit has -n for --no-verify (push -n is a dry run).
+              x=1
+              while [ $x -lt ${#a} ]; do
+                ch=${a:$x:1}
+                case "$ch" in
+                  n) [ "$sub" = commit ] && hook_deny="git commit ${a}" && return ;;
+                  m | F | c | C | t | u | S | s | X)
+                    [ $((x + 1)) -eq ${#a} ] && k=$((k + 1))
+                    break
+                    ;;
+                esac
+                x=$((x + 1))
+              done
+              ;;
+          esac
+          k=$((k + 1))
+        done
+        [ -n "$tool" ] && hook_ask="${tool} git ${sub}"
+        return
+        ;;
+      *) return ;;
+    esac
+    i=$((i + 1))
+  done
+}
+# Precisely: quoted text masked (a commit message or a PR body is not a
+# command), heredoc bodies dropped, and the string after bash -c / sh -c /
+# eval read as a command of its own. A finding there is denied; one seen
+# only in the loose reading (quotes removed) is asked.
+masked=$(printf '%s\n' "$cmd" | awk -v sq="'" '
+  skip != "" { t = $0; sub(/^\t+/, "", t); if (t == skip) skip = ""; next }
+  {
+    print
+    if (match($0, "<<-?[ \t]*[\"" sq "]?[A-Za-z_][A-Za-z0-9_]*")) {
+      d = substr($0, RSTART, RLENGTH); sub("^<<-?[ \t]*[\"" sq "]?", "", d); skip = d
+    }
+  }
+' | awk -v sq="'" '
+  function mask(s,   out, i, c, q, buf, n, x) {
+    n = length(s)
+    for (i = 1; i <= n; i++) {
+      c = substr(s, i, 1)
+      if (q == "") {
+        if (c == "\\") { out = out substr(s, i, 2); i++ }
+        else if (c == "\"" || c == sq) { q = c; buf = "" }
+        else out = out c
+      } else if (c == q) {
+        if (out ~ /(^|[^A-Za-z0-9_])((ba|z)?sh[ \t]+(-[A-Za-z]+[ \t]+)*-c|eval)[ \t]*$/) { x = mask(buf); inner = inner x "\n" }
+        out = out "Q"; q = ""
+      } else if (q == "\"" && c == "\\") { buf = buf substr(s, i + 1, 1); i++ }
+      else buf = buf c
+    }
+    return out
+  }
+  { all = all (NR > 1 ? "\n" : "") $0 }
+  END { printf "%s\n%s", mask(all), inner }
+')
+while IFS= read -r seg; do
+  [ -z "$hook_deny" ] || break
+  hook_skip "$seg"
+done << EOF
+$(printf '%s\n' "$masked" | tr ';&|(){}`' '\n\n\n\n\n\n\n\n')
+EOF
+if [ -z "$hook_deny" ]; then
+  while IFS= read -r seg; do
+    [ -z "$hook_deny" ] || break
+    hook_skip "$seg"
+  done << EOF
+$segments
+EOF
+  [ -n "$hook_deny" ] && hook_ask="${hook_deny}（引用符を外して読んだ形。commit メッセージなどの中の語かもしれません）" && hook_deny=""
+fi
+set +f
+[ -z "$hook_deny" ] || deny "git の hook を飛ばす操作は禁止です（${hook_deny}。${where}）。hook を飛ばさずに、失敗の原因を直してください。本当に必要なら、ユーザー自身が ! で実行してください。"
+[ -z "$hook_ask" ] || ask "git の hook を飛ばす可能性があります（${hook_ask}）。${where}。hook を飛ばさずに失敗の原因を直すのが原則です。承認しますか？"
 [ $is_push -eq 1 ] || [ $is_pr_create -eq 1 ] || [ -n "$other" ] || exit 0
 
 # deny: force push, in any form, inside a segment that is a git push (quotes
