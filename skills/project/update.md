@@ -10,7 +10,7 @@
 
 ## 設定の値を変える
 
-- 今の `.tixforge/config.yml` を示し、何を変えたいか尋ねる。キーの意味は共通規約の設定の例を使って説明する。
+- 今の `.tixforge/config.yml` を示し、何を変えたいか尋ねる。キーの意味は `references/config.md` を Read して説明する。
 - 値の決め方と確かめ方は init の同じ手順に揃える（init の手順ファイル `<plugin>/skills/project/init.md` の該当手順を Read する）：
   - `repository.base_branch`・`close_issues` → 「ブランチ運用」。develop に変えるのに develop が無ければ、作るか尋ねる（`git fetch origin <今の base_branch>` の後に `git branch develop origin/<今の base_branch>`）。リモートに develop が無ければ push を勧める（コマンドを示して確認を得てから。push しないと dev の Plan で止まる）。進行中の run（`state.md` の `Base`）は変わらないことを伝える。
   - `commands` → 「検証コマンド」（値は全体を囲むか囲まないか）。

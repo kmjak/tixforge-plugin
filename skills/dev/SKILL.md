@@ -38,6 +38,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 | 参照ファイル | 読むとき |
 |--------------|----------|
 | `${CLAUDE_PLUGIN_ROOT}/references/github/<名前>.md` | 手順が指示したファイルだけ |
+| `${CLAUDE_PLUGIN_ROOT}/references/config.md` | 設定のキーが無いとき・キーを説明するとき（共通規約が指示する） |
 | `${CLAUDE_SKILL_DIR}/pr.md` | PR フェーズに入るとき・`pr:*` から再開するとき（`run.md` が指示する） |
 | `${CLAUDE_PLUGIN_ROOT}/references/ticket-changed.md` | チケットが変わり、フェーズを戻すか決めるとき（`run.md`・`pr.md` が指示する） |
 

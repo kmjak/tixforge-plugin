@@ -1,0 +1,33 @@
+# 設定 `.tixforge/config.yml`
+
+`/tixforge:project init` が全てのキーを書き、値を変えるのは `/tixforge:project update`。git 管理する（チームで共有）。キーは init が尋ねる順に並べる。
+
+```yaml
+# tixforge settings (shared, committed)
+repository:
+  base_branch: main     # dev がブランチを切る元・PR の向き先
+  close_issues: merge   # base_branch が GitHub の default branch でないときだけ：merge | release
+language: ja            # ja | en | その他の言語名
+commands:               # dev の検証で書いた順に実行する。無ければ {}
+  test: npm test
+  lint: npm run lint
+ticket:
+  tracker: github       # チケットの置き場：github
+review:
+  required: true        # PR の Approve を必須にするか
+gates: [approach, plan, pr]  # 必ず止まるゲート
+```
+
+| キー | 意味 | 値 | 決める手順（init） | 無いとき | 読むもの |
+|---|---|---|---|---|---|
+| `repository.base_branch` | dev がブランチを切る元で、PR の向き先 | ブランチ名 | 「ブランチ運用」（GitHub の default branch、develop などがあればどちらか） | dev の Plan は `origin/HEAD` を使う。init の再実行を案内する | dev の Plan（Base の既定値）、ticket の create、init の「CI」（`tixforge-ci.yml` に埋める） |
+| `repository.close_issues` | `base_branch` が default branch でないとき、issue を閉じる時点 | `merge`（Base へのマージで閉じる）・`release`（default branch へのリリースで閉じる） | 「ブランチ運用」（`base_branch` が default branch と違うときだけ尋ねる。同じなら尋ねずに `merge`） | `merge` | `references/github/close.md`、`tixforge-issue-sync.yml`、init の「GitHub Actions」 |
+| `language` | ドキュメント言語（チケット・`docs/context/**`・state.md の本文・PR）と会話の言語 | `ja`・`en`・その他の言語名 | 「ドキュメント言語」 | 日本語（`ja`） | 共通規約、`msg`（`messages.yml`。`issue-label.sh setup` など）、`tixforge-pr-link.yml`・`tixforge-issue-guard.yml` |
+| `commands` | dev の検証で実行するコマンド。名前: コマンド | 1 行 1 つ。無ければ `{}` | 「検証コマンド」（`package.json`・`Makefile` などから候補を作って確かめる） | `verify.sh` が終了コード 3 で止まる。init の再実行を案内する | `verify.sh`、init の「CI」（`tixforge-ci.yml` に埋める） |
+| `ticket.tracker` | チケットの置き場 | `github` | 「チケット管理」（尋ねずに書く） | init の再実行を案内する | `project-status.sh`（v2 の `local` を見つける） |
+| `review.required` | PR の Approve を必須にするか | `true`・`false`（1 人なら `false`。GitHub では自分の PR を Approve できない） | 「レビューの要否」（「開発の人数」の答え） | `true` | dev の PR（`pr-status.sh` の判定と合わせる） |
+| `gates` | 必ず止まるゲート。書いていないフェーズは、止まる条件があるときだけ止まる | `research`・`approach`・`plan`・`implement`・`review`・`pr` のリスト。`[]` も可（`pr` は書かなくても必ず止まる） | 「ゲート」（尋ねずに `[approach, plan, pr]`） | `[approach, plan, pr]` | dev の「承認ゲート」 |
+
+- 上の「無いとき」に値や扱いが書いてあるキー以外は、推測の既定値で補わず、`/tixforge:project init` の再実行で足せることを伝える。
+- `project-status.sh` は全てのキーを「現在の状態」に出す（無いキーは空か「未設定」）。
+- **書き方**：スクリプトはこの形だけを読む。2 段までの入れ子・1 行 1 キー・`#` コメント。値は全体を `"…"` で囲むか、まったく囲まない（` #` を含むなら囲む）。改行は CRLF でもよい。
