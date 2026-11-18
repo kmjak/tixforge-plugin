@@ -115,7 +115,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
    - **種別は項目ごとにユーザーが選ぶ**：Claude が推奨と確かめ方の案を付け、AskUserQuestion で尋ねる（1 問 1 項目、選択肢はこの 4 つで推奨を先頭に。1 回に 4 項目まで）。`Claude（ブラウザ）`・`Claude（API）` は、このセッションでその手段（ブラウザを操作するツール、アプリを起動するスキル、API を呼べる環境）が使えるかを先に確かめ、使えなければ選択肢の説明にそう添える。
    - 確かめ方を決められない条件は、止まってユーザーと決める（チケットの受け入れ条件が曖昧なら `/tixforge:ticket edit` を提案する）。
 4. **順序付きの commit 分割**（各 commit の目的とおおまかな範囲）を決める。1 ブランチに収まらない大きさなら、ユーザーに指摘して一緒にチケットを絞る（別のチケットに分ける）。自動で分割しない。
-5. Base・ブランチ・対応表・commit 一覧を `## Plan` に書き、`bash <scripts>/run-state.sh set <ticket-id> Branch <ブランチ>`・`bash <scripts>/run-state.sh set <ticket-id> Base <Base>` でヘッダも埋める。ゲート（`plan`）へ。
+5. Base・ブランチ・対応表・commit 一覧を `## Plan` に書き、`bash <scripts>/run-state.sh set <ticket-id> Branch <ブランチ>`・`bash <scripts>/run-state.sh set <ticket-id> Base <Base>` でヘッダも埋める。ゲート（`plan`）へ。止まって要約を出すときは、最後に「ここで `/compact` しても、`state.md` から続きを再開できる」と 1 行添える（Implement・Review は context を多く使い、ここまでに読んだものの多くは要らないため。他のゲートには添えない）。
 6. ブランチは Implement の「ブランチの準備」で作る。
 
 ## Phase 4 — Implement
