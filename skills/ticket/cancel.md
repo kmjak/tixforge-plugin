@@ -11,6 +11,7 @@
    - `fetch.md` の手順 1〜3 で状況を見る（手元のファイルは作らない。タイトルは `check` の `title:`）。閉じていればチケットの状態に従う（`canceled`：キャンセル済みとして止まる。`completed`・`closed-completed`：完了済みなので拒否する。`closed-not-planned`：キャンセルとして記録し直すか尋ね、そうするなら下の「行うこと」を、`close.md` のとおり閉じる操作を省いて進める。`closed`：状況を示してどうするか尋ねる）。
    - `.tixforge/<ticket-id>/state.md` の `Status` が `done` なら拒否する。
    - 状態が `merged` なら拒否する（Base にマージ済みでリリース待ち。チケットが開いていて state.md が手元に無くても、完了した作業）。`in-review` なら、PR が出ていることを示して続けるか尋ねる。
+
 ## Phase 2 — 確認（ゲート）
 
 目的：理由と、行うことに確認を得る。
@@ -22,6 +23,7 @@
    - `state.md` の `## Approach` が書かれていれば、`record.md` のとおり「記録を残す」を行う。投稿する本文もこの一覧で示す。
    - このチケットのブランチに開いている PR（`gh pr list --head <Branch> --state open`）があれば、**閉じるかどうかだけ**を尋ねる（残すと、レビュアーからは生きている PR に見える、と添える。閉じるなら `gh pr close <PR> --comment "Canceled by tixforge: <理由>"`）。
    - 最後に、`.tixforge/<ticket-id>/state.md` があれば、`bash <scripts>/run-state.sh set <ticket-id> Status canceled` を実行する。
+
 ## Phase 3 — 実行
 
 目的：確認したとおりに実行する。

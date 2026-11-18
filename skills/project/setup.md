@@ -8,6 +8,7 @@
 
 1. `.tixforge/config.yml` が無ければ、`/tixforge:project init` を案内して止まる。
 2. 「現在の状態」の「設定」（チームの値）と「この人が使う値」を示す。
+
 ## Phase 2 — 選択
 
 目的：変えるキーと値を決める。
@@ -16,6 +17,7 @@
 4. 変えるキーを、1 つずつ AskUserQuestion で尋ねる。最初の選択肢は「チームの設定のままにする（<config.yml の値。キーが無ければ references/config.md の既定値>）」。チームの値と同じ選択肢は出さない。
    - **language**（会話・`state.md`・reviewer の報告の言語）：チームの設定のまま・日本語（`ja`）・English（`en`）（その他は自由入力。書く値は `ja`・`en` などの言語コードか言語名）
    - **gates**（必ず止まるゲート）：チームの設定のまま・`[approach, plan, pr]`・`[plan, pr]`・`[]`（`pr` は書かなくても必ず止まる。その他は自由入力。`references/config.md` の `gates` の値にない名前が入ったら尋ね直す）
+
 ## Phase 3 — 書く（ゲート）
 
 目的：差分を示し、確認を得てから `config.local.yml` に書く。

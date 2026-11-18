@@ -55,6 +55,14 @@ if [ -f "$conf" ]; then
   [ -n "$(cfg language "$lf")" ] || lsrc=既定
   echo "- この人が使う値: language=$(user_lang "$top")（${lsrc}）" \
     "gates=${ugates:-（未設定）}（${gf##*/}）"
+  # init writes config.yml one answer at a time and ticket.tracker last
+  # (after the labels): a key with no default missing means it stopped
+  # part way.
+  missing=""
+  [ -n "$(cfg repository.base_branch "$conf")" ] || missing=repository.base_branch
+  cfg_has commands "$conf" || missing="${missing}${missing:+、}commands"
+  [ -n "$(cfg ticket.tracker "$conf")" ] || missing="${missing}${missing:+、}ticket.tracker"
+  [ -z "$missing" ] || echo "- init が途中（無いキー：${missing}）。/tixforge:project init で続ける"
 else
   echo "- .tixforge/config.yml が無い（/tixforge:project init が未実行）"
 fi

@@ -10,9 +10,12 @@
 
 1. **現状の確認**：`docs/context/`・`.tixforge/` の有無と中身、git リポジトリかどうか、commit が 1 つでもあるか（`git rev-parse --verify -q HEAD`）、remote（`git remote -v`）。
    `.tixforge/config.yml` が既にある場合（再実行）は読み込み、**値があるキーは尋ねずにそのまま使う**。以降の手順は、値が無いキーについてだけ行う。
+
 ## Phase 2 — 設定
 
-目的：設定の値を 1 つずつ決める。**値が 1 つ決まるたびに `.tixforge/config.yml` に書く**（`references/config.md` を Read し、その形とキーの順で。既にあるキーは変えない。入れ子のキーは、既にある親（`repository:` など）の下に足す）。最初に書く前に `.tixforge/.gitignore`（`*`・`!.gitignore`・`!config.yml` の 3 行）を作る。途中で止まっても、再実行すれば値のあるキーは尋ねないので続きから進む（config に書かない答え（開発の人数・commit 規約など）は尋ね直す）。config は「commit」まで commit しない。
+目的：設定の値を 1 つずつ決め、決まるたびに `.tixforge/config.yml` に書く。
+
+書くときは `references/config.md` を Read し、その形とキーの順に合わせる（既にあるキーは変えない。入れ子のキーは、既にある親（`repository:` など）の下に足す）。最初に書く前に、`.tixforge/.gitignore`（`*`・`!.gitignore`・`!config.yml` の 3 行）が無ければ作る。答えそのものが確認なので、config を書く前には止まらない（commit は Phase 5）。途中で止まっても、再実行すれば値のあるキーは尋ねないので続きから進む（config に書かない答え（開発の人数・commit 規約）は尋ね直す）。
 
 2. **開発の人数**：「1 人で開発しますか？」と尋ねる（答えを使うキー `repository.base_branch`・`review.required` が全てあれば尋ねない）。答えは「ブランチ運用」「レビューの要否」の推奨に使い回す（同じことを 2 度尋ねない）。
 3. **リポジトリ**：tixforge は GitHub のリポジトリを使う（チケットは issue、変更は PR）。
@@ -26,7 +29,7 @@
      - **自分で作る** — `gh repo create` か GitHub の画面で作って `git remote add origin <URL>` する手順を示し、済ませてもらってから、この手順をもう一度行う。
      - **作らない** — tixforge は GitHub が必須であることを伝えて中止する。
 
-   **リポジトリを作る場合**：先に `bash <scripts>/github-preflight.sh` の終了コードが 3・4 でないことを確かめる（3・4 なら案内して待つ）。次の項目を**1 つずつ**尋ね、全部決まったら、実行するコマンド（`gh repo create <owner>/<name> --<visibility> --source=. --remote=origin [--description "<説明>"]`）と作るもの（LICENSE を含む）を一覧で示して確認を得てから作る。push は「commit」の後に行う。
+   **リポジトリを作る場合**：先に `bash <scripts>/github-preflight.sh` の終了コードが 3・4 でないことを確かめる（3・4 なら案内して待つ）。次の項目を**1 つずつ**尋ね、全部決まったら、実行するコマンド（`gh repo create <owner>/<name> --<visibility> --source=. --remote=origin [--description "<説明>"]`）と作るもの（LICENSE を含む）を一覧で示して確認を得てから、リポジトリと LICENSE を作る。push は「commit」の後に行う。
    - **オーナー** — 既定は個人アカウント（`gh api user --jq .login`）。所属 organization（`gh api user/orgs --jq '.[].login'`）を選択肢に加える。
    - **リポジトリ名** — 既定はリポジトリのルートディレクトリ名。GitHub で使えない文字（英数字・`-`・`_`・`.` 以外）は `-` に置き換えた案を示す。`gh repo view <owner>/<name>` で同名のものが既にあれば、先に伝えて別の名前を尋ねる。
    - **公開範囲** — 既定は **private**。public・（organization なら）internal から選ぶ。public を選んだら、コードが誰でも見られるようになることを念押しする。
@@ -39,7 +42,7 @@
    - **新しく作るリポジトリ**（`git init` した・「リポジトリを作る場合」・commit がまだ 1 つも無い）：運用を尋ねる。ブランチ名は自由入力で変えられる。
      - **main だけ**（1 人なら推奨）— `base_branch: main`。
      - **main + develop**（develop で開発し、main はリリース用）— `base_branch: develop`。GitHub の default branch は main のままにする。
-     - **ブランチ名を合わせる**：commit がまだ無く、今のブランチ名（`git symbolic-ref --short HEAD`）が合わせる名前（main だけなら `base_branch`、main + develop なら main 側の名前）と違えば、「今のブランチは `<今の名前>`、`base_branch` は `<名前>`。`git branch -m <名前>` で名前を変えますか」と尋ねてから行う。変えないと、commit は今のブランチに入り、`base_branch` のブランチが存在しないまま残る。
+     - **ブランチ名を合わせる**：commit がまだ無く、今のブランチ名（`git symbolic-ref --short HEAD`）が合わせる名前（main だけなら `base_branch`、main + develop なら main 側の名前）と違えば、「今のブランチは `<今の名前>`、`base_branch` は `<名前>`。`git branch -m <名前>` で名前を変えますか」と尋ねてから行う（`base_branch` を config に書く前に行う）。変えないと、commit は今のブランチに入り、`base_branch` のブランチが存在しないまま残る。
    - **既存のリポジトリ**：GitHub の default branch（`gh repo view --json defaultBranchRef`、取れなければ `git symbolic-ref --short refs/remotes/origin/HEAD`）を既定にする。ローカル（`git show-ref`）とリモート（`git ls-remote --heads origin`）に `develop`・`dev`・`development` があり、default と違えば、どちらを `base_branch` にするか尋ねる。見つからなければ尋ねない。
    - **issue を閉じる時点**（`base_branch` が GitHub の default branch と違うときだけ尋ねる。同じなら尋ねずに `close_issues: merge` を書く）：
      - **リリースで閉じる**（`close_issues: release`）— develop へのマージでは閉じず、main に入ったとき（commit メッセージの `Closes #N` により GitHub が閉じる）。間は `tixforge:merged`。このときは squash の設定を確かめる：`gh api repos/{owner}/{repo} --jq '.squash_merge_commit_title + " " + .squash_merge_commit_message'` が `PR_TITLE BLANK`（squash の commit メッセージが PR タイトルだけ）なら、squash マージで `Closes` が消えて issue が閉じなくなることを伝え、設定を変えるか「マージで閉じる」にするか尋ねる。
@@ -69,23 +72,19 @@
    <!-- Source が空欄なら、ここに規約本文を書く。
         Source があれば、ここには tixforge 固有の補足だけを書く（Source と矛盾したら Source を優先する）。 -->
    ```
-8. **チケット管理**（`ticket.tracker`）：尋ねずに `tracker: github` を書く。public リポジトリなら、チケットの背景や未決事項も公開されることを伝える。再実行のたびに次を行う：
-   - **事前チェック**：`bash <scripts>/github-preflight.sh`（同じ実行の中で「リポジトリ」の手順で既に `ok:` だったなら繰り返さない）。`ok:` 以外なら出力を示し、済ませてもらってから確かめ直す。
-   - **ラベルを作る**：`bash <scripts>/issue-label.sh setup --dry-run --lang <ドキュメント言語>` で、無いラベルとその説明（何も出なければ全てある）を示して確認を得てから、`bash <scripts>/issue-label.sh setup --lang <ドキュメント言語>` で作る（`<ドキュメント言語>` は `language` に書いた値）。
-   - **issue フォーム**（任意）：tixforge を使わない人（PM など）も GitHub の画面から issue を作るなら、チケットと同じ見出しの issue フォームを入れるか尋ねる。入れるなら `<plugin>/templates/github/ISSUE_TEMPLATE/tixforge-ticket.yml` を `.github/ISSUE_TEMPLATE/` にコピーする（ドキュメント言語が日本語以外なら、ラベル・見出し・説明をその言語に訳す。見出しはチケットの見出しと同じにする）。フォームで作られた issue は `/tixforge:ticket create #<番号>` で取り込める。
-9. **レビューの要否**（`review.required`）：「開発の人数」の答えから決める（尋ね直さない）。
+8. **レビューの要否**（`review.required`）：「開発の人数」の答えから決める（尋ね直さない）。
    - **1 人** — `required: false`。GitHub では自分の PR を Approve できないため、`true` のままだと PR が完了にならない。
    - **複数人** — `required: true`。
    - 人数が変わったら `/tixforge:project update` で変えられることを伝える。
-10. **ゲート**（`gates`）：`gates: [approach, plan, pr]` を書く（尋ねない）。書いたゲートでは必ず止まり、書いていないフェーズは、止まる条件（未解決の疑問・レビュー指摘など）が無ければ自動で通過すること、`pr` は書かなくても必ず止まることを伝える。全フェーズで止めたければ `[research, approach, plan, implement, review, pr]` にできる。
+9. **ゲート**（`gates`）：`gates: [approach, plan, pr]` を書く（尋ねない）。書いたゲートでは必ず止まり、書いていないフェーズは、止まる条件（未解決の疑問・レビュー指摘など）が無ければ自動で通過すること、`pr` は書かなくても必ず止まることを伝える。全フェーズで止めたければ `[research, approach, plan, implement, review, pr]` にできる。
+
 ## Phase 3 — 作成（ゲート）
 
 目的：context などのファイルを、確認を得てから作る。
 
-11. **作るもの**：`.tixforge/config.yml` に `references/config.md` の全てのキーがそろったことを確かめる（足りなければ Phase 2 の該当の手順に戻る）。次を一覧で提示してから作る（既にあるものは作らない・上書きしない）：
+10. **作るもの**：`.tixforge/config.yml` に、`references/config.md` の `ticket.tracker`（Phase 4 で書く）以外の全てのキーがそろったことを確かめる（足りなければ Phase 2 の該当の手順に戻る）。次を一覧で提示してから作る（既にあるものは作らない・上書きしない）：
     - `docs/context/`（中身は「context」）、`docs/context/commit.md`（「commit 規約」）
-    - `LICENSE`（「リポジトリ」で選んだ場合）
-12. **context**：`docs/context/` に（`commit.md` 以外の）ファイルが既にある場合は、作り方を尋ねずに既存の内容を読み、足りない点を提案するにとどめる（上書きしない）。無い場合は、作り方を選んでもらう：
+11. **context**：`docs/context/` に（`commit.md` 以外の）ファイルが既にある場合は、作り方を尋ねずに既存の内容を読み、足りない点を提案するにとどめる（上書きしない）。無い場合は、作り方を選んでもらう：
     - **対話で作る** — 下記「対話で作る場合」の手順で、各項目の内容をユーザーと一緒に決めて `docs/context/overview.md` を書く。
     - **自分で作る** — 下記テンプレートの見出しと記入ガイドだけを入れた `docs/context/overview.md` を作り、中身はユーザーが書く。こちらからは内容を埋めない。
 
@@ -121,17 +120,22 @@
     ```
 
     対話で作った場合、完成したファイルには記入ガイドのコメントを残さない。自分で作る場合はコメントを残す。
-13. **CLAUDE.md**：`CLAUDE.md` から context を取り込む。
+12. **CLAUDE.md**：`CLAUDE.md` から context を取り込む。
     - **先に `docs/context/overview.md` があるか確かめる。** 無ければ（既存の context が別の名前のファイルだけなど）、`@docs/context/overview.md` は書かない。`docs/context/` のどのファイルを取り込むか尋ねる（取り込まない、も選べる）。
     - 取り込むファイルが決まったら、リポジトリのルートに `CLAUDE.md` があるか、既にその `@<パス>` を含むかを確かめる。含んでいれば何もしない。
     - 「取り込む（推奨。tixforge を起動していないセッションでも context を読める）」「取り込まない」を尋ねる。
     - **取り込む・`CLAUDE.md` が無い** — 見出し（ドキュメント言語。例「# プロジェクトの context」）と `@<パス>` の行だけで新しく作る。
     - **取り込む・`CLAUDE.md` がある** — 既存の内容は一切変えず、**末尾に**見出しと `@<パス>` の行を追記する。追記する差分を示し、確認を得てから書く（上書きはしない）。
     - **取り込まない** — 何もしない。
+
 ## Phase 4 — 連携（ゲート）
 
-目的：GitHub 側のテンプレート・Actions・CI を、確認を得てから入れる。
+目的：GitHub のラベル・issue フォーム・PR テンプレート・Actions・CI を、確認を得てから入れる。
 
+13. **チケット管理**（`ticket.tracker`）：再実行のたびに次を行い、最後に（無ければ）尋ねずに `tracker: github` を書く（`tracker` があれば、ラベルまで済んだ印になる）。public リポジトリなら、チケットの背景や未決事項も公開されることを伝える。
+   - **事前チェック**：`bash <scripts>/github-preflight.sh`（同じ実行の中で「リポジトリ」で既に `ok:` だったなら繰り返さない）。`ok:` 以外なら出力を示し、済ませてもらってから確かめ直す。
+   - **ラベルを作る**：`bash <scripts>/issue-label.sh setup --dry-run` で、無いラベルとその説明（何も出なければ全てある）を示して確認を得てから、`bash <scripts>/issue-label.sh setup` で作る。
+   - **issue フォーム**（任意）：tixforge を使わない人（PM など）も GitHub の画面から issue を作るなら、チケットと同じ見出しの issue フォームを入れるか尋ねる。入れるなら `<plugin>/templates/github/ISSUE_TEMPLATE/tixforge-ticket.yml` を `.github/ISSUE_TEMPLATE/` にコピーする（ドキュメント言語が日本語以外なら、ラベル・見出し・説明をその言語に訳す。見出しはチケットの見出しと同じにする）。フォームで作られた issue は `/tixforge:ticket create #<番号>` で取り込める。
 14. **PR テンプレート**：`bash <scripts>/pr-template.sh` で既定のテンプレートを探す（`path: <パス>` か `path: none`）。`directory:` の行があれば、`.github/PULL_REQUEST_TEMPLATE/` の中のテンプレートは GitHub が自動では使わないことを伝える。
     - tixforge 用の項目を入れるか尋ねる（「入れる（推奨）」「入れない」）。項目は `<plugin>/templates/github/pull_request_template.md` の見出し（見出しとコメントはドキュメント言語に訳す）。
     - **入れる・既定のテンプレートが無い** — `.github/pull_request_template.md` として新しく作る。
@@ -141,6 +145,7 @@
 16. **CI**（`commands` が `{}` でないときだけ）：`.github/workflows/` に、検証コマンドを実行している workflow が無ければ、作るか尋ねる（dev の検証と同じ内容を CI でも動かすため、と添える）。
     - 作るなら `<plugin>/templates/github/tixforge-ci.yml` を下敷きにして、ユーザーと一緒に埋める：`__BRANCHES__` は `base_branch`（GitHub の default branch と違えば両方。main + develop なら `main, develop`）、`__COMMANDS__` は `commands` を書いた順に 1 ステップずつ、`__SETUP__`（言語のセットアップ・依存のインストール）はプロジェクトのファイル（`package.json` のロックファイル・`.nvmrc`・`pyproject.toml`・`go.mod` など）から候補を作って確認する。**確認していないセットアップ手順を推測で書かない。**
     - 全文を示し、確認を得てから `.github/workflows/tixforge-ci.yml` に書く。
+
 ## Phase 5 — commit（ゲート）
 
 目的：作ったものを示し、確認を得てから commit する。
