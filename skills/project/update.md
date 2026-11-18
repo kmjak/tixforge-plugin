@@ -2,13 +2,21 @@
 
 `.tixforge/config.yml` が無ければ、`/tixforge:project init` を案内して止まる。
 
+## Phase 1 — 選択
+
+目的：何を更新するかを決める。
+
 1. **何を更新するか**を AskUserQuestion で尋ねる（単一選択。引数で指定されていればそれに従う）。SKILL.md の「現在の状態」に「移行が要る」があれば、引数に関係なく、尋ねずに「v2 の LT を issue に移す」を行う：
    - **設定の値を変える**
    - **v2 の LT を issue に移す**
    - **テンプレートと Actions を最新にする**
-2. 選んだものの手順（下記）に進む。どれも、変える内容を差分で示し、確認を得てから書く。書いたファイルは commit しない（一覧で示し、commit するかはユーザーに任せる。commit するなら `docs/context/commit.md` の規約に従う）。
+2. 選んだものの手順（Phase 2 の下記）に進む。どれも、変える内容を差分で示し、確認を得てから書く。書いたファイルは commit しない（一覧で示し、commit するかはユーザーに任せる。commit するなら `docs/context/commit.md` の規約に従う）。
 
-## 設定の値を変える
+## Phase 2 — 変更（ゲート）
+
+目的：選んだものを、差分を示して確認を得てから書く。
+
+### 設定の値を変える
 
 - 今の `.tixforge/config.yml` を示し、何を変えたいか尋ねる。キーの意味は `references/config.md` を Read して説明する。
 - 値の決め方と確かめ方は init の同じ手順に揃える（init の手順ファイル `<plugin>/skills/project/init.md` の該当手順を Read する）：
@@ -18,7 +26,7 @@
   - `language`・`gates` → そのまま書き換える。これはチームの値で、「この人が使う値」が `config.local.yml` から来ているなら本人の dev には効かないことと、自分だけ変えるなら `/tixforge:project setup` を使うことを伝える。`language` を変えたら、前の言語で作ったもの（issue フォーム `.github/ISSUE_TEMPLATE/tixforge-ticket.yml`・PR テンプレート・`docs/context/**`、フォームから取り込んだチケットの見出し）は前の言語のまま残ることを伝える（訳し直しはしない）。
 - `ticket.tracker` は `github` のままにする。`repository.host` のキーがあれば、使われていないことを伝えて消すか尋ねる。
 
-## v2 の LT を issue に移す
+### v2 の LT を issue に移す
 
 v2 の `LT-` のチケット・`tracker: local`・`repository.host: none` を移す。
 
@@ -34,7 +42,7 @@ v2 の `LT-` のチケット・`tracker: local`・`repository.host: none` を移
 4. `ticket.tracker` が `local` なら `github` に書き換える。`host: none` だったなら、init の「レビューの要否」（人数を尋ねる）・「PR テンプレート」・「CI」を行う。最後に、`repository.host` のキーがあれば消す。
 5. `bash <scripts>/project-status.sh` を実行し、「移行が要る」が出なくなったことを確かめる。残っていれば、残ったものと、それが片付くまで update 以外のスキルは止まることを伝える。終わったら止まる（他の更新は、もう一度 `/tixforge:project update` を起動して行う）。
 
-## テンプレートと Actions を最新にする
+### テンプレートと Actions を最新にする
 
 plugin 側と比べて、古いものを更新する。
 

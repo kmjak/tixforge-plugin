@@ -6,6 +6,7 @@
 #      (a renamed file is otherwise read by Claude as missing, silently)
 #   4. hooks.json starts the guard only for the tools it decides on
 #   5. dev and ticket name the ticket operations, not the GitHub issue details
+#   6. every instruction file is split into phases (## Phase N — name)
 #
 # Needs jq. Usage: bash tests/plugin.test.sh
 set -u
@@ -104,6 +105,17 @@ hits=$(grep -nE 'closed_as|state_reason|stateReason|NOT_PLANNED|issue-label\.sh|
   skills/dev/*.md skills/ticket/*.md | grep -v '^[^:]*:[0-9]*:allowed-tools:')
 [ -z "$hits" ] && ok || ng "issue details in skills/dev or skills/ticket (use the operation names):
 $hits"
+
+# --- phases ------------------------------------------------------------------
+# Every instruction file starts its steps with "## Phase 1 — <name>" and
+# numbers its phases in order. SKILL.md routes; pr.md is dev's Phase 6.
+section="phases"
+for f in skills/*/*.md; do
+  case $f in */SKILL.md | skills/dev/pr.md) continue ;; esac
+  got=$(sed -n 's/^## Phase \([0-9]*\) — .*/\1/p' "$f" | paste -sd' ' -)
+  want=$(seq 1 "$(printf '%s\n' "$got" | wc -w)" | paste -sd' ' -)
+  [ -n "$got" ] && [ "$got" = "$want" ] && ok || ng "$f: phases are ## Phase 1 — … numbered in order (got: $got)"
+done
 
 echo "plugin: $pass passed, $fail failed"
 [ $fail -eq 0 ]

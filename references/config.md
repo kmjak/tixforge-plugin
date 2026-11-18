@@ -1,6 +1,6 @@
 # 設定 `.tixforge/config.yml`
 
-`/tixforge:project init` が全てのキーを書き、値を変えるのは `/tixforge:project update`。git 管理する（チームで共有）。キーは init が尋ねる順に並べる。
+`/tixforge:project init` が答えのたびにキーを書き、終わった時点で全てのキーがそろう。値を変えるのは `/tixforge:project update`。git 管理する（チームで共有）。キーは init が尋ねる順に並べる。
 
 ```yaml
 # tixforge settings (shared, committed)
