@@ -163,7 +163,10 @@ closed_as() {
   fi
   local comments by_pr by_commit
   comments=$(gh issue view "$1" --json comments --jq '[.comments[].body | split("\n")[0]] | join("\n")' 2> /dev/null || true)
-  if [ "$reason" = NOT_PLANNED ] && printf '%s\n' "$comments" | grep -q '^Canceled by tixforge: '; then
+  # tixforge's comments open with an invisible mark (<!-- tixforge:closed -->,
+  # <!-- tixforge:canceled -->), the words after it in the document
+  # language; the English openings of v2 and of the Actions still count.
+  if [ "$reason" = NOT_PLANNED ] && printf '%s\n' "$comments" | grep -Eq '^(<!-- tixforge:canceled -->|Canceled by tixforge: )'; then
     echo canceled
     return
   fi
@@ -171,7 +174,7 @@ closed_as() {
     by_pr=$(gh issue view "$1" --json closedByPullRequestsReferences --jq '.closedByPullRequestsReferences | length' 2> /dev/null || echo 0)
     by_commit=$(gh api "repos/{owner}/{repo}/issues/$1/events" \
       --jq '[.[] | select(.event == "closed")] | last | .commit_id // ""' 2> /dev/null || true)
-    if [ "${by_pr:-0}" != 0 ] || [ -n "$by_commit" ] || printf '%s\n' "$comments" | grep -q '^Closed by tixforge'; then
+    if [ "${by_pr:-0}" != 0 ] || [ -n "$by_commit" ] || printf '%s\n' "$comments" | grep -Eq '^(<!-- tixforge:closed -->|Closed by tixforge)'; then
       echo completed
       return
     fi

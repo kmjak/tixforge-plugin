@@ -1,6 +1,6 @@
 # GitHub：issue を作る・取り込む
 
-create で読む。
+create で読む。update で `LT-` のチケットを issue に移すときも「作成」を使う（下書きは `LT-` の `ticket.md` をそのまま渡す）。
 
 - **事前チェック**：`bash <scripts>/github-preflight.sh`。`ok:` 以外なら、出力をそのまま示して止まる。
 - issue の本文にはチケットの全セクション（背景・要件・受け入れ条件・対象外・未決事項）と、tixforge が書いたことを確かめるハッシュが載る。本文とタイトルは GitHub 上で直接編集せず、`/tixforge:ticket edit` で変える（本文の冒頭で告知される）。
@@ -16,7 +16,7 @@ create で読む。
 
 ## GitHub 上で作られた issue を取り込む
 
-create に渡された id が、tixforge の目印の無い issue（`bash <scripts>/issue-sync.sh check <番号>` の 1 行目が `no-markers`）なら、新しく作らずに取り込むか尋ねる。
+create に渡された issue 番号が、tixforge の目印の無い issue（`bash <scripts>/issue-sync.sh check <番号>` の 1 行目が `no-markers`）なら、新しく作らずに取り込むか尋ねる。
 
 1. `.tixforge/<id>/editing.md` が既にあれば、中身を示し、捨ててよいか尋ねる（捨てないなら止まる）。`bash <scripts>/issue-sync.sh adopt <番号> .tixforge/<id>/editing.md` で、issue の本文から手元のチケットを作る（issue フォームの `### 見出し` はチケットの `## 見出し` に、未回答は「なし」になる）。GitHub はまだ変えない。
 2. できたチケットを示し、`<plugin>/templates/docs/ticket.md` の決まりと、共通規約の「チケットを書く対話」で足りない項目を埋める。

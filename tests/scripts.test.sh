@@ -906,6 +906,15 @@ is body "$tmp/draft45" > "$tmp/body45"
 issue 45 "やめた" "$tmp/body45" CLOSED NOT_PLANNED
 jq '.comments = [{"body":"Canceled by tixforge: 優先度が下がった"}]' "$GH_DIR/issue-45.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-45.json"
 eq "closed_as: canceled" "$(is check 45 | sed -n 2p)" "canceled by tixforge (comment)"
+# v3 writes an invisible mark, then the document language.
+jq '.comments = [{"body":"<!-- tixforge:canceled -->\nキャンセル：優先度が下がった"}]' "$GH_DIR/issue-45.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-45.json"
+eq "closed_as: canceled" "$(is check 45 | sed -n 2p)" "canceled by tixforge (the mark)"
+issue 45 "やめた" "$tmp/body45" CLOSED COMPLETED
+jq '.comments = [{"body":"<!-- tixforge:closed -->\nhttps://github.com/o/r/pull/3 のマージで完了"}]' "$GH_DIR/issue-45.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-45.json"
+eq "closed_as: completed" "$(is check 45 | sed -n 2p)" "closed by tixforge (the mark)"
+issue 45 "やめた" "$tmp/body45" CLOSED NOT_PLANNED
+jq '.comments = [{"body":"<!-- tixforge:closed -->\n完了"}]' "$GH_DIR/issue-45.json" > "$GH_DIR/t" && mv "$GH_DIR/t" "$GH_DIR/issue-45.json"
+eq "closed_as: unexpected" "$(is check 45 | sed -n 2p)" "the closed mark on an issue closed as not planned is not a cancel"
 # v2 closed issues with English comments. GitHub comments are never
 # migrated, so they keep being read (here with the labels taken off).
 for c in "Closed by tixforge: https://github.com/o/r/pull/3 merged" "Closed by tixforge-issue-sync: https://github.com/o/r/pull/3 merged"; do

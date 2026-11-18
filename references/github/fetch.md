@@ -1,8 +1,8 @@
 # GitHub：チケットを取ってくる・探す
 
-「取ってくる」：dev・edit・cancel を始めるときと、dev の PR 作成の直前に行う。issue が正本で、手元のファイル（以下 `<ファイル>`）は issue から作るコピー（git 管理外）。手元と issue が違えば、常に issue を採用する。`<ファイル>` は、dev は `.tixforge/<ticket-id>/snapshot.md`、edit は `.tixforge/<ticket-id>/editing.md`。cancel は手順 1〜3 だけを行い、手元のファイルは作らない。呼び出し元には、チケットの状態（`check` の `status:`）と担当者（`assignees:`）、変わったかを返す。
+「取ってくる」：dev・edit・cancel を始めるときと、dev の PR 作成の直前に行う。issue が正本で、手元のファイル（以下 `<ファイル>`）は issue から作るコピー。手元と issue が違えば、issue を採用する（例外は、下の「直接編集を取り消す」「手元の内容で issue を上書きする」をユーザーが選んだときだけ）。`<ファイル>` は、dev は `.tixforge/<ticket-id>/snapshot.md`、edit は `.tixforge/<ticket-id>/editing.md`。cancel は手順 1〜3 だけを行い、手元のファイルは作らない。呼び出し元には、チケットの状態（`check` の `status:`）と担当者（`assignees:`）、変わったかを返す。
 
-1. **事前チェック**：`bash <scripts>/github-preflight.sh`。`ok:` 以外なら、出力をそのまま示して止まる（`gh auth login` は対話式なので、ユーザーに `! gh auth login` を実行してもらう）。
+1. **事前チェック**：`bash <scripts>/github-preflight.sh`。`ok:` 以外なら、出力をそのまま示して止まる。
 2. **状況を見る**：`bash <scripts>/issue-sync.sh check <番号> <ファイル>`（cancel はファイルを渡さない）。1 行目が同期の判定、以降に `status`・`local`・`assignees` など。
 3. **閉じたチケット**（`status` が `open`・`in-review`・`merged` 以外）：取ってこずに、状態を呼び出し元に返す。
    - `completed` — 呼び出し元の「完了済み」の扱いに従う。
@@ -17,7 +17,6 @@
    - **`no-markers`**（tixforge の目印が無い）→ 取り込まない。本文を示し、次のどちらかを尋ねる：
      - `local` が `same` なら「手元の内容で issue を上書きする（`push --force`。目印とハッシュも戻る）」／「止める」。
      - それ以外（GitHub 上で作られた issue など）なら、`/tixforge:ticket create #<番号>` で tixforge のチケットとして取り込めることを伝えて止まる。
-5. 手元のファイルは commit しない。
 
 ## 編集の続き（edit）
 
