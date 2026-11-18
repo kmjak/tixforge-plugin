@@ -8,7 +8,7 @@ Claude Code の plugin。利用者向けの説明は README にある。
 brew install shellcheck shfmt actionlint zizmor editorconfig-checker jq   # 初回だけ
 git config blame.ignoreRevsFile .git-blame-ignore-revs   # 初回だけ。整形だけの commit を blame から外す
 claude --plugin-dir .                     # 作業ツリーをそのまま読み込む
-make check                                # PR の前に。lint・4 つのテスト・macOS の bash 3.2 でのテスト・claude plugin validate
+make check                                # PR の前に。lint・4 つのテスト・macOS の bash 3.2 でのテスト・claude plugin validate と test（mod）
 make fmt                                  # shfmt で整形（設定は .editorconfig）
 ```
 
@@ -42,6 +42,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
   | 1 つのスキルの手続き | そのスキルの手順ファイル |
 
 - 手順ファイルが別の手順ファイルを参照するのは、手続きを任せるときだけにし、呼ぶ側と呼ばれる側を書く。一部の手順だけを使うなら、その手順の番号を書く（例：`references/ticket-changed.md` が `rewind.md` の手順 2・3・5・7 を使う）。番号で参照されている手順の番号を変えたら、参照している側も直す（`grep -rn '<ファイル名>' skills references` で探す。テストでは守っていない）。2 つのスキルから呼ばれる手続きは `references/` に置く。他のスキルの手順ファイルを丸ごと読ませると、要らない手順が文脈に混ざるため。
+- パネル（`hooks/panel.tsx` の mod）のデータは `scripts/panel-data.sh` で作り、mod は描画とボタンだけにする。mod は CI で確かめられない（`claude plugin test` は claude CLI のある手元の `make check` だけで回る）ため。
 - state.md の形を変えたら、`run-state.sh` の `STATE_FORMAT` を上げ、`migrate` に前の形式から移す段を足す。plugin を更新しても、利用者の手元の state.md は書き換わらないため。
 
 ### テストで守るもの
@@ -52,6 +53,8 @@ make fmt                                  # shfmt で整形（設定は .editorc
 | guard（hook）は jq に頼らない。`lib.sh` の `json_get` で読む | `tests/guard.test.sh`（jq の無い PATH で動かす）・`tests/json-get.test.sh` |
 | スクリプトの中で、`$var` の直後に全角文字を続けない（`${var}` と書く） | `tests/scripts.test.sh` の「all scripts」 |
 | `skills/`・`references/`・`agents/` でファイルの名前を変えたら、参照している側も直す | `tests/plugin.test.sh` |
+| パネルが出すチケットの状態（`panel-data.sh` の `PANEL_STATES`）は、`label_defs` の open な状態と同じにする | `tests/scripts.test.sh` の panel-data.sh の節 |
+| パネルの mod（`hooks/panel.tsx`）に型エラーを残さない | `make validate`（claude CLI があるときだけ） |
 | `skills/` の手順ファイル（SKILL.md と dev の Phase 6 の `pr.md` を除く）は `## Phase 1 — ` から順に番号を振ったフェーズに分け、各見出しの次の段落に `目的：` を書き、手順の番号を通しにする（dev の `run.md` はフェーズごとに 1 から。`0.` で始めてよい） | `tests/plugin.test.sh` の「phases」 |
 | スクリプトは `make fmt` で整形する。手で整えない | `make lint` の `shfmt -d` |
 | PR のタイトルは Conventional Commits の形にする（下の「commit と PR」） | CI の `pr-title` |
