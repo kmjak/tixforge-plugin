@@ -336,6 +336,8 @@ state="pr comment"
 set_state pr:in-progress
 expect ask "$tfrepo" 'gh pr comment 9 --body-file /tmp/x'
 reason_has "$tfrepo" 'gh pr comment 9 --body-file /tmp/x' "PR へのコメントの投稿"
+reason_has "$tfrepo" 'gh pr comment 9 --body-file /tmp/x && git reset --hard HEAD~1' "git reset"
+reason_has "$tfrepo" 'gh pr comment 9 --delete-last' "許可リストにない"
 
 # Skipping the git hooks is denied on a run's branch and on the Base.
 state="hook bypass"

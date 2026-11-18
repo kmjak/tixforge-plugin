@@ -12,8 +12,9 @@
 #         confirms on the permission prompt even when git push is on the
 #         allow list; the phase is shown in the prompt
 #   ask   any git / gh subcommand outside the allow list below (merge,
-#         rebase, reset, gh pr merge, gh api writes, ...), and GitHub / git
-#         MCP tools that are not reads
+#         rebase, reset, gh pr merge, gh api writes, ...), all of them named,
+#         and GitHub / git MCP tools that are not reads; a lone gh pr comment
+#         (dev posts the verification after a fix) asks as a PR comment
 #   deny  a commit / push / merge / pull / rebase / am that skips the git
 #         hooks (--no-verify, commit -n, -c / --config-env / GIT_CONFIG_*
 #         moving core.hooksPath or include.path); asked when seen only with
@@ -229,6 +230,7 @@ has_word git && has_word push && is_push=1
 # Allow list: every git / gh in command position must be a read or a local,
 # recoverable step. The first one that is not becomes $other.
 other=""
+others=""
 has_arg() { # has_arg <pattern>...: one of the remaining words matches
   local w p
   for w in $rest; do for p in "$@"; do
@@ -299,7 +301,10 @@ while IFS= read -r seg; do
         done
         sub=${words[$j]:-}
         rest="${words[*]:$((j + 1))}"
-        git_ok "$sub" || [ -n "$other" ] || other="git ${sub}"
+        git_ok "$sub" || {
+          others="${others}${others:+、}git ${sub}"
+          [ -n "$other" ] || other="git ${sub}"
+        }
         ;;
       gh | */gh)
         j=$((i + 1))
@@ -313,7 +318,12 @@ while IFS= read -r seg; do
         sub=${words[$j]:-}
         sub2=${words[$((j + 1))]:-}
         rest="${words[*]:$((j + 1))}"
-        gh_ok "$sub" "$sub2" || [ -n "$other" ] || other="gh ${sub} ${sub2}"
+        if ! gh_ok "$sub" "$sub2"; then
+          o="gh ${sub} ${sub2}"
+          [ "$o" = "gh pr comment" ] && has_arg --delete-last --edit-last && o="gh pr comment（編集・削除）"
+          others="${others}${others:+、}${o}"
+          [ -n "$other" ] || other=$o
+        fi
         ;;
     esac
     cmdpos=0
@@ -557,8 +567,8 @@ if [ $is_push -eq 0 ] && [ $is_pr_create -eq 0 ]; then
   [ -n "$other" ] || ask "git の hook を飛ばす可能性があります（${hook_ask}）。${where}。hook を飛ばさずに失敗の原因を直すのが原則です。承認しますか？"
   # dev posts the verification on its PR after each fix (pr.md): a write,
   # so it asks, but not as an unknown operation.
-  [ "$other" = "gh pr comment" ] && ask "PR へのコメントの投稿です（dev の「修正の push」なら、チャットで合意した内容か確かめてください）。${where}。承認しますか？${hook_note}"
-  ask "${other} は tixforge の許可リストにない git / gh 操作です（merge・rebase・reset・gh pr merge など）。${where}。承認しますか？${hook_note}"
+  [ "$others" = "gh pr comment" ] && ask "PR へのコメントの投稿です（dev の「修正の push」なら、チャットで合意した内容か確かめてください）。${where}。承認しますか？${hook_note}"
+  ask "${others} は tixforge の許可リストにない git / gh 操作です（merge・rebase・reset・gh pr merge など）。${where}。承認しますか？${hook_note}"
 fi
 
 # ask: everything else that leaves the machine. The phase goes in the prompt.

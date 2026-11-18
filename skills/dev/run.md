@@ -4,7 +4,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 ## 起動と再開
 
-`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。この run の間、`state.md` のセクション本文と、状態ファイルに書く固定の文言（「手動確認」「Round」の見出しなど。スクリプトが読むキー `Verification @` は除く）は個人の言語（共通規約）で書く。指定された id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
+`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。この run の間、`state.md` のセクション本文と、状態ファイルに書く固定の文言（「手動確認」「Round」の見出しなど。読み取りに使うキー `Verification @`・`PR comment @`・`PR head @` は除く）は個人の言語（共通規約）で書く。指定された id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
 
 **状態ファイルの形式**（最初に行う）：`.tixforge/<ticket-id>/state.md` があれば `bash <scripts>/run-state.sh migrate --check <ticket-id>` を実行する。何か出たら、変わる内容を示し、AskUserQuestion で次から選ばせる。今の形式でない state.md のまま先に進めない。
 
