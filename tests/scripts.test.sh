@@ -155,6 +155,11 @@ eq "Rewound (t1): x & {time} \\1" "$(msg_fill rewind_note en time t1 reason 'x &
 eq "巻き戻し（t）：r" "$(msg_fill rewind_note ja time t reason r)" "msg_fill ja"
 eq "Rewound ({reason}): R" "$(msg_fill rewind_note en time '{reason}' reason R)" "msg_fill: a {name} inside a value stays"
 eq "Rewound ({x}): {reason}" "$(msg_fill rewind_note en time '{x}')" "msg_fill: an unknown or missing name"
+# The two messages.yml files share no key: msg takes the first it finds.
+keys() { sed -n 's/^  \([a-z_]*\):.*/\1/p' "$1" | sort -u; }
+eq "" "$(keys "$scripts/messages.yml" | comm -12 - <(keys "$here/../templates/github/tixforge/messages.yml"))" "the two messages.yml files share no key"
+eq "Rewound (t): r" "$(msg_fill rewind_note fr time t reason r)" "msg_fill: a language with no messages is en"
+has "> [!NOTE]" "$(msg issue_notice fr)" "msg: the templates file, falling back to en"
 # Every state.md message is in every language of scripts/messages.yml.
 for k in $(sed -n 's/^  \([a-z_]*\):.*/\1/p' "$scripts/messages.yml" | sort -u); do
   for lang in $(sed -n 's/^\([a-z][a-z_-]*\):$/\1/p' "$scripts/messages.yml"); do
@@ -360,7 +365,7 @@ printf 'language: ja\n' > .tixforge/config.local.yml
 cp .tixforge/config.yml "$tmp/keep-lang.yml"
 sed 's/^language: .*/language: en/' "$tmp/keep-lang.yml" > .tixforge/config.yml
 st set GT-000909 Status review:in-progress > /dev/null
-st rewind GT-000909 plan --reason "$(printf 'one\n## Review')" > /dev/null
+st rewind GT-000909 plan --reason "$(printf 'one\r\n## Review')" > /dev/null
 has "> 巻き戻し（" "$(cat "$f9")" "a personal ja wins over a team en"
 has "：one ## Review" "$(cat "$f9")" "a newline in the reason becomes a space"
 rm -f .tixforge/config.local.yml

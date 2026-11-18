@@ -74,49 +74,39 @@ issue_of() { case "$1" in GT-*) printf '%s\n' "${1#GT-}" | sed 's/^0*//' ;; esac
 # what only this person reads), else TIXFORGE_MSG_LANG when set (init creates labels before
 # config.yml has one), else config.yml's language, else ja.
 msg() {
-  local lang root file v
+  local lang root l file v
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   lang=${2:-${TIXFORGE_MSG_LANG:-$(cfg language)}}
-  lang=${lang:-ja}
-  for file in "$root/scripts/messages.yml" "$root/templates/github/tixforge/messages.yml"; do
-    v=$(cfg "$lang.$1" "$file")
-    [ -n "$v" ] || v=$(cfg "en.$1" "$file")
-    [ -n "$v" ] && break
+  for l in "${lang:-ja}" en; do
+    for file in "$root/scripts/messages.yml" "$root/templates/github/tixforge/messages.yml"; do
+      v=$(cfg "$l.$1" "$file")
+      [ -n "$v" ] && break 2
+    done
   done
   printf '%s\n' "$v"
 }
 
 # msg_fill <key> <lang> [<name> <value>]...: msg with each {name} replaced
 # by its value, in one pass: values are taken literally (no pattern or &
-# expansion) and a {name} inside a value stays. Trailing newlines of the
-# result are dropped.
+# expansion, no escapes: they go in through ARGV of a BEGIN-only awk) and a
+# {name} inside a value stays.
 msg_fill() {
-  local t n=0
-  t=$(msg "$1" "$2")
+  local key=$1 lang=$2
   shift 2
-  while [ $# -ge 2 ]; do
-    n=$((n + 1))
-    export "MF_N$n={$1}" "MF_V$n=$2"
-    shift 2
-  done
-  MF_T=$t MF_C=$n awk 'BEGIN {
-    t = ENVIRON["MF_T"]; c = ENVIRON["MF_C"] + 0
+  awk 'BEGIN {
+    t = ARGV[1]
     while ((i = index(t, "{")) > 0) {
       out = out substr(t, 1, i - 1); t = substr(t, i); hit = 0
-      for (k = 1; k <= c; k++) {
-        name = ENVIRON["MF_N" k]
+      for (k = 2; k + 1 < ARGC; k += 2) {
+        name = "{" ARGV[k] "}"
         if (substr(t, 1, length(name)) == name) {
-          out = out ENVIRON["MF_V" k]; t = substr(t, length(name) + 1); hit = 1; break
+          out = out ARGV[k + 1]; t = substr(t, length(name) + 1); hit = 1; break
         }
       }
       if (!hit) { out = out "{"; t = substr(t, 2) }
     }
     print out t
-  }'
-  while [ $n -gt 0 ]; do
-    unset "MF_N$n" "MF_V$n"
-    n=$((n - 1))
-  done
+  }' "$(msg "$key" "$lang")" "$@"
 }
 
 # The YAML /tixforge:project init writes is flat: top-level keys and one level of

@@ -31,7 +31,7 @@ usage() {
 STATUS_LABELS="tixforge:todo tixforge:in-progress tixforge:in-review tixforge:merged tixforge:done tixforge:canceled"
 
 # name<TAB>color of every label tixforge uses: the one list of them. The
-# description GitHub shows is label_<name> in messages.yml (msg), in the
+# description GitHub shows is label_<name> in templates/github/tixforge/messages.yml (msg), in the
 # document language; setup reads it from there.
 label_defs() {
   printf '%s\t%s\n' \
