@@ -3,7 +3,7 @@
 1. **準備**：`references/github/fetch.md` と `references/github/sync.md` を Read する。引数のチケット id を `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する（無ければ尋ねる。「探す」の開いているチケットを候補として示す）。
 2. **チケットを読む**：
    - `fetch.md` の手順で、issue から `.tixforge/<ticket-id>/editing.md` に取ってきて読む。取り込んだ変更は、「フェーズを戻す」の影響判断に含める。
-   - ただし `editing.md` が既にあれば（前の edit が書き戻す前に止まった）、`fetch.md` の「編集の続き」を行う。「続きとして使う」なら取ってこずに、下の確認（止まる場合・`in-review`）を行ってから手順 3 へ進む。
+   - ただし `editing.md` が既にあれば（前の edit が書き戻す前に止まった）、`fetch.md` の「編集の続き」を行う。「続きとして使う」なら取ってこずに、「`<ticket-id>`：<タイトル>」を示し（タイトルは `check` の `title:`）、下の確認（止まる場合・`in-review`）を行ってから手順 3 へ進む。
    - **編集しないで止まる場合**：`.tixforge/<ticket-id>/state.md` の `Status` が `done` か `canceled`／チケットの状態が `open`・`in-review` 以外（完了・キャンセル済み・手で閉じられた・`merged`＝Base にマージ済みでリリース待ち）。変えたいことがあるなら、新しいチケットを `/tixforge:ticket create` で作るよう勧める。
    - 状態が `in-review`（PR が出ている）なら、そのことを示し、編集を続けるか尋ねる。
 3. **対話で決める**：今の内容を示し、何を変えたいかを尋ねる。共通規約の「チケットを書く対話」に従う。Base を変えるなら `## Base` の節を足す・直す・消す（既定に戻すなら節ごと消す）。
