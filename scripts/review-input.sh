@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Write what the Review agents read: the change of this run, as files, so
-# the agents need no Bash (they stay read-only) and the diff does not pass
-# through the implementing session's context.
+# Write what the Review agents read, as files: the change of this run, the
+# ticket, the agreed Approach and Plan, and the agents' common rules. The
+# agents need no Bash (they stay read-only), and none of it passes through
+# the implementing session's context.
 #
 #   review-input.sh <id> <base> [--since <commit>]
 #
@@ -21,12 +22,14 @@
 #   ticket.md    the ticket as dev took it (.tixforge/<id>/snapshot.md)
 #   approach.md  the body of ## Approach in .tixforge/<id>/state.md
 #   plan.md      the body of ## Plan in .tixforge/<id>/state.md
-#   index.md     this folder, whether delta.patch is there, and then the
-#                common rules of the reviewers (references/review.md); the
-#                agents read it first
-# Prints the path of index.md. Exit 3, writing nothing, when there is no
-# snapshot (dev takes it when the run starts); exit 4 when state.md has no
-# Approach or Plan (the reviewers judge against them).
+#                (both without the "> " notes at their start and end: a
+#                rewind note or an auto-passed gate is the implementer's
+#                history, which the reviewers must not see)
+#   index.md     the paths of these files, and then the common rules of the
+#                reviewers (references/review.md); the agents read it first
+# Prints the path of index.md. Writes nothing and exits 3 when there is no
+# snapshot (dev takes it when the run starts), 4 when there is no state.md
+# or its Approach or Plan is empty (the reviewers judge against them).
 set -euo pipefail
 # shellcheck source=SCRIPTDIR/lib.sh
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -61,24 +64,32 @@ if git rev-parse --verify -q "$remote" > /dev/null; then
 fi
 
 top=$(git rev-parse --show-toplevel)
-snap="$top/.tixforge/$id/snapshot.md"
+snap="$(tf_dir "$top")/$id/snapshot.md"
 [ -f "$snap" ] || {
   echo "no snapshot: ${snap}（dev がチケットを取ってくると作られる）" >&2
   exit 3
 }
-state="$top/.tixforge/$id/state.md"
-# section_body <n>: section n of state.md (STATE_SECTIONS), without the
-# heading and the blank lines around it.
+state=$(state_file "$id" "$top")
+[ -f "$state" ] || {
+  echo "no run: ${state}（dev の run が無い）" >&2
+  exit 4
+}
+# section_body <name>: a section of state.md without its heading, and
+# without the blank lines and "> " notes at its start and end.
 section_body() {
-  [ -f "$state" ] || return 0
-  awk -v want="$1" "$_section_awk"'
+  awk -v want="$(section_index "$1")" "$_section_awk"'
     { h = heading_index($0) }
     h { on = (h == want); next }
-    on { sub(/\r$/, ""); if ($0 ~ /^[ \t]*$/) { if (n) blank++ ; next } while (blank) { print ""; blank-- } print; n++ }
+    on { sub(/\r$/, ""); line[++n] = $0 }
+    END {
+      a = 1; while (a <= n && line[a] ~ /^([ \t]*$|>)/) a++
+      b = n; while (b >= a && line[b] ~ /^([ \t]*$|>)/) b--
+      for (i = a; i <= b; i++) print line[i]
+    }
   ' "$state"
 }
-approach=$(section_body 2)
-plan=$(section_body 3)
+approach=$(section_body Approach)
+plan=$(section_body Plan)
 for s in "Approach:$approach" "Plan:$plan"; do
   [ -n "${s#*:}" ] || {
     echo "empty ## ${s%%:*} in ${state}（Review は合意済みの Approach と Plan と突き合わせる）" >&2
@@ -93,18 +104,23 @@ git log --stat "$fork"..HEAD > "$dir/log.txt"
 git diff --name-status "$fork"..HEAD > "$dir/files.txt"
 if [ -n "$since" ]; then
   git diff "$since"..HEAD > "$dir/delta.patch"
-  delta="あり（2 ラウンド目以降）"
 else
   rm -f "$dir/delta.patch"
-  delta="無し（1 ラウンド目）"
 fi
 cp "$snap" "$dir/ticket.md"
 printf '%s\n' "$approach" > "$dir/approach.md"
 printf '%s\n' "$plan" > "$dir/plan.md"
 {
   printf '# Review の入力：%s\n\n' "$id"
-  printf -- '- このディレクトリ：`%s`\n' "$dir"
-  printf -- '- `delta.patch`：%s\n\n' "$delta"
-  cat "$(cd "$(dirname "$0")/.." && pwd)/references/review.md"
+  for f in diff.patch log.txt files.txt delta.patch ticket.md approach.md plan.md; do
+    if [ -f "$dir/$f" ]; then
+      printf -- '- `%s`\n' "$dir/$f"
+    else
+      printf -- '- `%s`：無し（1 ラウンド目）\n' "$f"
+    fi
+  done
+  echo
+  # The rules from their first "## " on: the lines above are for maintainers.
+  sed -n '/^## /,$p' "$(cd "$(dirname "$0")/.." && pwd)/references/review.md"
 } > "$dir/index.md"
 printf '%s\n' "$dir/index.md"

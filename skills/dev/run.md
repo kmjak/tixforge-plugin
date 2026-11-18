@@ -169,7 +169,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または `commands: {}` のときの行）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
 4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。差分・チケット・`## Approach`・`## Plan` と、agent が最初に読む `index.md` が `.git/tixforge/review/<ticket-id>/` に書き出され、`index.md` のパスが出力される。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」（`<ファイル>` は `snapshot.md`）からやり直す。終了コード 4（`## Approach` か `## Plan` が空）なら、原因を伝えて止まる。書き出したものをこのセッションで読む必要はない。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し）。ラウンドごとに新しく起動する（前のラウンドの agent を使い回さない）。渡すのは次のものだけにする：
-   - 両方に：4 で書き出したディレクトリのパス、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
+   - 両方に：4 で出力された `index.md` のあるディレクトリのパス、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
    - `tixforge:reviewer` にだけ：`## Implementation Log` の手動確認の行（全て）
 
    **`## Research`・`## Implementation Log` の判断・実装中の経緯・検証の行は渡さない**（実装者の意図に引きずられず、合意と成果物だけで判定させるため。検証は 3 で全て pass になっている）。`.tixforge/` 配下のパスは渡さない。
@@ -189,7 +189,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
    - 「修正」がある（見直しは無い） → `Status: implement:in-progress` にして Implement へ（「Review からの差し戻し」）。修正後に Review へ戻り、次のラウンドを行う。
    - 指摘なし、または全て「受け入れ」 → ゲート（`review`）へ。`gates` に `review` が無ければ自動で通過して `Status: pr:in-progress` にし、`pr.md` へ。`gates` にあれば `Status: review:awaiting-approval` にして要約を出し、停止。
 
-`## Review` のラウンドの書き方（見出しと本文は個人の言語。reviewer の報告をそのまま貼り、`推奨`・`決定` の行だけをこのセッションが足す。日本語の例）：
+`## Review` のラウンドの書き方（見出しと本文は個人の言語。reviewer の報告をそのまま貼り、`推奨`・`受け入れた場合`・`決定` の行だけをこのセッションが足す。日本語の例）：
 
 ```markdown
 ### Round 1

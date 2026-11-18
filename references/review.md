@@ -1,6 +1,6 @@
 # Review の共通の規則
 
-tixforge の review 系 agent が最初に読む。`review-input.sh` が、この中身を `index.md` の末尾に書き出す。
+tixforge の review 系 agent が最初に読む。`review-input.sh` が、最初の `## ` からを `index.md` の末尾に書き出す（この行までは agent に渡らない）。
 
 ## 受け取るもの
 
