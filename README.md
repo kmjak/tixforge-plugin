@@ -30,6 +30,7 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 | パス | 内容 | git |
 |------|------|-----|
 | `.tixforge/config.yml` | 設定（下記） | 管理する（チームで共有） |
+| `.tixforge/config.local.yml` | 個人の `language`・`gates`（`/tixforge:project setup` が書く） | 管理しない |
 | `.tixforge/.gitignore` | `*`・`!.gitignore`・`!config.yml`。それ以外を git から外す（プロジェクトの `.gitignore` は触らない） | 管理する |
 | `.tixforge/<id>/snapshot.md` | dev がチケットの issue から取った版（edit は `editing.md` で書き換え、書き戻したら消す） | 管理しない |
 | `.tixforge/<id>/state.md` | run の状態（Status・ブランチ・各フェーズの記録） | 管理しない |

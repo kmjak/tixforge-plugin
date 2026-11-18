@@ -50,7 +50,7 @@
 | 用途 | パス |
 |------|------|
 | サービス／ドメイン知識 | `docs/context/**`（必要な分だけ読む） |
-| tixforge 設定 | `.tixforge/config.yml`（チーム共通） |
+| tixforge 設定 | `.tixforge/config.yml`（チーム共通）・`.tixforge/config.local.yml`（個人の `language`・`gates`） |
 | チケット | `.tixforge/<ticket-id>/snapshot.md` — dev が issue から取った版（「取ってくる」）。edit は `.tixforge/<ticket-id>/editing.md` で書き換え、書き戻したら消す |
 | run の状態 | `.tixforge/<ticket-id>/state.md`（`<scripts>/run-state.sh` で作り、ヘッダを更新する） |
 | ブランチ名 | `<ticket-id>-<slug>`（チケット id を接頭辞にする。slug は英小文字・数字・ハイフン） |

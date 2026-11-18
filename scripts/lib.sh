@@ -139,12 +139,15 @@ cfg_has() {
 ucfg_file() {
   local l
   l=$(tf_local_config "${2:-}")
-  case $1 in language | gates)
-    if [ -n "$(cfg "$1" "$l")" ] || [ -n "$(cfg_list "$1" "$l")" ]; then
+  case $1 in
+    language) [ -n "$(cfg language "$l")" ] && {
       printf '%s\n' "$l"
       return
-    fi
-    ;;
+    } ;;
+    gates) [ -n "$(cfg gates "$l")" ] || [ -n "$(cfg_list gates "$l")" ] && {
+      printf '%s\n' "$l"
+      return
+    } ;;
   esac
   tf_config "${2:-}"
 }
@@ -190,7 +193,7 @@ cfg_list() {
 }
 
 # The sections of state.md, in phase order. They start empty; the body is
-# written in the document language (skills/dev/run.md). A section starts only at one of
+# written in the person's language (user_lang, skills/dev/run.md). A section starts only at one of
 # these six headings, and not inside a ``` / ~~~ fence: an Approach may quote
 # Markdown that has "## " lines of its own. _section_awk defines
 # heading_index(line) for awk programs: 1..6 for a section heading, else 0.
