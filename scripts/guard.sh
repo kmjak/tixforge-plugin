@@ -113,7 +113,8 @@ EOF
       path="$(cd "${path%/*}" && pwd -P)/${path##*/}"
       case "$path" in "$top"/*) ;; *) exit 0 ;; esac
       case "$path" in
-        */.husky/*) ;;
+        "$top"/.git/hooks/* | "$top"/.git/config | */.husky/*) ;;
+        "$top"/.git/*) exit 0 ;;
         *)
           case "${path##*/}" in
             .eslintrc* | eslint.config.* | .eslintignore | .prettierrc* | prettier.config.* | .prettierignore | biome.json | biome.jsonc | \
@@ -204,7 +205,7 @@ gh_pr_create_re="${seg_start}gh([[:space:]]+--?[A-Za-z][A-Za-z-]*(=[^[:space:]]+
 # Loose forms: words anywhere once quotes and backslashes are removed, so
 # bash -c "git push", eval, env, "git" push and gh api .../pulls are caught.
 # `stash push` is local and dropped first.
-unquoted=$(printf '%s\n' "$cmd" | tr -d "\"'\\\\")
+unquoted=$(printf '%s\n' "$cmd" | awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print }' | tr -d "\"'\\\\")
 norm=$(printf '%s\n' "$unquoted" | sed -E 's/stash[[:space:]]+push//g')
 has_word() { printf '%s\n' "$norm" | grep -Eq "(^|[^[:alnum:]_-])$1([^[:alnum:]_-]|$)"; }
 
@@ -335,7 +336,7 @@ moves_hooks() {
   return 1
 }
 hook_skip() {
-  local ws n i w cfg="" tool="" j sub k a x ch
+  local ws n i w cfg="" tool="" j sub k a x ch vals
   # shellcheck disable=SC2206 # word splitting (globbing off) is the point
   ws=($1)
   n=${#ws[@]}
@@ -345,8 +346,10 @@ hook_skip() {
     case "$w" in
       GIT_CONFIG_PARAMETERS=* | GIT_CONFIG_KEY_*=*) moves_hooks "${w#*=}" && cfg="$w" ;;
       HUSKY=0 | HUSKY_SKIP_HOOKS=* | LEFTHOOK=0 | SKIP=*) tool="$w" ;;
-      [A-Za-z_]*=* | command | env | sudo | exec | xargs | eval | time | nohup | nice | timeout | bash | sh | zsh | \
-        if | then | do | else | elif | while | until | '!' | -* | [0-9]*) ;;
+      # The options of env / sudo / timeout that take a value: skip it too.
+      -u | -g | -s | -k | -C | -D | -U | -p) i=$((i + 1)) ;;
+      [A-Za-z_]*=* | command | env | */env | sudo | */sudo | exec | xargs | eval | time | nohup | nice | timeout | */timeout | \
+        bash | sh | zsh | if | then | do | else | elif | while | until | '!' | -* | [0-9]*) ;;
       git | */git)
         j=$((i + 1))
         while [ $j -lt $n ]; do
@@ -382,15 +385,23 @@ hook_skip() {
               # A cluster of short flags, read up to the first that takes a
               # value (the rest of the word, or the next word, is the value).
               # Only commit has -n for --no-verify (push -n is a dry run).
+              case "$sub" in
+                commit) vals=mFcCt ;;
+                merge | pull) vals=mFsX ;;
+                rebase) vals=sXx ;;
+                push) vals=o ;;
+                *) vals="" ;;
+              esac
               x=1
               while [ $x -lt ${#a} ]; do
                 ch=${a:$x:1}
-                case "$ch" in
-                  n) [ "$sub" = commit ] && hook_deny="git commit ${a}" && return ;;
-                  m | F | c | C | t | u | S | s | X)
-                    [ $((x + 1)) -eq ${#a} ] && k=$((k + 1))
-                    break
-                    ;;
+                [ "$ch" = n ] && [ "$sub" = commit ] && hook_deny="git commit ${a}" && return
+                # -u<mode> and -S<keyid> take a value only when it is attached.
+                case "$ch" in u | S) break ;; esac
+                case "$vals" in *"$ch"*)
+                  [ $((x + 1)) -eq ${#a} ] && k=$((k + 1))
+                  break
+                  ;;
                 esac
                 x=$((x + 1))
               done
@@ -411,27 +422,67 @@ hook_skip() {
 # eval read as a command of its own. A finding there is denied; one seen
 # only in the loose reading (quotes removed) is asked.
 masked=$(printf '%s\n' "$cmd" | awk -v sq="'" '
-  skip != "" { t = $0; sub(/^\t+/, "", t); if (t == skip) skip = ""; next }
-  {
-    print
-    if (match($0, "<<-?[ \t]*[\"" sq "]?[A-Za-z_][A-Za-z0-9_]*")) {
-      d = substr($0, RSTART, RLENGTH); sub("^<<-?[ \t]*[\"" sq "]?", "", d); skip = d
-    }
-  }
-' | awk -v sq="'" '
-  function mask(s,   out, i, c, q, buf, n, x) {
-    n = length(s)
-    for (i = 1; i <= n; i++) {
+  # mask(s): s with each quoted string replaced by Q. Heredoc bodies and
+  # comments are dropped, a backslash-newline joins the lines, the string
+  # after bash -c / sh -c / eval goes to `inner` (read as its own command),
+  # and the quoted value right after git -c / --config-env / GIT_CONFIG_*=
+  # is kept as is.
+  function mask(s,   out, i, n, c, q, esc, rest, j, m, d, buf, need, raw, x, docs, k, line) {
+    n = length(s); i = 1; docs = ""
+    while (i <= n) {
       c = substr(s, i, 1)
-      if (q == "") {
-        if (c == "\\") { out = out substr(s, i, 2); i++ }
-        else if (c == "\"" || c == sq) { q = c; buf = "" }
-        else out = out c
-      } else if (c == q) {
-        if (out ~ /(^|[^A-Za-z0-9_])((ba|z)?sh[ \t]+(-[A-Za-z]+[ \t]+)*-c|eval)[ \t]*$/) { x = mask(buf); inner = inner x "\n" }
-        out = out "Q"; q = ""
-      } else if (q == "\"" && c == "\\") { buf = buf substr(s, i + 1, 1); i++ }
-      else buf = buf c
+      if (c == "\n") {
+        out = out "\n"; i++
+        # Skip the bodies of the heredocs opened on the line just ended.
+        while (docs != "") {
+          k = index(docs, "\n"); d = substr(docs, 1, k - 1); docs = substr(docs, k + 1)
+          while (i <= n) {
+            j = index(substr(s, i), "\n"); line = j ? substr(s, i, j - 1) : substr(s, i)
+            i += j ? j : length(line) + 1
+            if (substr(d, 1, 1) == "-") { sub(/^\t+/, "", line); if (line == substr(d, 2)) break }
+            else if (line == d) break
+          }
+        }
+        continue
+      }
+      if (c == "\\") { out = out (substr(s, i + 1, 1) == "\n" ? " " : substr(s, i, 2)); i += 2; continue }
+      if (c == "#" && (out == "" || out ~ /[ \t\n;&|(]$/)) {
+        j = index(substr(s, i), "\n"); if (!j) break; i += j - 1; continue
+      }
+      if (c == "<" && substr(s, i, 3) != "<<<" && substr(s, i, 2) == "<<" && substr(out, length(out)) != "<") {
+        rest = substr(s, i + 2)
+        if (match(rest, "^-?[ \t]*[\\\\\"" sq "]?[A-Za-z_][A-Za-z0-9_]*[\"" sq "]?")) {
+          d = substr(rest, 1, RLENGTH); x = (substr(d, 1, 1) == "-") ? "-" : ""
+          gsub("[- \t\\\\\"" sq "]", "", d); docs = docs x d "\n"
+          out = out " "; i += 2 + RLENGTH; continue
+        }
+      }
+      if (c == "\"" || c == sq) {
+        esc = (c == "\"" || substr(out, length(out)) == "$")
+        x = substr(out, length(out) - 59)
+        need = (x ~ /(^|[^A-Za-z0-9_])((ba|z)?sh[ \t]+(-[A-Za-z]+[ \t]+)*-[A-Za-z]*c|eval)[ \t]*$/)
+        raw = !need && (x ~ /(^|[^A-Za-z0-9_])git([ \t]+[^ \t]+)*[ \t]+(-c|--config-env)[ \t]+$|--config-env=$|(^|[ \t])GIT_CONFIG_[A-Z0-9_]*=$/)
+        rest = substr(s, i + 1); m = length(rest); buf = ""
+        if (!esc) { j = index(rest, c); if (!j) j = m + 1; buf = substr(rest, 1, j - 1) }
+        else {
+          # Jump from one backslash or closing quote to the next.
+          j = 1
+          while (1) {
+            if (!match(substr(rest, j), "[\\\\" c "]")) { if (need || raw) buf = buf substr(rest, j); j = m + 1; break }
+            k = j + RSTART - 1
+            if (need || raw) buf = buf substr(rest, j, k - j)
+            if (substr(rest, k, 1) == c) { j = k; break }
+            if (need || raw) buf = buf substr(rest, k + 1, 1)
+            j = k + 2
+          }
+        }
+        if (need) { x = mask(buf); inner = inner x "\n" }
+        out = out (raw ? buf : "Q"); i += j + 1; continue
+      }
+      rest = substr(s, i)
+      if (!match(rest, "[\\\\\"\n#<" sq "]")) { out = out rest; break }
+      if (RSTART == 1) { out = out c; i++; continue }
+      out = out substr(rest, 1, RSTART - 1); i += RSTART - 1
     }
     return out
   }
@@ -442,7 +493,7 @@ while IFS= read -r seg; do
   [ -z "$hook_deny" ] || break
   hook_skip "$seg"
 done << EOF
-$(printf '%s\n' "$masked" | tr ';&|(){}`' '\n\n\n\n\n\n\n\n')
+$(printf '%s\n' "$masked" | sed -E 's/[0-9]*>&[0-9-]*|&>>?|>&/ /g' | tr ';&|(){}`' '\n\n\n\n\n\n\n\n')
 EOF
 if [ -z "$hook_deny" ]; then
   while IFS= read -r seg; do
@@ -455,8 +506,11 @@ EOF
 fi
 set +f
 [ -z "$hook_deny" ] || deny "git の hook を飛ばす操作は禁止です（${hook_deny}。${where}）。hook を飛ばさずに、失敗の原因を直してください。本当に必要なら、ユーザー自身が ! で実行してください。"
-[ -z "$hook_ask" ] || ask "git の hook を飛ばす可能性があります（${hook_ask}）。${where}。hook を飛ばさずに失敗の原因を直すのが原則です。承認しますか？"
-[ $is_push -eq 1 ] || [ $is_pr_create -eq 1 ] || [ -n "$other" ] || exit 0
+# A possible skip is asked after the denies below (force push, Closes), as a
+# note on the prompt.
+hook_note=""
+[ -z "$hook_ask" ] || hook_note="（git の hook を飛ばす可能性：${hook_ask}。hook を飛ばさずに失敗の原因を直すのが原則）"
+[ $is_push -eq 1 ] || [ $is_pr_create -eq 1 ] || [ -n "$other" ] || [ -n "$hook_note" ] || exit 0
 
 # deny: force push, in any form, inside a segment that is a git push (quotes
 # removed; bash -c / eval / env / sudo wrappers allowed). A force flag seen
@@ -476,8 +530,8 @@ fi
 
 if [ -z "$state" ]; then
   # On the Base of an open run.
-  if [ $is_push -eq 1 ]; then what="push"; elif [ $is_pr_create -eq 1 ]; then what="PR 作成"; else what=$other; fi
-  ask "⚠ ${where} で ${what} を実行しようとしています。tixforge の作業はチケットのブランチで行います。承認しますか？${force_note}"
+  if [ $is_push -eq 1 ]; then what="push"; elif [ $is_pr_create -eq 1 ]; then what="PR 作成"; elif [ -n "$other" ]; then what=$other; else what="git の操作"; fi
+  ask "⚠ ${where} で ${what} を実行しようとしています。tixforge の作業はチケットのブランチで行います。承認しますか？${force_note}${hook_note}"
 fi
 
 # deny: the PR must close the run's issue. Only the precise form has a body
@@ -500,7 +554,8 @@ $(cat "$body_file")"
 fi
 
 if [ $is_push -eq 0 ] && [ $is_pr_create -eq 0 ]; then
-  ask "${other} は tixforge の許可リストにない git / gh 操作です（merge・rebase・reset・gh pr merge など）。${where}。承認しますか？"
+  [ -n "$other" ] || ask "git の hook を飛ばす可能性があります（${hook_ask}）。${where}。hook を飛ばさずに失敗の原因を直すのが原則です。承認しますか？"
+  ask "${other} は tixforge の許可リストにない git / gh 操作です（merge・rebase・reset・gh pr merge など）。${where}。承認しますか？${hook_note}"
 fi
 
 # ask: everything else that leaves the machine. The phase goes in the prompt.
@@ -536,7 +591,7 @@ case "$status" in
     note="⚠ まだ PR ゲート前です。${obj}承認しますか？"
     ;;
 esac
-note="${note}${force_note}"
+note="${note}${force_note}${hook_note}"
 if { [ $is_push -eq 1 ] && [ $precise_push -eq 0 ]; } || { [ $is_pr_create -eq 1 ] && [ $precise_pr -eq 0 ]; }; then
   note="${note}（コマンドの形から ${what} の可能性があると判断）"
 fi

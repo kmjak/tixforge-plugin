@@ -366,6 +366,46 @@ expect ask "$tfrepo" 'SKIP=eslint git commit -m x'
 expect pass "$tfrepo" 'git -c core.hooksPath=/dev/null status'
 expect ask "$tfrepo" 'git merge -n main'
 expect pass "$tfrepo" 'git commit -m x' "$nojq"
+# Flags that take no value (or only an attached one) do not hide the rest.
+expect deny "$tfrepo" 'git commit -s --no-verify -m x'
+expect deny "$tfrepo" 'git commit -s -n -m x'
+expect deny "$tfrepo" 'git commit -S --no-verify -m x'
+expect deny "$tfrepo" 'git commit -u -n -m x'
+expect deny "$tfrepo" 'git push -u --no-verify origin GT-000001-login'
+expect deny "$tfrepo" 'git pull --no-verify'
+expect deny "$tfrepo" 'git rebase --no-verify main'
+expect deny "$tfrepo" 'git am --no-verify x.patch'
+# A line continued with a backslash is one command.
+expect deny "$tfrepo" "$(printf 'git commit \\\n  --no-verify -m x')"
+expect deny "$tfrepo" "$(printf 'git commit -m x \\\n  -n')"
+expect deny "$tfrepo" "$(printf 'git push \\\n  --force origin GT-000001-login')"
+# Prefixes with an option that takes a value.
+expect deny "$tfrepo" 'env -u FOO git commit --no-verify -m x'
+expect deny "$tfrepo" 'sudo -u me git commit --no-verify -m x'
+expect deny "$tfrepo" 'timeout -s KILL 60 git commit --no-verify -m x'
+expect deny "$tfrepo" '/usr/bin/env git commit --no-verify -m x'
+expect deny "$tfrepo" 'git commit -m x 2>&1 --no-verify'
+# Config values in quotes, bash -lc, and the other config forms.
+expect deny "$tfrepo" 'git -c "core.hooksPath=/dev/null" commit -m x'
+expect deny "$tfrepo" "GIT_CONFIG_PARAMETERS=\"'core.hooksPath'='/dev/null'\" git commit -m x"
+expect deny "$tfrepo" 'bash -lc "git commit --no-verify -m x"'
+expect deny "$tfrepo" 'git --config-env core.hooksPath=HP commit -m x'
+expect ask "$tfrepo" 'LEFTHOOK=0 git commit -m x'
+expect ask "$tfrepo" 'HUSKY_SKIP_HOOKS=1 git commit -m x'
+# Heredocs: bodies are not commands, whatever their delimiter (not denied;
+# the loose reading still asks).
+expect ask "$tfrepo" "$(printf 'cat <<\\EOF > f\n- git commit -n\nEOF')"
+expect ask "$tfrepo" "$(printf 'git commit -F - <<-EOF\n\t- git commit -n\n\tEOF')"
+expect deny "$tfrepo" "$(printf 'cat <<<foo\ngit commit --no-verify -m x')"
+expect ask "$tfrepo" 'echo x # ; git commit -n'
+expect deny "$tfrepo" "echo \$'it\\'s' && git commit --no-verify -m x"
+# A possible skip never lowers a deny that follows.
+expect deny "$tfrepo" 'HUSKY=0 git push --force origin GT-000001-login'
+expect deny "$tfrepo" 'git commit -m "mention --no-verify" && git push --force origin GT-000001-login'
+expect deny "$tfrepo" "$(printf 'gh pr create --title t --body "Fixes things\ngit commit --no-verify was used"')"
+git -C "$tfrepo" checkout -q main
+expect ask "$tfrepo" 'HUSKY=0 git commit -m x'
+git -C "$tfrepo" checkout -q GT-000001-login
 expect deny "$tfrepo" 'git commit --no-verify -m x' "$nojq"
 expect pass "$tfrepo" 'git -c user.name=x commit -m x'
 expect ask "$tfrepo" 'git push -n origin GT-000001-login'
@@ -387,6 +427,10 @@ mkdir -p "$tfrepo/.husky" && printf 'x\n' > "$tfrepo/.husky/pre-commit" && print
 expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/.husky/pre-commit\"}"
 expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/.eslintignore\"}"
 rm -rf "$tfrepo/.husky" "$tfrepo/.eslintignore"
+printf 'exit 1\n' > "$tfrepo/.git/hooks/pre-commit"
+expect_tool ask "$tfrepo" Write "{\"file_path\":\"$tfrepo/.git/hooks/pre-commit\"}"
+rm -f "$tfrepo/.git/hooks/pre-commit"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/.git/config\"}"
 printf '{}\n' > "$tmp/tsconfig.json"
 expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tmp/tsconfig.json\"}"
 # Another run before its Plan does not change this: configs ask, code passes.
