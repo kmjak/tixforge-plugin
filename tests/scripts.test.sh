@@ -422,6 +422,19 @@ sed 's/^gates: .*/gates: []/' "$tmp/keep-gates.yml" > .tixforge/config.yml
 has "gates=[]（pr のみ）" "$(bash "$scripts/project-status.sh")" "explicit empty gates"
 grep -v '^gates:' "$tmp/keep-gates.yml" > .tixforge/config.yml
 has "gates=（未設定）" "$(bash "$scripts/project-status.sh")" "missing gates"
+# init writes config.yml one answer at a time: a config with a single key
+# (stopped part way) still reads.
+printf 'language: ja\n' > .tixforge/config.yml
+out=$(bash "$scripts/project-status.sh")
+eq 0 $? "a partial config.yml exits 0"
+has "gates=（未設定）" "$out" "a partial config.yml shows the missing keys"
+has "init が途中（無いキー：repository.base_branch、commands、ticket.tracker）" "$out" "a partial config.yml says init stopped part way"
+printf 'repository:\n  base_branch: main\ncommands: {}\nticket:\n  tracker: github\n' > .tixforge/config.yml
+case "$(bash "$scripts/project-status.sh")" in *init*途中*) ng "the keys init needs are there" ;; *) ok ;; esac
+git rm -q --cached .tixforge/config.yml
+has "init が途中（config.yml が commit されていない）" "$(bash "$scripts/project-status.sh")" "an uncommitted config.yml means init has not finished"
+git add .tixforge/config.yml
+case "$out" in *移行が要る*) ng "a partial config.yml needs no migration" ;; *) ok ;; esac
 cp "$tmp/keep-gates.yml" .tixforge/config.yml
 has "この人が使う値: language=ja（config.yml） gates=approach,plan,pr（config.yml）" "$(bash "$scripts/project-status.sh")" "personal values from config.yml"
 printf 'language: en\ngates: []\n' > .tixforge/config.local.yml

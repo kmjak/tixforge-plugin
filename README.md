@@ -50,7 +50,7 @@ repository:
 gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる）
 ```
 
-`/tixforge:project init` が全てのキーを書く。値を変えるのは `/tixforge:project update`。自分だけの `language`・`gates` は `/tixforge:project setup` で `.tixforge/config.local.yml` に書く（git に載らない）。全てのキーと意味・値・書き方は [`references/config.md`](references/config.md) にある。
+`/tixforge:project init` が答えのたびにキーを書き、終わった時点で全てのキーがそろう（途中で止まっても、再実行で続きから進む）。値を変えるのは `/tixforge:project update`。自分だけの `language`・`gates` は `/tixforge:project setup` で `.tixforge/config.local.yml` に書く（git に載らない）。全てのキーと意味・値・書き方は [`references/config.md`](references/config.md) にある。
 
 ## チケット
 

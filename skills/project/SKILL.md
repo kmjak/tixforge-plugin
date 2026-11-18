@@ -21,7 +21,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 | `/tixforge:project init` | プロジェクトを初期化する。足りない設定を足すだけで、既にある値は変えない | `${CLAUDE_SKILL_DIR}/init.md` |
 | `/tixforge:project update` | 設定の値を変える・v2 の LT を issue に移す・テンプレートと Actions を最新にする | `${CLAUDE_SKILL_DIR}/update.md` |
 | `/tixforge:project setup` | 自分だけの設定（会話と `state.md` の言語・ゲート）を `.tixforge/config.local.yml` に書く | `${CLAUDE_SKILL_DIR}/setup.md` |
-| `/tixforge:project` | `.tixforge/config.yml` が無ければ init。「現在の状態」に「移行が要る」があれば update。それ以外は init・update・setup のどれかを選択肢で尋ねる（単一選択） | — |
+| `/tixforge:project` | 「現在の状態」に「移行が要る」があれば update。`.tixforge/config.yml` が無いか「init が途中」があれば init。それ以外は init・update・setup のどれかを選択肢で尋ねる（単一選択） | — |
 
 それ以外の引数が渡されたら実行せず、使えるサブコマンドを示して止まる。
 
