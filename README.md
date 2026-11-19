@@ -39,9 +39,9 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 | `/tixforge:project update` の「テンプレートと Actions を最新にする」で、コピーした workflow を上げる（上げないと v2 の閉じ方のまま。issue はリリースではなく develop へのマージで閉じる） | Actions を入れた人 |
 | `.tixforge/config.yml` の `repository.close_issues` を消す（Actions を先に上げてから。`/tixforge:project update` の「設定の値を変える」で尋ねる） | `close_issues` を書いていた人 |
 | 動きの変化を知る：develop へのマージでは issue は閉じず `tixforge:merged` になり、main に入ったときに閉じて `tixforge:done` になる（下記「issue が閉じる時点」） | develop 運用で、`close_issues: merge` だった人か、キーを書かずに `tixforge-issue-sync` を使っていた人 |
+| 任意：自分だけの言語・ゲートを `/tixforge:project setup` で決める。自分の PR とチケットを `/tixforge-panel` で横に出す | 全員 |
 
 `base_branch` が GitHub の default branch（main など）だった人は、issue が閉じる時点は変わらない。上の表の対象に当たらなければ、更新の後にすることは無い（残った `host`・`close_issues` のキーは読まれないだけで、`/tixforge:project update` の「設定の値を変える」で消せる）。
-| 任意：自分だけの言語・ゲートを `/tixforge:project setup` で決める。自分の PR とチケットを `/tixforge-panel` で横に出す | 全員 |
 
 ## 置き場所
 
