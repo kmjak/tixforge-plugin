@@ -21,7 +21,7 @@
    - 取ってきた担当者に自分（`gh api user --jq .login`）以外がいれば、「担当者：<login>（自分以外）」を一覧の先頭に載せる。
    - 「閉じる」の「キャンセル」（`close.md`）。
    - `state.md` の `## Approach` が書かれていれば、`record.md` のとおり「記録を残す」を行う。投稿する本文もこの一覧で示す。
-   - このチケットのブランチに開いている PR（`gh pr list --head <Branch> --state open`）があれば、**閉じるかどうかだけ**を尋ねる（残すと、レビュアーからは生きている PR に見える、と添える。閉じるなら `gh pr close <PR> --comment "Canceled by tixforge: <理由>"`）。
+   - このチケットのブランチに開いている PR（`gh pr list --head <Branch> --state open`）があれば、**閉じるかどうかだけ**を尋ねる（残すと、レビュアーからは生きている PR に見える、と添える。閉じるなら `close.md` の「キャンセル」の PR の閉じ方で）。
    - 最後に、`.tixforge/<ticket-id>/state.md` があれば、`bash <scripts>/run-state.sh set <ticket-id> Status canceled` を実行する。
 
 ## Phase 3 — 実行
