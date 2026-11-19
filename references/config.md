@@ -14,7 +14,7 @@ ticket:
   tracker: github       # チケットの置き場：github
 review:
   required: true        # PR の Approve を必須にするか
-gates: [approach, plan, pr]  # 必ず止まるゲート
+gates: [plan, pr]       # 必ず止まるゲート
 ```
 
 | キー | 意味 | 値 | 決める手順（init） | 無いとき | 読むもの |
@@ -24,7 +24,7 @@ gates: [approach, plan, pr]  # 必ず止まるゲート
 | `commands` | dev の検証で実行するコマンド。名前: コマンド | 1 行 1 つ。無ければ `{}` | 「検証コマンド」（`package.json`・`Makefile` などから候補を作って確かめる） | 「init が途中」と出て、init 以外は止まる（`verify.sh` も終了コード 3 で止まる） | `verify.sh`、init の「CI」（`tixforge-ci.yml` に埋める） |
 | `ticket.tracker` | チケットの置き場 | `github` | 「チケット管理」（尋ねずに書く） | 「init が途中」と出て、init 以外は止まる | `project-status.sh`（v2 の `local` を見つける。`repository.base_branch`・`commands` と合わせて、無ければ「init が途中」と出す） |
 | `review.required` | PR の Approve を必須にするか | `true`・`false`（1 人なら `false`。GitHub では自分の PR を Approve できない） | 「レビューの要否」（「開発の人数」の答え） | `true` | dev の PR（`pr-status.sh` の判定と合わせる） |
-| `gates` | 必ず止まるゲート。書いていないフェーズは、止まる条件があるときだけ止まる | `research`・`approach`・`plan`・`implement`・`review`・`pr` のリスト。`[]` も可（`pr` は書かなくても必ず止まる） | 「ゲート」（尋ねずに `[approach, plan, pr]`） | `[approach, plan, pr]` | dev の「承認ゲート」 |
+| `gates` | 必ず止まるゲート。書いていないフェーズは、止まる条件があるときだけ止まる | `research`・`approach`・`plan`・`implement`・`review`・`pr` のリスト。`[]` も可（`pr` は書かなくても必ず止まる） | 「ゲート」（尋ねずに `[plan, pr]`） | `[plan, pr]` | dev の「承認ゲート」 |
 
 - 表に無いキーの値を、推測で補わない。キーが無いときは、表の「無いとき」の扱いに従う。
 - `project-status.sh` は `commands` 以外のキーを「現在の状態」に出す（無いキーは空か「未設定」）。`commands` の中身は `config.yml` を読んで確かめる。`repository.base_branch`・`commands`・`ticket.tracker` のどれかが無いか、`config.yml` が commit されていなければ「init が途中」と出す。

@@ -104,6 +104,9 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 目的：方針を具体的なブランチ・確かめ方・commit 計画に落とす。
 
+0. **Approach を自動で通過していたら**（`## Approach` の末尾が、`> ` に続く `<scripts>/messages.yml` の `gate_auto_pass` の行。どの言語の行でもよい）、Plan を始める前に採用案を 1〜2 行でユーザーに示す（方針を確かめる最初の機会になるため。確かめ方を尋ねる前に方針が分かるようにする）。方針（採用案）を変える意見が来たら：
+   - `## Plan` にまだ何も書いていない → Approach のゲートへのフィードバックとして扱う（まだ合意していない案なので、巻き戻しにしない）。`bash <scripts>/run-state.sh set <ticket-id> Status approach:in-progress` にし、`## Approach` を書き直して自動通過の行を消し、Approach のゲートで止まる（ユーザーの判断が入ったので、`gates` に無くても止まる）。
+   - `## Plan` に書いた後（Plan のゲートを含む） → `## Plan` だけを直さずに `rewind.md` を Read し、その手順で Approach に戻る。
 1. **Base**（分岐元であり PR の向き先）を決める。優先順位：ユーザーがこの Plan で指定したもの ＞ チケットの `## Base` の節 ＞ `repository.base_branch` ＞ `git symbolic-ref --short refs/remotes/origin/HEAD` の `origin/` を除いたもの。そのブランチがリモートに今も存在するか確かめ、無ければ尋ねる。
 2. **ブランチ**：`<ticket-id>-<slug>`。slug は英小文字・数字・ハイフンだけにする（ドキュメント言語が日本語でも英語で書く）。その名前のブランチが無いことを、ローカル（`git show-ref`）とリモート（`git ls-remote --heads origin`）の両方で確かめる。あって、ヘッダの `Branch` でない（巻き戻しで残した古いブランチなど）場合は、別の名前（例：末尾に `-2`）にする。
 3. **受け入れ条件 → 確かめ方の対応表**を作る。チケットの受け入れ条件の**全項目**に 1 行ずつ、何で・誰が確かめるかを決める。
@@ -118,7 +121,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
    - **種別は項目ごとにユーザーが選ぶ**：Claude が推奨と確かめ方の案を付け、AskUserQuestion で尋ねる（1 問 1 項目、選択肢はこの 4 つで推奨を先頭に。1 回に 4 項目まで）。`Claude（ブラウザ）`・`Claude（API）` は、このセッションでその手段（ブラウザを操作するツール、アプリを起動するスキル、API を呼べる環境）が使えるかを先に確かめ、使えなければ選択肢の説明にそう添える。
    - 確かめ方を決められない条件は、止まってユーザーと決める（チケットの受け入れ条件が曖昧なら `/tixforge:ticket edit` を提案する）。
 4. **順序付きの commit 分割**（各 commit の目的とおおまかな範囲）を決める。1 ブランチに収まらない大きさなら、ユーザーに指摘して一緒にチケットを絞る（別のチケットに分ける）。自動で分割しない。
-5. Base・ブランチ・対応表・commit 一覧を `## Plan` に書き、`bash <scripts>/run-state.sh set <ticket-id> Branch <ブランチ>`・`bash <scripts>/run-state.sh set <ticket-id> Base <Base>` でヘッダも埋める。ゲート（`plan`）へ。止まって要約を出すときは、最後に「承認の前に `/compact` してよい。その後『続けて』などで Implement に進む」と 1 行（個人の言語）添える（他のゲートには添えない）。
+5. Base・ブランチ・対応表・commit 一覧を `## Plan` に書き、`bash <scripts>/run-state.sh set <ticket-id> Branch <ブランチ>`・`bash <scripts>/run-state.sh set <ticket-id> Base <Base>` でヘッダも埋める。ゲート（`plan`）へ。止まって要約を出すときは、手順 0 と同じく Approach を自動で通過していれば採用案を 1〜2 行で先に示し、最後に「承認の前に `/compact` してよい。その後『続けて』などで Implement に進む」と 1 行（個人の言語）添える（他のゲートには添えない）。
 6. ブランチは Implement の「ブランチの準備」で作る。
 
 ## Phase 4 — Implement

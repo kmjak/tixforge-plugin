@@ -65,7 +65,7 @@ commands:               # dev が検証で書いた順に実行する（無け�
   test: npm test
 repository:
   base_branch: main     # dev がブランチを切る元・PR の向き先
-gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる）
+gates: [plan, pr]       # 必ず止まるゲート（pr は常に止まる）
 ```
 
 `/tixforge:project init` が答えのたびにキーを書き、終わった時点で全てのキーがそろう（途中で止まっても、再実行で続きから進む）。値を変えるのは `/tixforge:project update`。自分だけの `language`・`gates` は `/tixforge:project setup` で `.tixforge/config.local.yml` に書く（git に載らない）。全てのキーと意味・値・書き方は [`references/config.md`](references/config.md) にある。
@@ -81,7 +81,7 @@ gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる�
 | # | フェーズ | 内容 |
 |---|----------|------|
 | 1 | Research | チケットと `docs/context/**` を読み、コードの調査は原則 Explore agent に任せる（触るファイルが決まっていて数ファイルで済むときは自分で読む）。チケットの未決事項を 1 項目ずつ片付ける（何を作るかの決定はチケットに書き戻し、どう作るかの決定は Approach の表へ） |
-| 2 | Approach | 実装方針（選択肢・採用案・トレードオフ）を決めて合意する |
+| 2 | Approach | 実装方針（選択肢・採用案・トレードオフ）を決める。判断が要るときや `gates` にあるときは止まって合意し、それ以外は Plan の最初に採用案を示す |
 | 3 | Plan | Base・ブランチ・**受け入れ条件 → 確かめ方の対応表**・commit 分割。確かめ方の種別（自動／Claude（ブラウザ）／Claude（API）／ユーザー）は項目ごとにユーザーが選ぶ。Plan は常に止まる（承認の前に `/compact` してよい） |
 | 4 | Implement | 計画どおりに実装・commit し、検証コマンド（`verify.sh`）と手動確認を通す。context と矛盾しないかもここで確かめる |
 | 5 | Review | 2 つの reviewer agent を並列に起動する。`tixforge:reviewer` は合意とのズレ（相違・未実装・合意外の変更・決定の無い未決事項）、`tixforge:quality-reviewer` は品質を見る。2 ラウンド目からは前のラウンドからの差分と、直すと決めた指摘が直ったかを見る。指摘ごとに修正・計画の見直し・方針の見直し・受け入れをユーザーが選ぶ |

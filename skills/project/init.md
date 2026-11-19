@@ -74,7 +74,7 @@
    - **1 人** — `required: false`。GitHub では自分の PR を Approve できないため、`true` のままだと PR が完了にならない。
    - **複数人** — `required: true`。
    - 人数が変わったら `/tixforge:project update` で変えられることを伝える。
-9. **ゲート**（`gates`）：`gates: [approach, plan, pr]` を書く（尋ねない）。書いたゲートでは必ず止まり、書いていないフェーズは、止まる条件（未解決の疑問・レビュー指摘など）が無ければ自動で通過すること、`pr` は書かなくても必ず止まることを伝える。全フェーズで止めたければ `[research, approach, plan, implement, review, pr]` にできる。
+9. **ゲート**（`gates`）：`gates: [plan, pr]` を書く（尋ねない）。書いたゲートでは必ず止まり、書いていないフェーズは、止まる条件（未解決の疑問・方針を決めるのに要る判断・レビュー指摘など）が無ければ自動で通過すること、`pr` は書かなくても必ず止まることを伝える。方針（Approach）でも必ず止めたければ `[approach, plan, pr]`、全フェーズで止めたければ `[research, approach, plan, implement, review, pr]` にできる。
 
 ## Phase 3 — 作成（ゲート）
 
