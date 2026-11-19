@@ -142,6 +142,8 @@ GT-000001 · plan:awaiting-approval
 
 今のブランチの run を出す。どの run のブランチでもなければ、Plan の承認前の run（まだブランチが無い）を出し、複数あれば先頭の 1 つに `(+<残りの数>)` を付ける。run が無い場所では何も出さない。
 
+下の例のパスは marketplace の clone（`~/.claude/plugins/marketplaces/tixforge`）を指す。インストールした版の置き場所（`~/.claude/plugins/cache/tixforge/tixforge/<version>`）は更新のたびに変わるので使わない。clone は `claude plugin marketplace update tixforge` のときに最新の main になり、インストールした版より新しいことがある（statusline.sh は state.md を読むだけなので、ずれても困らない）。
+
 statusline を使っていなければ、`~/.claude/settings.json` に足す：
 
 ```json
