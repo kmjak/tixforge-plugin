@@ -63,7 +63,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 | フェーズ | `gates` に無いときも止まる条件 |
 |----------|------------------------------|
-| research | 決定の無い未決事項・未解決の疑問点がある |
+| research | 決定の無い未決事項・未解決の疑問点・要件や受け入れ条件の解釈、対象の範囲を左右する未確認の仮定がある |
 | approach | 採用案を決めるのにユーザーの判断が要る（拮抗する選択肢、チケットの解釈、置いた仮定） |
 | plan | **常に止まる**（確かめ方をユーザーが項目ごとに選ぶため。下記 Plan） |
 | implement | ユーザーにしてもらう手動確認が残っている（Review からの差し戻しの後も同じ） |
@@ -122,7 +122,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 目的：承認済みの方針と計画に沿って実装する。
 
-1. **ブランチの準備**：リポジトリの状態を確認する（git リポジトリであること。このチケットと無関係な未コミット変更があれば警告する）。承認済みブランチが無ければ **Base の最新**から作成する：`git fetch origin <Base>` の後の `origin/<Base>` から（`git switch -c <ブランチ> origin/<Base>`）。既にあれば切り替えるだけにする。
+1. **ブランチの準備**：リポジトリの状態を確認する（git リポジトリであること。このチケットと無関係な未コミット変更があれば警告する）。承認済みブランチが無ければ **Base の最新**から作成する：`git fetch origin <Base>` の後の `origin/<Base>` から（`git switch --no-track -c <ブランチ> origin/<Base>`。upstream を Base にしない）。ローカルの Base が `origin/<Base>` より進んでいれば（`git rev-list --count origin/<Base>..<Base>` が 0 でない。init の commit を push していないなど）、その commit はこのブランチに入らないことを伝え、push するか尋ねる。既にあれば切り替えるだけにする。
 2. 承認済みブランチ上で、承認済みの commit 分割に従って実装・commit する。
    - **テストは対応表に沿って書く。** 表の `自動` の行のテストを、表に書いたテスト名で作る。名前や場所を変えたら `## Implementation Log` に記録する。
    - **commit メッセージは `docs/context/commit.md` に従う**（最初の commit の前に読む。`Language:` の言語で書く）。`Source:` にパスがあればそのファイルを規約として読み、本文は補足として扱う。**`Source:` のファイルが読めなければ、黙って別の書式にしない。** 止まって伝え、`/tixforge:project update` で設定し直すか、今回は `commit.md` の本文と直近の `git log` の書式で進めるかを尋ねる。`commit.md` 自体が無ければ直近の `git log` の書式に合わせ、`/tixforge:project init` の再実行で作れることを伝える。
@@ -158,7 +158,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 ### context の確認
 
-この変更が `docs/context/**` の記述と**矛盾する**か（ディレクトリ構成・アーキテクチャ・用語・技術スタックを変えた等）を、1 回だけ軽く確かめる。矛盾がある場合だけ、直す箇所を示し、この run に最小限の修正 commit を足すか尋ねる（足すなら、その後に検証をやり直す。Review と PR の対象に含まれる）。矛盾が無ければ「context の更新は不要」と一行伝えるだけにする。網羅的に書き足す提案はしない。
+この変更が `docs/context/**` の記述と**矛盾する**か（ディレクトリ構成・アーキテクチャ・用語・技術スタックを変えた等）を、1 回だけ軽く確かめる。矛盾がある場合だけ、直す箇所を示し、この run に最小限の修正 commit を足すか尋ねる（足すなら、その後に検証をやり直し、`## Plan` の commit 一覧の末尾に「context の更新（Implement で合意）：`docs/context/<ファイル>` の <直した点>」と 1 行足す。Review と PR の対象に含まれる）。矛盾が無ければ「context の更新は不要」と一行伝えるだけにする。網羅的に書き足す提案はしない。
 
 ## Phase 5 — Review
 
@@ -169,7 +169,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または `commands: {}` のときの行）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直し、出力の 1 行目を `## Implementation Log` に書き写す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
 4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。差分・チケット・`## Approach`・`## Plan` と、agent が最初に読む `index.md` が `.git/tixforge/review/<ticket-id>/` に書き出され、`index.md` のパスが出力される。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」（`<ファイル>` は `snapshot.md`）からやり直す。終了コード 4（state.md が無い、または `## Approach` か `## Plan` が空）なら、原因を伝えて止まる（Approach・Plan に戻して書き直すなら `rewind.md` の手順で）。書き出したものをこのセッションで読む必要はない。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し）。ラウンドごとに新しく起動する（前のラウンドの agent を使い回さない）。渡すのは次のものだけにする：
-   - 両方に：4 で出力された `index.md` のあるディレクトリのパス、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
+   - 両方に：4 で出力された `index.md` のあるディレクトリのパス、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まった指摘：その agent の指摘は番号つきの全文、他方の agent と実装者による追加の指摘は番号と「何をどう直すか」の 1 行（自分の指摘は直ったかを確かめさせ、他の修正を「合意外の変更」と言わせないため。合意の引用は他方に渡さない）
    - `tixforge:reviewer` にだけ：`## Implementation Log` の手動確認の行（全て。無ければ「無し」）
 
    **`## Research`・`## Implementation Log` の判断・実装中の経緯・検証の行は渡さない**（実装者の意図に引きずられず、合意と成果物だけで判定させるため。検証は 3 で全て pass になっている）。`.tixforge/` 配下のパスは渡さない。

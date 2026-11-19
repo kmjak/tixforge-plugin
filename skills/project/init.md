@@ -15,7 +15,7 @@
 
 目的：設定の値を 1 つずつ決め、決まるたびに `.tixforge/config.yml` に書く。
 
-書くときは `references/config.md` を Read し、その形とキーの順に合わせる（既にあるキーは変えない。入れ子のキーは、既にある親（`repository:` など）の下に足す）。最初に書く前に、`.tixforge/.gitignore`（`*`・`!.gitignore`・`!config.yml` の 3 行）が無ければ作る。答えそのものが確認なので、config を書く前には止まらない（commit は Phase 5）。途中で止まっても、再実行すれば値のあるキーは尋ねないので続きから進む（config に書かない答え（開発の人数・commit 規約）は尋ね直す）。
+書くときは `references/config.md` を Read し、その形とキーの順に合わせる（後から書くキーも、見本の位置に差し込む。既にあるキーは変えない。入れ子のキーは、既にある親（`repository:` など）の下に足す）。最初に書く前に、`.tixforge/.gitignore`（`*`・`!.gitignore`・`!config.yml` の 3 行）が無ければ作る。答えそのものが確認なので、config を書く前には止まらない（commit は Phase 5）。途中で止まっても、再実行すれば値のあるキーは尋ねないので続きから進む（config に書かない答え（開発の人数・commit 規約）は尋ね直す）。
 
 2. **開発の人数**：「1 人で開発しますか？」と尋ねる（答えを使うキー `repository.base_branch`・`review.required` が全てあれば尋ねない）。答えは「ブランチ運用」「レビューの要否」の推奨に使い回す（同じことを 2 度尋ねない）。
 3. **リポジトリ**：tixforge は GitHub のリポジトリを使う（チケットは issue、変更は PR）。
@@ -52,7 +52,7 @@
    - キー名は用途を表す短い名前（`test`・`lint`・`typecheck` など）にする。書いた順に実行する。値は、**全体を `"…"` で囲むか、まったく囲まないかのどちらか**にする（一部だけを囲まない）。` #` を含むなら全体を囲む。
    - 検証コマンドが無い（テストが無い等）場合は `commands: {}` と書き、その旨を伝える（dev は検証を省き、記録に残す）。
    - 新たにラッパー（Makefile 等）は作らない。既存のコマンドをそのまま書く。
-7. **commit 規約**（`docs/context/commit.md`）：dev の commit はこのファイルに従う。
+7. **commit 規約**（`docs/context/commit.md`）：dev の commit はこのファイルに従う。ここでは中身を決めるだけにし、ファイルは Phase 3 の「作るもの」の確認の後に書く。
    - **既にある場合**：尋ねずに使う。ただし `Source:` にパスがあれば、下の 3 点を確かめ直す（再実行のたびに）。満たさなければ示して、選び直すか本文に書くかを尋ねる。
    - **無い場合**：「既存の規約ファイルがある」「無いので作る」を尋ねる。先に `CONTRIBUTING.md`・`commitlint.config.*`・`.gitmessage`・`.github/` 配下などを見て、候補があれば選択肢の説明に含める。
      - **ある** → パスを確定する。**そのパスが ① 存在する ② リポジトリの中にある ③ git で追跡されている（`git ls-files --error-unmatch <パス>`。未追跡のファイルは他のメンバーの手元に無い）**ことを確かめてから、リポジトリのルートからの相対パスで `Source:` に書く。本文はコピーしない。本文欄には、tixforge 固有の補足（あれば）だけを書く。
@@ -155,5 +155,5 @@
     - 新しく作ったリポジトリで context を自分で書く場合も、上のとおり今 commit する（書き終えた後の変更は、ユーザーが別に commit する）。
     - **main + develop を選んだ場合**：commit の後に `git branch develop`。
     - 「リポジトリを作る場合」で「push する」を選んだ場合は、commit の後に push する（main + develop なら `git push -u origin main develop`、それ以外は `git push -u origin <base_branch>`。実行前にコマンドを示して確認を得る）。「push しない」を選んだ場合は push しない。
-    - それ以外なら、commit（と develop の作成）の後に、`git ls-remote --heads origin` でリモートに `base_branch`（main + develop なら main も）があるか確かめる。無いものがあれば、push するか尋ねる（`git push -u origin <無いブランチ…>` を示して確認を得てから行う）。無いままだと、dev の Plan（Base がリモートにあるかの確認）と Implement（`git fetch origin <Base>`）で止まる。
+    - それ以外なら、commit（と develop の作成）の後に、`git ls-remote --heads origin` でリモートに `base_branch`（main + develop なら main も）があるか確かめる。無いものがあれば、push するか尋ねる（`git push -u origin <無いブランチ…>` を示して確認を得てから行う。無いままだと、dev の Plan（Base がリモートにあるかの確認）と Implement（`git fetch origin <Base>`）で止まる）。あっても、`base_branch` に直接 commit したなら、`git push origin <base_branch>` を示して push するか尋ねる（push しないと、dev が `origin/<Base>` から切るブランチに init の commit が入らず、設定のファイルが作業ツリーから消える。他のメンバーにも届かない）。push が拒否されたら（リモートが先に進んでいる）force せず、状況を示して止まる。
 19. 次の一手として `/tixforge:ticket create` を案内する。
