@@ -7,13 +7,16 @@ tf_top() { git rev-parse --show-toplevel 2> /dev/null || pwd; }
 
 # Everything tixforge keeps in a project lives under .tixforge/:
 #   .tixforge/config.yml        settings (in git, shared)
+#   .tixforge/config.local.yml  this person's language and gates (not in git)
 #   .tixforge/.gitignore        keeps everything else out of git
-#   .tixforge/<id>/ticket.md    a ticket (LT: the ticket itself; GT: a working
-#                               copy of the issue)
+#   .tixforge/<id>/snapshot.md  the ticket as dev took it from the issue
+#   .tixforge/<id>/editing.md   edit's copy while it edits (removed after)
 #   .tixforge/<id>/state.md     the run of that ticket
 tf_dir() { printf '%s/.tixforge\n' "${1:-$(tf_top)}"; }
 tf_config() { printf '%s/config.yml\n' "$(tf_dir "${1:-}")"; }
-ticket_file() { printf '%s/%s/ticket.md\n' "$(tf_dir "${2:-}")" "$1"; }
+# The person's own settings for this project (not in git): language and gates
+# there win over config.yml's (ucfg_file).
+tf_local_config() { printf '%s/config.local.yml\n' "$(tf_dir "${1:-}")"; }
 state_file() { printf '%s/%s/state.md\n' "$(tf_dir "${2:-}")" "$1"; }
 
 # ensure_workspace [top]: create .tixforge/.gitignore when it is missing, so
@@ -25,25 +28,85 @@ ensure_workspace() {
   [ -f "$d/.gitignore" ] || printf '*\n!.gitignore\n!config.yml\n' > "$d/.gitignore"
 }
 
-# Ticket ids: LT-<6 digits> for local tickets, GT-<6 digits> for GitHub
-# issues (GT-000123 is issue #123). More than 6 digits are written as is.
+# Ticket ids: GT-<6 digits> for GitHub issues (GT-000123 is issue #123).
+# More than 6 digits are written as is. v2's local tickets (LT-) are not
+# ids any more: ticket-id.sh normalize refuses them with the migration.
 # shellcheck disable=SC2034 # used by ticket-id.sh
 ID_PAD=6
-is_ticket_id() { printf '%s\n' "$1" | grep -Eq '^(LT|GT)-(0[0-9]{5}|[1-9][0-9]{5,})$'; }
-id_kind() { printf '%s\n' "${1%%-*}"; } # LT | GT
+is_ticket_id() { printf '%s\n' "$1" | grep -Eq '^GT-(0[0-9]{5}|[1-9][0-9]{5,})$'; }
+# lt_info <folder>: what v2 left in a .tixforge/LT-* folder, as
+# "<run>\t<ticket>\t<reason>". run: the Status of state.md, "-" with no
+# state.md, "?" when it has no Status. ticket: open | canceled (in the
+# header, the lines above the first "## ") | none. reason: the header's
+# Reason line.
+lt_info() {
+  local d=$1 run=- t=none r="" h
+  if [ -f "$d/state.md" ]; then
+    run=$(field "$d/state.md" Status)
+    run=${run:-?}
+  fi
+  if [ -f "$d/ticket.md" ]; then
+    h=$(awk '{ sub(/\r$/, "") } /^## / { exit } { print }' "$d/ticket.md")
+    t=open
+    printf '%s\n' "$h" | grep -Eq '^Status: canceled[[:space:]]*$' && t=canceled
+    r=$(printf '%s\n' "$h" | sed -n 's/^Reason: //p' | head -1 | tr '\t' ' ')
+  fi
+  printf '%s\t%s\t%s\n' "$run" "$t" "$r"
+}
+# lt_pending <run> <ticket>: exit 0 when the folder still has to move: its
+# run is open (whatever the ticket says: a move stopped halfway leaves the
+# ticket canceled and the run open), or with no run, its ticket is open.
+lt_pending() {
+  case $1 in
+    -) [ "$2" = open ] ;;
+    done | canceled) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 # issue_of <id>: the issue number of a GT id, or nothing.
 issue_of() { case "$1" in GT-*) printf '%s\n' "${1#GT-}" | sed 's/^0*//' ;; esac }
 
-# msg <key>: a fixed message in the document language, from messages.yml
-# next to the scripts (English when the language has none).
+# msg <key>: a fixed message, from scripts/messages.yml (state.md) or
+# templates/github/tixforge/messages.yml (GitHub; the file init copies to
+# the project's .github/tixforge/ for the Actions). English when the
+# language has none. The language is the second argument when given (user_lang for
+# what only this person reads), else TIXFORGE_MSG_LANG when set (init creates labels before
+# config.yml has one), else config.yml's language, else ja.
 msg() {
-  local lang file v
-  file="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/messages.yml"
-  lang=$(cfg language)
-  lang=${lang:-ja}
-  v=$(cfg "$lang.$1" "$file")
-  [ -n "$v" ] || v=$(cfg "en.$1" "$file")
+  local lang root l file v
+  root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  lang=${2:-${TIXFORGE_MSG_LANG:-$(cfg language)}}
+  for l in "${lang:-ja}" en; do
+    for file in "$root/scripts/messages.yml" "$root/templates/github/tixforge/messages.yml"; do
+      v=$(cfg "$l.$1" "$file")
+      [ -n "$v" ] && break 2
+    done
+  done
   printf '%s\n' "$v"
+}
+
+# msg_fill <key> <lang> [<name> <value>]...: msg with each {name} replaced
+# by its value, in one pass: values are taken literally (no pattern or &
+# expansion, no escapes: they go in through ARGV of a BEGIN-only awk) and a
+# {name} inside a value stays.
+msg_fill() {
+  local key=$1 lang=$2
+  shift 2
+  awk 'BEGIN {
+    t = ARGV[1]
+    while ((i = index(t, "{")) > 0) {
+      out = out substr(t, 1, i - 1); t = substr(t, i); hit = 0
+      for (k = 2; k + 1 < ARGC; k += 2) {
+        name = "{" ARGV[k] "}"
+        if (substr(t, 1, length(name)) == name) {
+          out = out ARGV[k + 1]; t = substr(t, length(name) + 1); hit = 1; break
+        }
+      }
+      if (!hit) { out = out "{"; t = substr(t, 2) }
+    }
+    print out t
+  }' "$(msg "$key" "$lang")" "$@"
 }
 
 # The YAML /tixforge:project init writes is flat: top-level keys and one level of
@@ -95,6 +158,34 @@ cfg_has() {
   ' "$file"
 }
 
+# ucfg_file <top-level-key> [top]: the file this person's value of a key
+# comes from: config.local.yml when it has a value for the key (`gates: []`
+# counts; an empty `language:` does not), else config.yml. Only
+# language and gates are personal; every other key is the team's (cfg).
+ucfg_file() {
+  local l
+  l=$(tf_local_config "${2:-}")
+  case $1 in
+    language) [ -n "$(cfg language "$l")" ] && {
+      printf '%s\n' "$l"
+      return
+    } ;;
+    gates) [ -n "$(cfg gates "$l")" ] || [ -n "$(cfg_list gates "$l")" ] && {
+      printf '%s\n' "$l"
+      return
+    } ;;
+  esac
+  tf_config "${2:-}"
+}
+# ucfg <key> [top]: this person's value of a scalar key (language).
+ucfg() { cfg "$1" "$(ucfg_file "${1%%.*}" "${2:-}")"; }
+# user_lang [top]: the language this person talks and writes state.md in.
+user_lang() {
+  local v
+  v=$(ucfg language "${1:-}")
+  printf '%s\n' "${v:-ja}"
+}
+
 # cfg_map <top-level-key> [config-file]: "key<TAB>value" per nested key,
 # in file order (commands run in the order they are written).
 cfg_map() {
@@ -127,12 +218,22 @@ cfg_list() {
   ' "$file"
 }
 
-# The sections of state.md, in phase order. A section starts only at one of
+# The sections of state.md, in phase order. They start empty; the body is
+# written in the person's language (user_lang, skills/dev/run.md). A section starts only at one of
 # these six headings, and not inside a ``` / ~~~ fence: an Approach may quote
 # Markdown that has "## " lines of its own. _section_awk defines
 # heading_index(line) for awk programs: 1..6 for a section heading, else 0.
 # Call it on every line, in order (it tracks the fences).
 STATE_SECTIONS="Research|Approach|Plan|Implementation Log|Review|PR"
+# section_index <name>: the 1-based place of a section in STATE_SECTIONS.
+section_index() {
+  local IFS='|' n=0 s
+  for s in $STATE_SECTIONS; do
+    n=$((n + 1))
+    [ "$s" = "$1" ] && echo $n && return
+  done
+  return 1
+}
 _section_awk='
 function heading_index(line,   m, name, i, n, s) {
   if (!_sec_n) { _sec_n = split("'"$STATE_SECTIONS"'", s, "|"); for (i = 1; i <= _sec_n; i++) _sec_idx[s[i]] = i }
@@ -250,21 +351,99 @@ tf_now() { date '+%Y-%m-%d %H:%M'; }
 # is_open_status <status>: a run that is neither done nor canceled.
 is_open_status() { case "$1" in done | canceled | '') return 1 ;; *) return 0 ;; esac }
 
+# is_early_status <status>: before the Plan is approved (no code yet).
+is_early_status() { case "$1" in research:* | approach:* | plan:*) return 0 ;; *) return 1 ;; esac }
+
+# each_run [top]: one line per run, "<id> <Status> <Branch> <Base>" joined
+# by RUN_SEP (US, \037), reading each state.md once. A field is the first
+# matching row, as field() reads it; a missing one, or an unreadable file,
+# gives empty fields. Read it with
+#   while IFS="$RUN_SEP" read -r id status branch base; do …; done <<EOF
+#   $(each_run "$top")
+#   EOF
+# not with a pipe: a pipe runs the loop in a subshell, and an exit in it
+# (the guard's decisions) would not end the script. RUN_SEP is not
+# whitespace, so read keeps an empty field (a tab would collapse it).
+RUN_SEP=$(printf '\037')
+each_run() {
+  local f id v
+  for f in "$(tf_dir "${1:-}")"/*/state.md; do
+    [ -f "$f" ] || continue
+    id=${f%/state.md}
+    id=${id##*/}
+    v=$(awk -F'|' -v sep="$RUN_SEP" '
+      { k = $2; x = $3; gsub(/^[ \t]+|[ \t]+$/, "", k); gsub(/^[ \t]+|[ \t]+$/, "", x) }
+      k == "Status" && !hs { s = x; hs = 1 }
+      k == "Branch" && !hb { b = x; hb = 1 }
+      k == "Base" && !hB { B = x; hB = 1 }
+      END { printf "%s%s%s%s%s", s, sep, b, sep, B }' "$f" 2> /dev/null) || v="$RUN_SEP$RUN_SEP"
+    printf '%s%s%s\n' "$id" "$RUN_SEP" "$v"
+  done
+}
+
 # current_runs <top> <branch>: the state.md of the open run on <branch>, or,
 # when no run is on it, of every open run before Implement (those have no
-# branch yet), one per line. Prints nothing when there is neither.
+# branch yet), one per line. Prints nothing when there is neither. v2's
+# local runs (LT-) are not runs to go on with: they wait for the migration.
 current_runs() {
-  local f st early=""
-  for f in "$(tf_dir "$1")"/*/state.md; do
-    [ -f "$f" ] || continue
-    st=$(field "$f" Status)
+  local id st br early=""
+  while IFS="$RUN_SEP" read -r id st br _; do
+    [ -n "$id" ] || continue
+    case $id in LT-*) continue ;; esac
     is_open_status "$st" || continue
-    if [ -n "$2" ] && [ "$(field "$f" Branch)" = "$2" ]; then
-      printf '%s\n' "$f"
+    if [ -n "$2" ] && [ "$br" = "$2" ]; then
+      state_file "$id" "$1"
       return 0
     fi
-    case "$st" in research:* | approach:* | plan:*) early="${early}${f}
-" ;; esac
-  done
+    is_early_status "$st" && early="${early}$(state_file "$id" "$1")
+"
+  done << EOF
+$(each_run "$1")
+EOF
   printf '%s' "$early"
 }
+
+# PR_JUDGE_JQ: jq definitions shared by pr-status.sh and panel-data.sh.
+# pr_judge, on a PR from gh's --json (url, state, isDraft, mergeable,
+# reviewDecision, latestReviews, statusCheckRollup), gives {verdict, review,
+# ci, failing, requesters, approvers, commenters}; pr-status.sh documents the
+# verdicts.
+# shellcheck disable=SC2034 # used by the scripts that source this file
+PR_JUDGE_JQ='
+    def check_result:
+      if .__typename == "CheckRun" then
+        if .status != "COMPLETED" then "pending"
+        elif (.conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or .conclusion == "CANCELLED"
+              or .conclusion == "ACTION_REQUIRED" or .conclusion == "STARTUP_FAILURE") then "failure"
+        else "success" end
+      else
+        if (.state == "PENDING" or .state == "EXPECTED") then "pending"
+        elif (.state == "FAILURE" or .state == "ERROR") then "failure"
+        else "success" end
+      end;
+    def check_name: .name // .context;
+    def pr_judge:
+      [.statusCheckRollup[]? | {name: check_name, result: check_result}] as $checks
+      | ([$checks[] | select(.result == "failure") | .name]) as $failing
+      | (if ($failing | length) > 0 then "failure"
+         elif ([$checks[] | select(.result == "pending")] | length) > 0 then "pending"
+         elif ($checks | length) == 0 then "none"
+         else "success" end) as $ci
+      | ([.latestReviews[]? | select(.state == "CHANGES_REQUESTED") | .author.login]) as $requesters
+      | ([.latestReviews[]? | select(.state == "APPROVED") | .author.login]) as $approvers
+      | ([.latestReviews[]? | select(.state == "COMMENTED") | .author.login]) as $commenters
+      | (if .reviewDecision == "CHANGES_REQUESTED" or ($requesters | length) > 0 then "changes_requested"
+         elif .reviewDecision == "APPROVED" or ((.reviewDecision == null or .reviewDecision == "") and ($approvers | length) > 0) then "approved"
+         else "pending" end) as $review
+      | (if .state == "MERGED" then "merged"
+         elif .state == "CLOSED" then "closed"
+         elif .mergeable == "CONFLICTING" then "conflict"
+         elif $ci == "failure" then "ci_failing"
+         elif $review == "changes_requested" then "changes_requested"
+         elif .isDraft == true then "pending"
+         elif $review == "approved" and ($ci == "success" or $ci == "none") and .mergeable == "MERGEABLE" then "approved"
+         elif ($ci == "success" or $ci == "none") and .mergeable == "MERGEABLE" then "ready"
+         else "pending" end) as $verdict
+      | {verdict: $verdict, review: $review, ci: $ci, failing: $failing,
+         requesters: $requesters, approvers: $approvers, commenters: $commenters};
+'

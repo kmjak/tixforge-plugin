@@ -23,57 +23,26 @@
 # TF_PR_JSON=<file> reads the `gh pr view --json` output from a file
 # instead of calling gh (for tests).
 set -euo pipefail
+# shellcheck source=SCRIPTDIR/lib.sh
+. "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 if [ $# -ne 1 ]; then
   echo "usage: $(basename "$0") <pr-url | pr-number | branch>" >&2
   exit 2
 fi
 
-filter='
-    def check_result:
-      if .__typename == "CheckRun" then
-        if .status != "COMPLETED" then "pending"
-        elif (.conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or .conclusion == "CANCELLED"
-              or .conclusion == "ACTION_REQUIRED" or .conclusion == "STARTUP_FAILURE") then "failure"
-        else "success" end
-      else
-        if (.state == "PENDING" or .state == "EXPECTED") then "pending"
-        elif (.state == "FAILURE" or .state == "ERROR") then "failure"
-        else "success" end
-      end;
-    def check_name: .name // .context;
-
-    [.statusCheckRollup[]? | {name: check_name, result: check_result}] as $checks
-    | ([$checks[] | select(.result == "failure") | .name]) as $failing
-    | (if ($failing | length) > 0 then "failure"
-       elif ([$checks[] | select(.result == "pending")] | length) > 0 then "pending"
-       elif ($checks | length) == 0 then "none"
-       else "success" end) as $ci
-    | ([.latestReviews[]? | select(.state == "CHANGES_REQUESTED") | .author.login]) as $requesters
-    | ([.latestReviews[]? | select(.state == "APPROVED") | .author.login]) as $approvers
-    | ([.latestReviews[]? | select(.state == "COMMENTED") | .author.login]) as $commenters
-    | (if .reviewDecision == "CHANGES_REQUESTED" or ($requesters | length) > 0 then "changes_requested"
-       elif .reviewDecision == "APPROVED" or ((.reviewDecision == null or .reviewDecision == "") and ($approvers | length) > 0) then "approved"
-       else "pending" end) as $review
-    | (if .state == "MERGED" then "merged"
-       elif .state == "CLOSED" then "closed"
-       elif .mergeable == "CONFLICTING" then "conflict"
-       elif $ci == "failure" then "ci_failing"
-       elif $review == "changes_requested" then "changes_requested"
-       elif .isDraft == true then "pending"
-       elif $review == "approved" and ($ci == "success" or $ci == "none") and .mergeable == "MERGEABLE" then "approved"
-       elif ($ci == "success" or $ci == "none") and .mergeable == "MERGEABLE" then "ready"
-       else "pending" end) as $verdict
-    | $verdict,
-      "url: \(.url)",
-      "review: \($review)",
-      "ci: \($ci)",
-      "mergeable: \(.mergeable)",
-      "draft: \(.isDraft // false)",
-      "failing_checks: \($failing | join(", "))",
-      "changes_requested_by: \($requesters | join(", "))",
-      "approved_by: \($approvers | join(", "))",
-      "commented_by: \($commenters | join(", "))"
+filter="${PR_JUDGE_JQ}"'
+    . as $p | pr_judge
+    | .verdict,
+      "url: \($p.url)",
+      "review: \(.review)",
+      "ci: \(.ci)",
+      "mergeable: \($p.mergeable)",
+      "draft: \($p.isDraft // false)",
+      "failing_checks: \(.failing | join(", "))",
+      "changes_requested_by: \(.requesters | join(", "))",
+      "approved_by: \(.approvers | join(", "))",
+      "commented_by: \(.commenters | join(", "))"
   '
 
 if [ -n "${TF_PR_JSON:-}" ]; then

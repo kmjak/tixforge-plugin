@@ -1,54 +1,47 @@
 # /tixforge:dev rewind — 前のフェーズに戻す
 
-run を前のフェーズに戻す、ただ 1 つの手順。次のどれから来ても、この手順で戻す：
+## Phase 1 — 準備
 
-- `/tixforge:dev rewind <ticket-id>`
-- dev の最中に、ユーザーが「Plan からやり直したい」のように頼んだとき
-- Review で「計画の見直し」「方針の見直し」と決まったとき（戻り先は決まっているので、手順 3 を飛ばす）
-- チケットの内容が変わったとき（下記「チケットが変わったとき」から入る）
-
-戻したフェーズの古い内容は、状態ファイルから `.tixforge/<ticket-id>/history/<日時>.md` に移る（`run-state.sh rewind`）。消えないので経緯を後から見られるが、状態ファイルには今有効な内容だけが残るので、古い内容を承認済みと取り違えない。
-
-## 手順
+目的：戻す run と、今の状態を示す。
 
 1. **準備**：チケット id を `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する（無ければ尋ねる。SKILL.md の「現在の状態」の進行中の run を候補として示す）。`.tixforge/<ticket-id>/state.md` を読む。
    - 無ければ、戻す run が無いことを伝えて止まる（`/tixforge:dev <ticket-id>` で始められる）。
-   - `Status` が `done`・`canceled` なら拒否する（完了・キャンセル済みの作業は戻さない）。
-2. **今の状態を示す**：`Status`、書かれているセクション、`Branch` にブランチがあればその commit（`git log --oneline <Base>..<Branch>`）と未コミットの変更の有無、`host: github` ならリモートブランチ（`git ls-remote --heads origin <Branch>`）と開いている PR（`gh pr list --head <Branch> --state open`）。
-3. **戻り先を選ぶ**：AskUserQuestion で、今のフェーズより前のフェーズ（**Research（最初から）**・**Approach**・**Plan**・**Implement** のうち今より前のもの）と **戻さない** から選んでもらう（単一選択）。戻したい理由を聞いていれば、それに合う戻り先に推奨を付ける（例：commit 分割を変えたい → Plan、方針から変えたい → Approach）。
+   - `Status` が `done`・`canceled` なら拒否する。
+2. **今の状態を示す**：`Status`、書かれているセクション、`Branch` にブランチがあればその commit（`git log --oneline <Base>..<Branch>`）と未コミットの変更の有無、リモートブランチ（`git ls-remote --heads origin <Branch>`）と開いている PR（`gh pr list --head <Branch> --state open`）。
+
+## Phase 2 — 戻り先の選択
+
+目的：戻り先・ブランチの扱い・理由を決める。
+
+3. **戻り先を選ぶ**（Review の「計画の見直し」「方針の見直し」から来たなら、戻り先は決まっているので飛ばす）：AskUserQuestion で、今のフェーズより前のフェーズ（**Research（最初から）**・**Approach**・**Plan**・**Implement** のうち今より前のもの）と **戻さない** から選んでもらう（単一選択）。戻したい理由を聞いていれば、それに合う戻り先に推奨を付ける（例：commit 分割を変えたい → Plan、方針から変えたい → Approach）。
    - 選択肢は最大 4 つなので、今が Review・PR のときは Research（最初から）を出さず、質問文に「最初からやり直すなら Research と入力」と添える。
-   - 戻り先が無い（今が Research）なら、`GT-` は「手放す」「戻さない」を尋ねる。`LT-` は戻すものが無いことを伝えて止まる。
+   - 戻り先が無い（今が Research）なら、「手放す」「戻さない」を尋ねる。
    - 「戻さない」なら、何もせずに止まる。
-4. **Research（最初から）を選んだとき**（`GT-` のときだけ）：続けて「自分で続ける」「このチケットを手放す（他の人に渡す）」を尋ねる。手放すなら下記「手放す」へ。
+4. **Research（最初から）を選んだとき**：続けて「自分で続ける」「このチケットを手放す（他の人に渡す）」を尋ねる。手放すなら下記「手放す」へ。
 5. **ブランチの扱い**（Plan 以前に戻り、ブランチに commit があるとき）：尋ねる：
    - **このブランチの上で続ける** — commit を残し、その上でやり直す。`## Implementation Log` は残す（既存の commit の記録なので）。
-   - **新しいブランチで作り直す** — 次の Plan で別の名前のブランチを決める。古いブランチは「残す」か「削除する」かも尋ねる。削除するなら、マージされていない commit があるので `git branch -D` を使う（取り消せないことを伝える。guard hook の確認画面も出る）。今そのブランチにいれば、先に `Base` に切り替える（未コミットの変更があれば止まる。勝手に stash や破棄をしない）。リモートブランチがあれば削除するか（`git push origin --delete <Branch>`）、開いている PR があれば閉じるか（`gh pr close <PR>`）も同じ一覧で尋ねる。
+   - **新しいブランチで作り直す** — 次の Plan で別の名前のブランチを決める。古いブランチは「残す」か「削除する」かも尋ねる。削除するなら、マージされていない commit があるので `git branch -D` を使う（取り消せないことを伝える）。今そのブランチにいれば、先に `Base` に切り替える（未コミットの変更があれば止まる。勝手に stash や破棄をしない）。リモートブランチがあれば削除するか（`git push origin --delete <Branch>`）、開いている PR があれば閉じるか（`gh pr close <PR>`）も同じ一覧で尋ねる。
    - PR を出した後（`pr:*`）から戻し、同じブランチで続ける（Implement に戻す・「このブランチの上で続ける」）なら、戻り先に関係なく、この後の commit は既存の PR に入ること、リポジトリの設定によっては Approve が外れることを伝える。
 6. **理由**を 1 行で尋ねる（Review の見直しから来たなら、その指摘の番号と要約でよい）。
+
+## Phase 3 — 確認と実行（ゲート）
+
+目的：行うことに 1 回の確認を得てから戻す。
+
 7. **行うことを一覧で示し、1 回の確認でまとめて承認をもらってから実行する**：
-   - `GT-` で、`## Approach` が書かれていて、Approach 以前に戻す（方針を捨てる）なら、`references/github/record.md` を Read し、判断の記録のコメントを投稿する（状態ファイルから方針が消える前に）。
-   - `bash <scripts>/run-state.sh rewind <ticket-id> <phase> --reason "<理由>"`（「このブランチの上で続ける」なら `--keep-log` を付ける）。出力された history のファイルを伝える。
+   - `## Approach` が書かれていて、Approach 以前に戻す（方針を捨てる）なら、`references/github/record.md` を Read し、「記録を残す」を行う（状態ファイルから方針が消える前に）。
+   - `bash <scripts>/run-state.sh rewind <ticket-id> <phase> --reason "<理由>"`（「このブランチの上で続ける」なら `--keep-log` を付ける）。出力された history のファイルを伝える（戻したセクションは消えずに、このファイルに移る）。
    - 「新しいブランチで作り直す」なら、`bash <scripts>/run-state.sh set <ticket-id> Branch —` でヘッダのブランチを外し、決めたブランチの片付けを行う。
-8. 戻したフェーズから、そのフェーズの手順（`run.md`）で続ける。前の内容は history にあるので、参考として読んでよい（ただし承認済みとは扱わず、ゲートは通り直す）。
+8. 戻したフェーズから、`<plugin>/skills/dev/run.md` を Read し、そのフェーズの手順で続ける。
 
-## 手放す（`GT-` のチケットを他の人に渡す）
+## 手放す（チケットを他の人に渡す）
 
-1. 手順 2・5 と同じくブランチの扱いを尋ね、理由を 1 行で尋ねる。
-2. `references/github/labels.md` を Read する（`## Approach` が書かれていれば `references/github/record.md` も）。行うことを一覧で示し、確認を得てから実行する：
-   - `## Approach` が書かれていれば、判断の記録のコメントを投稿する（見出しは「手放す」）。
-   - `bash <scripts>/issue-label.sh <番号> reset`（`tixforge:todo` に戻し、assignee から自分を外す）。
+手順 3・4 で「手放す」を選んだときに、手順 5 以降の代わりに行う分岐。番号は振らない。
+
+- 手順 2・5 と同じくブランチの扱いを尋ね、理由を 1 行で尋ねる。
+- `references/github/labels.md` を Read する（`## Approach` が書かれていれば `references/github/record.md` も）。行うことを一覧で示し、確認を得てから実行する：
+   - `## Approach` が書かれていれば、「記録を残す」を行う（見出しは「手放す」）。
+   - 「状態を変える」で手放す（着手前に戻し、担当者から自分を外す）。
    - ブランチの片付け（決めたもの）。
-   - 手元の run（`.tixforge/<ticket-id>/state.md` と `history/`）を削除する。受け取った人は自分の手元で新しく始めるので、残すと古い状態が紛らわしい。チケットの作業用コピー（`ticket.md`）は残してよい。
-3. 行ったことを伝える。
-
-## チケットが変わったとき
-
-チケットの内容が変わったとき（`/tixforge:ticket edit` で編集した、または dev が issue から変更を取り込んだ）に、進行中の run（`state.md` があり、`Status` が `done`・`canceled` 以外）を戻すか決める。
-
-1. **影響を示す**：変更がどのフェーズの成果に影響するかを具体的に示す。
-   - 例：受け入れ条件が変わった → Approach の方針、Plan の対応表と commit 分割を見直す必要がある。
-   - 例：背景の言い回しだけが変わった → 影響なし。
-   - PR を出した後（Approve 済みを含む）でも同じ。古い合意のまま承認された PR をマージしないために、ここで戻す判断をする。
-2. **戻すか選んでもらう**：AskUserQuestion で、影響に応じて推奨を付けた戻り先（今のフェーズより前の Research・Approach・Plan・Implement）と「戻さない」を出す（選択肢の出し方は上の手順 3 と同じ）。
-3. 戻すなら、上の「手順」の 2・5・7 で戻す：手順 2 で今の状態を示し、手順 5 でブランチの扱いを決め、手順 7 で一覧を示して実行する。理由は尋ねずに「チケットの変更：<変更点の要約>」を使う。続けるかどうかは下の 4 で決める。
-4. 呼び出し元に戻る：edit から来た場合は、`/tixforge:dev <ticket-id>` で戻したフェーズから再開できることを案内する。dev から来た場合は、案内せずにそのフェーズから続ける。
+   - 手元の run（`.tixforge/<ticket-id>/state.md` と `history/`）と、チケットの `snapshot.md`・`.snapshot.md.hash` を削除する。
+- 行ったことを伝える。

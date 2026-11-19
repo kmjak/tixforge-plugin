@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*",
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*[Gg][Ii][Tt].*",
         "hooks": [
           {
             "type": "command",
@@ -22,5 +22,8 @@
         ]
       }
     ]
-  }
+  },
+  "modules": [
+    "./panel.tsx"
+  ]
 }

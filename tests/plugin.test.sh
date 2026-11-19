@@ -4,6 +4,9 @@
 #   2. every script a hook runs exists
 #   3. every plugin path the skills, references, agents and README name exists
 #      (a renamed file is otherwise read by Claude as missing, silently)
+#   4. hooks.json starts the guard only for the tools it decides on
+#   5. dev and ticket name the ticket operations, not the GitHub issue details
+#   6. every instruction file is split into phases (## Phase N — name)
 #
 # Needs jq. Usage: bash tests/plugin.test.sh
 set -u
@@ -52,7 +55,7 @@ done <<< "$cmds"
 # templates/, agents/ paths are relative to the plugin root; <scripts>/x is
 # scripts/x. Only full file names are checked (no <placeholder>, * or {}).
 section="references"
-docs=$(git ls-files 'skills/*.md' 'references/*.md' 'agents/*.md' README.md)
+docs=$(git ls-files 'skills/*.md' 'references/*.md' 'agents/*.md' 'templates/docs/*.md' README.md)
 [ -n "$docs" ] && ok || ng "documents found"
 refs=$(
   # shellcheck disable=SC2086 # $docs is a list of paths without spaces
@@ -67,6 +70,72 @@ while IFS= read -r p; do
   [ -e "$p" ] && ok || ng "a document names a missing file: $p ($(grep -lF "$p" $docs | tr '\n' ' '))"
 done <<< "$refs"
 [ "$n" -gt 20 ] && ok || ng "the documents name plugin files ($n found)"
+
+# --- config sample -----------------------------------------------------------
+# references/config.md: every key of the YAML sample has a row in the table,
+# and every row a key in the sample (commands' entries are the user's).
+section="config sample"
+yk=$(awk '/^```yaml/ { on = 1; next } /^```/ { on = 0 } on && !/^[ \t]*#/' references/config.md \
+  | awk '/^[a-z_]+:/ { p = $1; sub(/:.*/, "", p); if ($0 ~ /:[ \t]*(#.*)?$/) next; print p; next }
+         /^  [a-z_]+:/ { k = $1; sub(/:.*/, "", k); if (p == "commands") { print p; next } print p "." k }' | sort -u)
+tk=$(sed -n 's/^| `\([a-z_.]*\)` |.*/\1/p' references/config.md | sort -u)
+[ -n "$yk" ] && [ "$yk" = "$tk" ] && ok || ng "config.md: sample keys [$(echo $yk)] differ from table keys [$(echo $tk)]"
+
+# --- guard matcher -----------------------------------------------------------
+# hooks.json starts the guard only for the tools it decides on: Bash, the
+# edit tools and MCP tools whose name contains git (guard.sh skips other
+# MCP tools). A tool the guard looks at must match; another MCP must not.
+# Claude Code tests the matcher as an unanchored regex (a match anywhere
+# in the tool name), so the test does too.
+section="guard matcher"
+m=$(jq -r '.hooks.PreToolUse[0].matcher' hooks/hooks.json)
+for t in Bash Edit Write MultiEdit NotebookEdit mcp__github__merge_pull_request mcp__GitHub__push_files mcp__gitlab__create_merge_request; do
+  printf '%s\n' "$t" | grep -Eq "$m" && ok || ng "matcher misses $t"
+done
+for t in mcp__Neon__run_sql mcp__claude-in-chrome__navigate Read Grep; do
+  printf '%s\n' "$t" | grep -Eq "$m" && ng "matcher starts the guard for $t" || ok
+done
+
+# --- tracker operations ----------------------------------------------------
+# dev and ticket call the ticket operations by name (references/common.md,
+# "チケットの操作"); what they do on GitHub issues is written only in
+# references/github/. PRs (gh pr) are the code host's, not the ticket's.
+section="tracker operations"
+hits=$(grep -nE 'closed_as|state_reason|stateReason|NOT_PLANNED|issue-label\.sh|issue-sync\.sh (push|pull|create|adopt)|gh issue|(Closes|Fixes|Resolves) #|tixforge:(todo|in-progress|in-review|merged|done|canceled|closed|out-of-sync|hash|ticket:)|(Closed|Canceled) by tixforge' \
+  skills/dev/*.md skills/ticket/*.md | grep -v '^[^:]*:[0-9]*:allowed-tools:')
+[ -z "$hits" ] && ok || ng "issue details in skills/dev or skills/ticket (use the operation names):
+$hits"
+
+# --- phases ------------------------------------------------------------------
+# Every instruction file starts its steps with "## Phase 1 — <name>" and
+# numbers its phases in order. SKILL.md routes; pr.md is dev's Phase 6.
+section="phases"
+for f in skills/*/*.md; do
+  case $f in */SKILL.md | skills/dev/pr.md) continue ;; esac
+  got=$(sed -n 's/^## Phase \([0-9]*\) — .*/\1/p' "$f" | paste -sd' ' -)
+  want=$(seq 1 "$(printf '%s\n' "$got" | wc -w)" | paste -sd' ' -)
+  [ -n "$got" ] && [ "$got" = "$want" ] && ok || ng "$f: phases are ## Phase 1 — … numbered in order (got: $got)"
+  # dev's run.md numbers each phase from 1 (or 0; Status names the phase).
+  bad=$(awk -v per="$([ "$f" = skills/dev/run.md ] && echo 1 || echo 0)" '
+    BEGIN { if (per) last = -2 }
+    /^## Phase/ && !/^## Phase [0-9]+ — [^ ]/ { print FILENAME ":" FNR ": not ## Phase N — <name>" }
+    /^## Phase / { want = 1; if (per) last = -2; next }
+    want && NF { if ($0 !~ /^目的：/) print FILENAME ":" FNR ": no 目的： after the heading"; want = 0 }
+    /^```/ { fence = !fence }
+    !fence && /^[0-9]+\. / { n = $0 + 0; if (last == -2 && n <= 1) { last = n; next } if (n != last + 1) print FILENAME ":" FNR ": step " n " after " last; last = n }
+  ' "$f")
+  [ -z "$bad" ] && ok || ng "$bad"
+done
+
+# --- review rules ------------------------------------------------------------
+# The agents name the sections of references/review.md they follow.
+section="review rules"
+for sec in 受け取るもの 進め方 守ること 報告の規則; do
+  grep -qx "## $sec" references/review.md && ok || ng "references/review.md has ## $sec"
+done
+for f in agents/reviewer.md agents/quality-reviewer.md; do
+  grep -q '共通の規則（受け取るもの・進め方・守ること・報告の規則）' "$f" && ok || ng "$f names the sections of references/review.md"
+done
 
 echo "plugin: $pass passed, $fail failed"
 [ $fail -eq 0 ]

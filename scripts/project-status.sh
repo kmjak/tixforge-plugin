@@ -9,6 +9,25 @@ set -u
 top=$(tf_top)
 conf=$(tf_config "$top")
 
+# pending_lts: the .tixforge/LT-* folders still to move, one
+# "<id>\t<run>\t<ticket>\t<reason>" line each (lt_info in lib.sh).
+pending_lts() {
+  local d info run rest
+  for d in "$(tf_dir "$top")"/LT-*; do
+    [ -d "$d" ] || continue
+    info=$(lt_info "$d")
+    run=${info%%	*}
+    rest=${info#*	}
+    lt_pending "$run" "${rest%%	*}" || continue
+    printf '%s\t%s\n' "${d##*/}" "$info"
+  done
+}
+# `project-status.sh lt`: only that list, for /tixforge:project update.
+if [ "${1:-}" = lt ]; then
+  pending_lts
+  exit 0
+fi
+
 echo "- リポジトリ: ${top}"
 if git -C "$top" rev-parse --git-dir > /dev/null 2>&1; then
   echo "- 現在のブランチ: $(git -C "$top" symbolic-ref --short -q HEAD 2> /dev/null || echo '(detached)')"
@@ -23,25 +42,53 @@ if [ -f "$conf" ]; then
   [ -z "$gates" ] && cfg_has gates "$conf" && gates="[]（pr のみ）"
   echo "- 設定（.tixforge/config.yml）: language=$(cfg language "$conf")" \
     "tracker=$(cfg ticket.tracker "$conf")" \
-    "host=$(cfg repository.host "$conf")" \
     "base_branch=$(cfg repository.base_branch "$conf")" \
-    "close_issues=$(cfg repository.close_issues "$conf")" \
     "review.required=$(cfg review.required "$conf")" \
     "gates=${gates:-（未設定）}"
+  # What this person uses: config.local.yml's language and gates win.
+  lf=$(ucfg_file language "$top")
+  gf=$(ucfg_file gates "$top")
+  ugates=$(cfg_list gates "$gf" | paste -sd, -)
+  [ -z "$ugates" ] && cfg_has gates "$gf" && ugates="[]（pr のみ）"
+  lsrc=${lf##*/}
+  [ -n "$(cfg language "$lf")" ] || lsrc=既定
+  echo "- この人が使う値: language=$(user_lang "$top")（${lsrc}）" \
+    "gates=${ugates:-（未設定）}（${gf##*/}）"
+  # init writes config.yml one answer at a time and ticket.tracker last
+  # (after the labels): a key with no default missing means it stopped
+  # part way.
+  missing=""
+  [ -n "$(cfg repository.base_branch "$conf")" ] || missing=repository.base_branch
+  cfg_has commands "$conf" || missing="${missing}${missing:+、}commands"
+  [ -n "$(cfg ticket.tracker "$conf")" ] || missing="${missing}${missing:+、}ticket.tracker"
+  if [ -n "$missing" ]; then
+    echo "- init が途中（無いキー：${missing}）。/tixforge:project init で続ける"
+  elif ! git -C "$top" ls-files --error-unmatch .tixforge/config.yml > /dev/null 2>&1; then
+    echo "- init が途中（config.yml が commit されていない）。/tixforge:project init で続ける"
+  fi
 else
   echo "- .tixforge/config.yml が無い（/tixforge:project init が未実行）"
 fi
 
+# What v2 left: local tickets (LT-), tracker: local and host: none. v3 keeps
+# tickets in GitHub issues only, so they have to move first
+# (/tixforge:project update). Without config.yml (before init) nothing is
+# reported: init comes first.
+lts=""
+[ -f "$conf" ] && lts=$(pending_lts | cut -f1 | paste -sd' ' -)
+[ -f "$conf" ] && [ "$(cfg ticket.tracker "$conf")" = local ] && lts="tracker: local${lts:+ / $lts}"
+[ -n "$lts" ] && echo "- 移行が要る: ${lts}（v3 は LT を使えない。/tixforge:project update で issue に移す）"
+[ -f "$conf" ] && [ "$(cfg repository.host "$conf")" = none ] \
+  && echo "- 移行が要る: repository.host: none（v3 は GitHub が必須。GitHub のリポジトリを使うなら /tixforge:project update で移す。使わないなら tixforge v2 に留まる）"
+
 open=""
-for f in "$(tf_dir "$top")"/*/state.md; do
-  [ -f "$f" ] || continue
-  s=$(field "$f" Status)
-  is_open_status "$s" || continue
-  id=${f%/state.md}
-  id=${id##*/}
-  open="${open}  - ${id}: Status ${s}、Branch $(field "$f" Branch)
+while IFS="$RUN_SEP" read -r id s b _; do
+  [ -n "$id" ] && is_open_status "$s" || continue
+  open="${open}  - ${id}: Status ${s}、Branch ${b}
 "
-done
+done << EOF
+$(each_run "$top")
+EOF
 if [ -n "$open" ]; then
   echo "- 進行中の run:"
   printf '%s' "$open"

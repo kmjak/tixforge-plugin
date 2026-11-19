@@ -1,62 +1,69 @@
 # /tixforge:dev — 6 フェーズで進める
 
-1 つのチケットを 6 フェーズ **Research → Approach → Plan → Implement → Review → PR** で進める。
-進捗はすべて 1 つの状態ファイルに集約する。これにより、どのフェーズ境界で止めても、後から `/tixforge:dev <ticket-id>` で再開できる。PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェーズに入るとき（`pr:*` から再開するときを含む）に Read する。
+PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェーズに入るとき（`pr:*` から再開するときを含む）に Read する。
 
 ## 起動と再開
 
-`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある（`language` が無ければ日本語）。この run の間、`state.md` のセクション本文と、状態ファイルに書く固定の文言（「ゲート自動通過」「手動確認」「Round」の見出しなど。スクリプトが読むキー `Verification @` は除く）はこの言語で書く。指定された id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する（エラーなら直さずに尋ねる）。
+`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。この run の間、`state.md` のセクション本文と、状態ファイルに書く固定の文言（「手動確認」「Round」の見出しなど。読み取りに使うキー `Verification @`・`PR comment @`・`PR head @` は除く）は個人の言語（共通規約）で書く。指定された id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
 
-**チケットの準備**（新規・再開のどちらでも最初に行う）：
+**状態ファイルの形式**（最初に行う）：`.tixforge/<ticket-id>/state.md` があれば `bash <scripts>/run-state.sh migrate --check <ticket-id>` を実行する。何か出たら、変わる内容を示し、AskUserQuestion で次から選ばせる。今の形式でない state.md のまま先に進めない。
 
-- **`GT-` のチケット**：`references/github/fetch.md` を Read し、その手順で issue からチケットを取ってくる（手元のコピーは毎回 issue から作り直す）。「変更あり」で、進行中の run（状態ファイルがあり、`Status` が `done`・`canceled` 以外）がある場合は、`<plugin>/skills/dev/rewind.md` を Read し、その「チケットが変わったとき」の手順でフェーズを戻すか決めてから再開する。issue がキャンセル済みなら、下の 0. に従う。issue が完了済み（`closed_as: completed`）なら、状態ファイルで分ける：
-  - `Status` が `pr:*` → 下の 1. の `pr:*` へ進む（マージで issue が閉じた後の再開。pr.md の「再開」で `done` にする）。
+- **更新する**（説明：書いた本文と `Status` はそのまま）— `bash <scripts>/run-state.sh migrate <ticket-id>`
+- **run を消して最初から** — `.tixforge/<ticket-id>/state.md` と `history/` を削除し、新規として進める。チケット・ブランチ・commit は消さない。
+- **中断する** — 何も変えずに止まる。
+
+終了コード 5 なら、選ばせずに、plugin を更新するよう伝えて止まる。それ以外のエラーなら、出力を示して止まる。
+
+**チケットの準備**（新規・再開のどちらでも、続けて行う）：
+
+- チケットを「取ってくる」（`references/github/fetch.md` を Read し、その手順で行う。`<ファイル>` は `.tixforge/<ticket-id>/snapshot.md`。v2 の `ticket.md` があれば、`pull` がそれを `snapshot.md` に移してから差分を出す）。「変更あり」で、進行中の run（状態ファイルがあり、`Status` が `done`・`canceled` 以外）がある場合は、`references/ticket-changed.md` を Read し、その手順でフェーズを戻すか決めてから再開する。チケットの状態が `canceled` なら、下の 0. に従う。`completed` なら、状態ファイルで分ける：
+  - `Status` が `pr:*` → 下の 1. の `pr:*` へ進む（マージでチケットが閉じた後の再開。pr.md の「再開」で `done` にする）。
   - 状態ファイルが無い・`done` → 完了済みであることを伝えて止まる。
-  - それより前のフェーズ → issue が閉じていることと `Status` を示し、どうするか尋ねる。
-- **`LT-` のチケット**：`.tixforge/<ticket-id>/ticket.md` を読む。無ければ停止し、`/tixforge:ticket create` で作るか尋ねる（id は create で自動的に決まるため、指定された id のままにはならないことも伝える）。dev の中でチケットの内容を捏造・作成しない。
-- 読んだら「`<ticket-id>`：<タイトル>」を示す（取り違えの防止）。
+  - それより前のフェーズ → チケットが閉じていることと `Status` を示し、どうするか尋ねる。
 
 続けて：
 
-0. **キャンセル済みのチケット**（`LT-` でチケットに `Status: canceled`、`GT-` で `closed_as: canceled`、または `state.md` の `Status` が `canceled`）なら、理由を示して止まる。やり直したいなら、新しいチケットを `/tixforge:ticket create` で作るよう伝える。
+0. **キャンセル済みのチケット**（チケットの状態が `canceled`、または `state.md` の `Status` が `canceled`）なら、理由を示して止まる。やり直したいなら、新しいチケットを `/tixforge:ticket create` で作るよう伝える。
 1. **状態ファイル `.tixforge/<ticket-id>/state.md` が存在する**場合：読んで `Status` から再開する。
-   - `<phase>:awaiting-approval`（`pr` 以外）→ そのフェーズの要約とゲートを再提示し、停止して待つ。
-   - `<phase>:in-progress`（`pr` 以外）→ そこまで書かれたセクションを読み直し（Implement ならブランチの `git log` / `git status` も確認）、そのフェーズを継続する。途中成果が信頼できずにやり直したいときは、**やり直す前に**、捨てることになるもの（commit の一覧など）を示して尋ねる（伝えるだけにしない）。フェーズを戻すなら `rewind.md` の手順で行う。
+   - `<phase>:awaiting-approval`（`pr` 以外）→ そのフェーズの要約とゲートを再提示し、停止して待つ。ただし会話が要約された（compact された）後にユーザーの発言があれば、再提示せずにそれをゲートへの応答として扱う（承認（「続けて」等）なら次のフェーズへ、フィードバックなら「承認ゲート」のとおり、質問なら答えて待つ）。
+   - `<phase>:in-progress`（`pr` 以外）→ そこまで書かれたセクションを読み直し（Implement ならブランチの `git log` / `git status` も確認）、そのフェーズを継続する。途中成果が信頼できずにやり直したいときは、**やり直す前に**、捨てることになるもの（commit の一覧など）を示して尋ねる（伝えるだけにしない）。フェーズを戻すなら `rewind.md` を Read し、その手順で行う。
    - `pr:*` → `<plugin>/skills/dev/pr.md` を Read し、その「再開」に従う。
-   - `done` → run が完了済みであること（`## PR` の結果付き）を伝え、どうしたいか尋ねる。勝手にやり直さない（やり直すなら新しいチケットを作る）。`GT-` で、PR がマージ済みなのに issue が開いたままなら、`references/github/pr.md`「マージされたとき」を確かめる。
+   - `done` → run が完了済みであること（`## PR` の結果付き）を伝え、どうしたいか尋ねる。勝手にやり直さない（やり直すなら新しいチケットを作る）。PR がマージ済みなのにチケットの状態が `open`・`in-review` なら、`references/github/close.md` を Read し、その「完了」を確かめる。
 2. **状態ファイルが存在しない**場合：
-   - `GT-` なら `references/github/labels.md` を Read し、`bash <scripts>/issue-label.sh <番号> start` を実行する（終了コード 4：他の人が assign されている → 状態ファイルを作る前に停止して尋ねる）。
-   - `bash <scripts>/run-state.sh init <ticket-id>` で状態ファイルを作り（`Status: research:in-progress`。`.tixforge/.gitignore` が無ければ一緒に作られ、状態ファイルは git に載らない）、Phase 1 を開始する。
+   - `references/github/labels.md` を Read し、その「dev の開始」で着手にする。
+   - `bash <scripts>/run-state.sh init <ticket-id>` で状態ファイルを作り、Phase 1 を開始する。
 
-**いつでも**：ユーザーが「Plan からやり直したい」のように前のフェーズに戻りたいと言ったら、`<plugin>/skills/dev/rewind.md` の手順で戻す（`/tixforge:dev rewind` と同じ）。
+**いつでも**：ユーザーが「Plan からやり直したい」のように前のフェーズに戻りたいと言ったら、`<plugin>/skills/dev/rewind.md` を Read し、その手順で戻す。
 
 ## 状態ファイル `.tixforge/<ticket-id>/state.md`
 
 このファイルを run の単一の真実とする。
 
-- **ヘッダ表**（`Status`・`Branch`・`Base`・`Updated`）は `run-state.sh` だけで書き換える（`bash <scripts>/run-state.sh set <ticket-id> <Status|Branch|Base> <値>`。チケットは同じフォルダの `ticket.md`、issue 番号は `GT-` の id から分かるので、ヘッダには持たない。`Updated` は自動で更新される）。表を手で編集しない。
-- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## Review`・`## PR`）は各フェーズが Edit で書く。本文はドキュメント言語、見出しは英語の固定キーのまま変えない（このスキルが参照・再開に使うため）。
-- フェーズのセクションを書いたら、**続けて** `Status` を更新する（セクション → Status の順。逆にすると、中断したときに空のセクションのまま承認待ちになる）。
+- **ヘッダ表**（`Status`・`Branch`・`Base`・`Updated`・`Format`）は `run-state.sh` だけで書き換える（`bash <scripts>/run-state.sh set <ticket-id> <Status|Branch|Base> <値>`）。表を手で編集しない。
+- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## Review`・`## PR`）は各フェーズが Edit で書く。本文は個人の言語、見出しは英語の固定キーのまま変えない。
+- フェーズのセクションを書いたら、**続けて** `Status` を更新する（セクション → Status の順）。
 - 承認を受けて（またはゲートを自動で通過して）次のフェーズへ進むときは、作業を始める前に `Status` を `<次のphase>:in-progress` にする。
 - 前のフェーズに戻ったときの古い内容は `history/` にある（`rewind.md`）。参考として読んでよいが、承認済みの内容として扱わない。
 
-**Status のフォーマット：** `<phase>:<state>`、または終端の値
-- `<phase>`：`research | approach | plan | implement | review | pr`
-- `<state>`：`in-progress`（作業中）か `awaiting-approval`（フェーズ完了・ゲートで停止し承認待ち）。`pr` フェーズのみ、これに加えて `awaiting-review`（PR を出してレビュー待ち）と `ready-to-merge`（Approve・CI・コンフリクトの条件を満たし、マージ待ち）を使う。
-- 終端の値（state を付けない）：`done`（マージされて完了）、`canceled`（`/tixforge:ticket cancel` でキャンセル済み）。
-- `run-state.sh` はこれ以外の値を拒否する。
+**Status のフォーマット：** 取りうる値は `bash <scripts>/run-state.sh statuses` が出すものだけ（`run-state.sh` はそれ以外を拒否する）。意味：
+- `<phase>:in-progress`：そのフェーズの作業中。`<phase>` は `research`・`approach`・`plan`・`implement`・`review`・`pr`
+- `<phase>:awaiting-approval`：フェーズを終え、ゲートで止まって承認待ち
+- `pr:awaiting-review`：PR を出してレビュー待ち
+- `pr:ready-to-merge`：Approve・CI・コンフリクトの条件を満たし、マージ待ち
+- `done`：マージされて完了
+- `canceled`：`/tixforge:ticket cancel` でキャンセル済み
 
-## 承認ゲート（＝再開点）
+## 承認ゲート
 
-各フェーズの終わりがゲート。止まるかどうかは `.tixforge/config.yml` の `gates` と、下の「止まる条件」で決まる。
+各フェーズの終わりがゲート。止まるかどうかは `gates`（「現在の状態」の「この人が使う値」）と、下の「止まる条件」で決まる。
 
-- **`gates` にあるフェーズ**：必ず止まる。セクションを書く → `Status` を `<phase>:awaiting-approval` にする → ユーザーに短い要約を出す → **止まる**。ユーザーの「続けて」等で次へ進む。この停止点が、後から `/tixforge:dev <ticket-id>` で再開する地点になる。
-- **`gates` に無いフェーズ**：止まる条件が無ければ**自動で通過**する。セクションの末尾に「ゲート自動通過（gates に無く、止まる条件なし）」の 1 行（ドキュメント言語）を引用で書き、`Status` を `<次のphase>:in-progress` にし、ユーザーに一行で伝えて続ける（要約は次に止まるゲートでまとめて出す）。止まる条件があれば、`gates` にあるときと同じく止まる。
-- **`pr` は `gates` に関係なく必ず止まる**（強ゲート。`pr.md`）。
+- **`gates` にあるフェーズ**：必ず止まる。セクションを書く → `Status` を `<phase>:awaiting-approval` にする → ユーザーに短い要約を出す → **止まる**。ユーザーの「続けて」等で次へ進む。
+- **`gates` に無いフェーズ**：止まる条件が無ければ**自動で通過**する。セクションの末尾に、`> ` に続けて `<scripts>/messages.yml` の `gate_auto_pass`（個人の言語の行。無ければ `en`）をそのまま書き、`Status` を `<次のphase>:in-progress` にし、ユーザーに一行で伝えて続ける（要約は次に止まるゲートでまとめて出す）。止まる条件があれば、`gates` にあるときと同じく止まる。
+- **`pr` は `gates` に関係なく必ず止まる**。
 
 | フェーズ | `gates` に無いときも止まる条件 |
 |----------|------------------------------|
-| research | 決定の無い未決事項・未解決の疑問点がある |
+| research | 決定の無い未決事項・未解決の疑問点・要件や受け入れ条件の解釈、対象の範囲を左右する未確認の仮定がある |
 | approach | 採用案を決めるのにユーザーの判断が要る（拮抗する選択肢、チケットの解釈、置いた仮定） |
 | plan | **常に止まる**（確かめ方をユーザーが項目ごとに選ぶため。下記 Plan） |
 | implement | ユーザーにしてもらう手動確認が残っている（Review からの差し戻しの後も同じ） |
@@ -71,16 +78,16 @@
 
 目的：どう実装するか決める前に、実装に必要な情報を整理し、チケットの未決事項を片付ける。
 
-1. チケット（`.tixforge/<ticket-id>/ticket.md`）を読む。
+1. チケット（`.tixforge/<ticket-id>/snapshot.md`）を読む。
 2. `docs/context/**` の関連箇所（必要な分だけ）を読む。
-3. **コードの調査は Explore agent に任せる**（このセッションの文脈を、Implement の前に調査の読み込みで使い切らないため）。リポジトリが小さく見えても、`find`・Grep・Read でコードを調べ始める前に、まず Explore を起動する（Agent ツールで `subagent_type: Explore`）。チケットの要約と、具体的な問い（影響しそうなコード領域・似た既存実装・テストの場所と書き方・守るべき制約など）を渡し、ファイルパス付きの要約を受け取る。自分で調べてよいのは、Explore が使えない環境だけ。受け取った要約のうち、判断に必要な箇所は自分でも Read して確かめる。
+3. **コードの調査は Explore agent に任せる**。リポジトリが小さく見えても、`find`・Grep・Read でコードを調べ始める前に、まず Explore を起動する（Agent ツールで `subagent_type: Explore`）。チケットの要約と、具体的な問い（影響しそうなコード領域・似た既存実装・テストの場所と書き方・守るべき制約など）を渡し、ファイルパス付きの要約を受け取る。自分で調べてよいのは、Explore が使えない環境だけ。受け取った要約のうち、判断に必要な箇所は自分でも Read して確かめる。
 4. 整理する：チケットの要求、関連コンテキスト、影響しそうなコード領域、制約、未解決の疑問点。
 5. **未決事項を片付ける**：チケットの「未決事項」を 1 項目ずつ並べ、項目ごとに次のどれかをユーザーと決める（決めるのはユーザー。Claude は調査の結果と推奨を示す）：
-   - **何を作るかの決定**（要件・受け入れ条件・対象外が変わる）→ チケットに書き戻す：その項目を「未決事項」から消し、要件・受け入れ条件・対象外の該当する場所に移す。`GT-` なら `references/github/sync.md` のとおり issue に push する。
-   - **どう作るかの決定**（実装の選び方）→ Approach の「未決事項の解決」の表に書く（Phase 2）。チケットの未決事項は、表を指す 1 行（「Approach で決定」）に置き換える。
-   - **対象外に回す** → チケットの「対象外」に移す。
-   決まらない項目が 1 つでも残っていれば、Research のゲートで止まる（`gates` に無くても）。
-6. 結果を `## Research` に書き、ゲート（`research`）へ。止まるなら `Status: research:awaiting-approval` にして要約を出し（未解決の疑問点と未決事項を強調）、停止。
+   - **何を作るかの決定**（要件・受け入れ条件・対象外が変わる）→ `snapshot.md` のその項目を「未決事項」から消し、要件・受け入れ条件・対象外の該当する場所に移す。
+   - **どう作るかの決定**（実装の選び方）→ Approach の「未決事項の解決」の表に書く（Phase 2）。`snapshot.md` の未決事項は、表を指す 1 行（「Approach で決定」）に置き換える。
+   - **対象外に回す** → `snapshot.md` の「対象外」に移す。
+   - どれでも `snapshot.md` を変えたら、そのたびに `references/github/sync.md` を Read し、「書き戻す」を行う（`<ファイル>` は `snapshot.md`）。次に取ってきたときに、手元の変更が issue の内容で上書きされないようにするため。
+6. 結果を `## Research` に書き、ゲート（`research`）へ。要約では未解決の疑問点と未決事項を強調する。
 
 ## Phase 2 — Approach
 
@@ -88,15 +95,15 @@
 
 1. Research をもとに実装方針を決める：検討した選択肢、採用案、主要な設計判断とトレードオフ。
 2. Research で「どう作るかの決定」とした未決事項を、「未決事項の解決」の表にする（`| 未決事項 | 決定 | 理由 |`）。無ければ表は書かない。
-3. `## Approach` に書き、ゲート（`approach`）へ。止まるなら `Status: approach:awaiting-approval` にして方針の要約を出し、停止（確認はこの 1 回だけ。フィードバックが来たら書き直して同じゲートを再提示する）。
+3. `## Approach` に書き、ゲート（`approach`）へ。要約では方針を示す。
 
 ## Phase 3 — Plan
 
 目的：方針を具体的なブランチ・確かめ方・commit 計画に落とす。
 
-1. **Base**（分岐元であり PR の向き先。`host: none` ではマージ先）を決める。優先順位：ユーザーがこの Plan で指定したもの ＞ チケットの `## Base` の節 ＞ `repository.base_branch` ＞ `git symbolic-ref --short refs/remotes/origin/HEAD` の `origin/` を除いたもの。そのブランチが今も存在するか（`host: github` ならリモートに、`none` ならローカルに）確かめ、無ければ（release ブランチがマージ済みなど）尋ねる。
-2. **ブランチ**：`<ticket-id>-<slug>`。slug は英小文字・数字・ハイフンだけにする（ドキュメント言語が日本語でも英語で書く）。その名前のブランチが無いことを確かめる（`host: github` ならローカル（`git show-ref`）とリモート（`git ls-remote --heads origin`）の両方、`none` ならローカルだけ）。あって、ヘッダの `Branch` でない（巻き戻しで残した古いブランチなど）場合は、別の名前（例：末尾に `-2`）にする。
-3. **受け入れ条件 → 確かめ方の対応表**を作る。チケットの受け入れ条件の**全項目**に 1 行ずつ、何で・誰が確かめるかを決める。Implement はこの表に沿ってテストを書き、Review はこの表で照合する。
+1. **Base**（分岐元であり PR の向き先）を決める。優先順位：ユーザーがこの Plan で指定したもの ＞ チケットの `## Base` の節 ＞ `repository.base_branch` ＞ `git symbolic-ref --short refs/remotes/origin/HEAD` の `origin/` を除いたもの。そのブランチがリモートに今も存在するか確かめ、無ければ尋ねる。
+2. **ブランチ**：`<ticket-id>-<slug>`。slug は英小文字・数字・ハイフンだけにする（ドキュメント言語が日本語でも英語で書く）。その名前のブランチが無いことを、ローカル（`git show-ref`）とリモート（`git ls-remote --heads origin`）の両方で確かめる。あって、ヘッダの `Branch` でない（巻き戻しで残した古いブランチなど）場合は、別の名前（例：末尾に `-2`）にする。
+3. **受け入れ条件 → 確かめ方の対応表**を作る。チケットの受け入れ条件の**全項目**に 1 行ずつ、何で・誰が確かめるかを決める。
    ```markdown
    | # | 受け入れ条件 | 確かめ方 | 種別 |
    |---|--------------|----------|------|
@@ -108,116 +115,99 @@
    - **種別は項目ごとにユーザーが選ぶ**：Claude が推奨と確かめ方の案を付け、AskUserQuestion で尋ねる（1 問 1 項目、選択肢はこの 4 つで推奨を先頭に。1 回に 4 項目まで）。`Claude（ブラウザ）`・`Claude（API）` は、このセッションでその手段（ブラウザを操作するツール、アプリを起動するスキル、API を呼べる環境）が使えるかを先に確かめ、使えなければ選択肢の説明にそう添える。
    - 確かめ方を決められない条件は、止まってユーザーと決める（チケットの受け入れ条件が曖昧なら `/tixforge:ticket edit` を提案する）。
 4. **順序付きの commit 分割**（各 commit の目的とおおまかな範囲）を決める。1 ブランチに収まらない大きさなら、ユーザーに指摘して一緒にチケットを絞る（別のチケットに分ける）。自動で分割しない。
-5. Base・ブランチ・対応表・commit 一覧を `## Plan` に書き、`bash <scripts>/run-state.sh set <ticket-id> Branch <ブランチ>`・`bash <scripts>/run-state.sh set <ticket-id> Base <Base>` でヘッダも埋める。`Status: plan:awaiting-approval` にして要約を出し、停止する（Plan は常に止まる）。
-6. 承認されたら、**他の作業より先に** `Status: implement:in-progress` にして Implement へ進む（ブランチ作成は Implement の「ブランチの準備」で行う。承認後・Status 更新前に作業すると、中断時に Plan のゲートが再提示されてしまうため）。
+5. Base・ブランチ・対応表・commit 一覧を `## Plan` に書き、`bash <scripts>/run-state.sh set <ticket-id> Branch <ブランチ>`・`bash <scripts>/run-state.sh set <ticket-id> Base <Base>` でヘッダも埋める。ゲート（`plan`）へ。止まって要約を出すときは、最後に「承認の前に `/compact` してよい。その後『続けて』などで Implement に進む」と 1 行（個人の言語）添える（他のゲートには添えない）。
+6. ブランチは Implement の「ブランチの準備」で作る。
 
 ## Phase 4 — Implement
 
 目的：承認済みの方針と計画に沿って実装する。
 
-1. **ブランチの準備**：リポジトリの状態を確認する（git リポジトリであること。このチケットと無関係な未コミット変更があれば警告する。`.tixforge/` の中は git 管理外なので対象外）。承認済みブランチが無ければ **Base の最新**から作成する：`host: github` なら `git fetch origin <Base>` の後の `origin/<Base>` から（`git switch -c <ブランチ> origin/<Base>`）、`host: none` ならローカルの `<Base>` から。既にあれば切り替えるだけにする（中断からの再開で作成済みのことがある）。
+1. **ブランチの準備**：リポジトリの状態を確認する（git リポジトリであること。このチケットと無関係な未コミット変更があれば警告する）。承認済みブランチが無ければ **Base の最新**から作成する：`git fetch origin <Base>` の後の `origin/<Base>` から（`git switch --no-track -c <ブランチ> origin/<Base>`。upstream を Base にしない）。ローカルの Base が `origin/<Base>` より進んでいれば（`git rev-list --count origin/<Base>..<Base>` が 0 でない。init の commit を push していないなど）、その commit はこのブランチに入らないことを伝え、push するか尋ねる。既にあれば切り替えるだけにする。
 2. 承認済みブランチ上で、承認済みの commit 分割に従って実装・commit する。
-   - **テストは対応表に沿って書く。** 表の `自動` の行のテストを、表に書いたテスト名で作る。名前や場所を変えたら `## Implementation Log` に記録する（Review が照合できるように）。
+   - **テストは対応表に沿って書く。** 表の `自動` の行のテストを、表に書いたテスト名で作る。名前や場所を変えたら `## Implementation Log` に記録する。
    - **commit メッセージは `docs/context/commit.md` に従う**（最初の commit の前に読む。`Language:` の言語で書く）。`Source:` にパスがあればそのファイルを規約として読み、本文は補足として扱う。**`Source:` のファイルが読めなければ、黙って別の書式にしない。** 止まって伝え、`/tixforge:project update` で設定し直すか、今回は `commit.md` の本文と直近の `git log` の書式で進めるかを尋ねる。`commit.md` 自体が無ければ直近の `git log` の書式に合わせ、`/tixforge:project init` の再実行で作れることを伝える。
-   - `GT-` なら、最初の commit のメッセージの最後の行に `Closes #<番号>` のトレーラーを入れる（`references/github/pr.md`。Base が default branch でない運用でも、リリースで issue が閉じるようにするため）。
-   - commit ごとの承認では止めない。
+   - 最初の commit のメッセージに、`references/github/pr.md` を Read し、その「commit と PR 本文」のとおり紐付けを入れる。
 3. commit を積むごとに `## Implementation Log`（commit hash とメッセージ、実装中の重要な判断）を更新する。
-4. 承認された計画どおりに進められないと分かったら（ある commit を大きく変える必要がある、方針が誤っていた等）、停止して提起する。これは小さな確認ではなく本当の判断事項。戻るなら `rewind.md` の手順で戻す。
-5. 計画した commit を全て終えたら、**検証**・**手動確認**・**context の確認**（下記）を行う。通ったら `## Implementation Log` を更新し、ゲート（`implement`）へ。止まるなら `Status: implement:awaiting-approval` にして、作ったもの（検証結果・手動確認の結果を含む）を要約し、停止。止まらないなら `Status: review:in-progress` にして Review へ。
+4. 承認された計画どおりに進められないと分かったら（ある commit を大きく変える必要がある、方針が誤っていた等）、停止して提起する。これは小さな確認ではなく本当の判断事項。戻るなら `rewind.md` を Read し、その手順で戻す。
+5. 計画した commit を全て終えたら、**検証**・**手動確認**・**context の確認**（下記）を行う。通ったら `## Implementation Log` を更新し、ゲート（`implement`）へ。要約には検証結果・手動確認の結果を含める。
 
-**Review からの差し戻しで戻ってきた場合**（Review で「修正」と決まった指摘がある）：直すのは `## Review` の最新ラウンドで「修正」とされた項目だけにする。それ以外に手を広げない。修正の commit は `## Implementation Log` に「Review Round N の修正」（ドキュメント言語）として記録する。修正後に検証（と、影響する手動確認）を行う。ユーザーにしてもらう手動確認が残っていれば、ここで止まる（止まる条件）。無ければ Implement のゲートは挟まずに `Status: review:in-progress` にして Review へ戻る（直後に Review があるため）。
+**Review からの差し戻しで戻ってきた場合**（Review で「修正」と決まった指摘がある）：直すのは `## Review` の最新ラウンドで「修正」とされた項目だけにする。それ以外に手を広げない。修正の commit は `## Implementation Log` に「Review Round N の修正」（個人の言語）として記録する。修正後に検証（と、影響する手動確認）を行う。ユーザーにしてもらう手動確認が残っていれば、ここで止まる（止まる条件）。無ければ Implement のゲートは挟まずに `Status: review:in-progress` にして Review へ戻る。
 
 ### 検証
 
-`bash <scripts>/verify.sh` を実行する（`.tixforge/config.yml` の `commands` を書かれた順に全て実行する）。実装の途中で個別のテストを実行するのは自由だが、ゲートの前には必ずこれを実行する。
+`bash <scripts>/verify.sh` を実行する。実装の途中で個別のテストを実行するのは自由だが、ゲートの前には必ずこれを実行する。
 
 - **出力の 1 行目（`Verification @ <hash>: <キー> pass | fail …`）を、そのまま `## Implementation Log` に書き写す。** 要約・言い換え・翻訳をしない。
 - hash の後に `+dirty` が付いたら、未コミットの変更を検証したことになる。commit してから実行し直す（検証は commit に対して記録する）。検証コマンドがファイルを書き換えた（自動整形など）ときも `+dirty` が付き、変わったファイルが続けて出力される。その変更を確かめて commit してから実行し直す。
 - **終了コード 1（失敗あり）**：出力に並ぶ失敗したコマンドのログファイルを Read し、このチケットの範囲内で原因を直して commit し（`Implementation Log` に記録）、もう一度 `bash <scripts>/verify.sh` を実行する。全て通るまでゲートに進まない。
 - 次の場合は直さずに停止し、ユーザーに判断を求める：
-  - `Base` でも同じく失敗する（既存の失敗）。確かめるときは、変更は commit 済みなので `git switch <Base>`（`host: github` なら `origin/<Base>` を `git switch --detach`）で切り替えて `bash <scripts>/verify.sh` を実行し、終わったら元のブランチに `git switch` で戻る。
+  - `Base` でも同じく失敗する（既存の失敗）。確かめるときは、変更は commit 済みなので `origin/<Base>` を `git switch --detach` で切り替えて `bash <scripts>/verify.sh` を実行し、終わったら元のブランチに `git switch` で戻る。
   - 直すのにチケットの範囲外の変更や、方針・計画の変更が必要
   - 環境の問題（依存が無い、サービスが起動していない等）で実行できない
 - **テストを通すために、テストの削除・スキップ・期待値の書き換え・lint の無効化をしない。** それが本当に正しい場合は、理由を示してユーザーの承認を得る。
-- 出力が「検証コマンドなし」（`commands: {}`）なら、その行をそのまま記録して進む。終了コード 3（`commands` が無い）なら、`/tixforge:project init` で足せることを伝えて止まる。
+- `commands: {}` のときは、終了コード 0 で、出力が pass・fail の無い 1 行（検証コマンドが無いことを示す）になる。その行をそのまま記録して進む。終了コード 3（`commands` が無い）なら、`/tixforge:project init` で足せることを伝えて止まる。
 
 ### 手動確認
 
 対応表の `Claude（ブラウザ）`・`Claude（API）`・`ユーザー` の行を、検証が通った後に確かめる。誰が確かめるかは Plan で決まっている（ここで尋ね直さない）。
 
 - `Claude（…）`：その手段で確かめる。その手段がこのセッションで使えなくなっていたときだけ、「自分で確認する」「今回は確認しない（理由を記録）」を尋ねる。
-- `ユーザー`：確認の手順（起動方法・操作・期待する結果）を示して、ユーザーに確かめてもらう。ユーザーの確認が残っている間は、Implement のゲートで止まる（止まる条件）。
-- 結果を `## Implementation Log` に記録する（ドキュメント言語）：例 `手動確認 @ <短い commit hash>: #2 ok（Claude：スクリーンショットで確認）`・`#3 ok（ユーザー）`・`#4 未確認（理由：…）`。
+- `ユーザー`：確認の手順（起動方法・操作・期待する結果）を示して、ユーザーに確かめてもらう。ユーザーの確認が残っている間は、Implement のゲートで止まる。
+- 結果を `## Implementation Log` に記録する（個人の言語）：例 `手動確認 @ <短い commit hash>: #2 ok（Claude：スクリーンショットで確認）`・`#3 ok（ユーザー）`・`#4 未確認（理由：…）`。
 - 手動確認で問題が見つかったら、検証の失敗と同じく直してから、検証からやり直す。
 
 ### context の確認
 
-この変更が `docs/context/**` の記述と**矛盾する**か（ディレクトリ構成・アーキテクチャ・用語・技術スタックを変えた等）を、1 回だけ軽く確かめる。矛盾がある場合だけ、直す箇所を示し、この run に最小限の修正 commit を足すか尋ねる（足すなら、その後に検証をやり直す。Review と PR の対象に含まれる）。矛盾が無ければ「context の更新は不要」と一行伝えるだけにする。網羅的に書き足す提案はしない（context は作ったら基本的にそれに準拠して進めるもので、頻繁な更新はコンフリクトの元になるため）。
+この変更が `docs/context/**` の記述と**矛盾する**か（ディレクトリ構成・アーキテクチャ・用語・技術スタックを変えた等）を、1 回だけ軽く確かめる。矛盾がある場合だけ、直す箇所を示し、この run に最小限の修正 commit を足すか尋ねる（足すなら、その後に検証をやり直し、`## Plan` の commit 一覧の末尾に「context の更新（Implement で合意）：`docs/context/<ファイル>` の <直した点>」と 1 行足す。Review と PR の対象に含まれる）。矛盾が無ければ「context の更新は不要」と一行伝えるだけにする。網羅的に書き足す提案はしない。
 
 ## Phase 5 — Review
 
-目的：作ったものを、意図（合意）とのズレと、品質の両面から調べる。実装した本人（このセッション）は自分の判断に引きずられるため、**検出は 2 つの reviewer agent に任せ**、このセッションは各指摘に推奨を添えるだけにする。判断はユーザーが行う。
+目的：作ったものを、意図（合意）とのズレと、品質の両面から調べる。**検出は 2 つの reviewer agent に任せ**、このセッションは各指摘に推奨を添えるだけにする。判断はユーザーが行う。
 
-| agent | 見るもの |
-|-------|----------|
-| `tixforge:reviewer` | 合意（チケット・Approach・Plan の対応表）と実装のズレ：相違・未実装・合意外の変更・決定の無い未決事項・直っていない修正 |
-| `tixforge:quality-reviewer` | 合意とは関係のない品質：バグ・セキュリティ・性能・エラー処理・テストの妥当性・直っていない修正 |
-
-1. **agent の確認**：利用できる agent に `tixforge:reviewer` と `tixforge:quality-reviewer` があることを確認する（どちらも tixforge plugin に同梱されている）。無ければ停止し、tixforge plugin が有効になっているか（`/plugin`）を確かめるよう案内する。**general-purpose など別の agent で代用しない**（レビューの基準が変わるため）。
+1. **agent の確認**：利用できる agent に `tixforge:reviewer` と `tixforge:quality-reviewer` があることを確認する。無ければ停止し、tixforge plugin が有効になっているか（`/plugin`）を確かめるよう案内する。**general-purpose など別の agent で代用しない**。
 2. **再開のとき**：`## Review` の最新ラウンドに、「決定」が書かれていない指摘があれば、新しいラウンドを起こさずに、その指摘の対処を決めるところ（手順 6）から続ける。
-3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または「検証コマンドなし」）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
-4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。出力されるパス（`.git/tixforge/review/<ticket-id>/`）を使う。差分の中身をこのセッションで読む必要はない。
+3. **検証**の結果を用意する。`Implementation Log` の最新の `Verification @` が現在の HEAD（`git rev-parse --short HEAD`。`+dirty` 無し）に対するもので全て pass（または `commands: {}` のときの行）ならそれを使い、そうでなければ `bash <scripts>/verify.sh` を実行し直し、出力の 1 行目を `## Implementation Log` に書き写す。失敗があれば Review に進まず、`Status: implement:in-progress` に戻して Implement の「検証」で扱う。
+4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>` を実行する。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付け、前のラウンドからの差分（`delta.patch`）も書き出す。差分・チケット・`## Approach`・`## Plan` と、agent が最初に読む `index.md` が `.git/tixforge/review/<ticket-id>/` に書き出され、`index.md` のパスが出力される。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」（`<ファイル>` は `snapshot.md`）からやり直す。終了コード 4（state.md が無い、または `## Approach` か `## Plan` が空）なら、原因を伝えて止まる（Approach・Plan に戻して書き直すなら `rewind.md` の手順で）。書き出したものをこのセッションで読む必要はない。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し）。ラウンドごとに新しく起動する（前のラウンドの agent を使い回さない）。渡すのは次のものだけにする：
-   - 両方に：4 のファイルのパス（`delta.patch` を含む）、検証の行、ドキュメント言語、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まったその agent の指摘（直ったかを確かめさせるため）
-   - `tixforge:reviewer` にだけ：チケットのパス（`.tixforge/<ticket-id>/ticket.md`）、`## Approach` と `## Plan` の本文（そのまま貼る。未決事項の解決の表と対応表を含む）、手動確認の行
+   - 両方に：4 で出力された `index.md` のあるディレクトリのパス、報告の言語（個人の言語）、前のラウンドまでに「受け入れ」と決まったその agent の指摘と理由（同じ指摘を繰り返させないため）、前のラウンドで「修正」と決まった指摘：その agent の指摘は番号つきの全文、他方の agent と実装者による追加の指摘は番号と「何をどう直すか」の 1 行（自分の指摘は直ったかを確かめさせ、他の修正を「合意外の変更」と言わせないため。合意の引用は他方に渡さない）
+   - `tixforge:reviewer` にだけ：`## Implementation Log` の手動確認の行（全て。無ければ「無し」）
 
-   **`## Research`・`## Implementation Log` の判断・実装中の経緯は渡さない**（実装者の意図に引きずられず、合意と成果物だけで判定させるため）。`.tixforge/` 配下のパスは、チケットのファイル以外は渡さない。
-6. **結果を記録する**：`## Review` に**ラウンドとして追記する**（`### Round 1`、`### Round 2` …）。前のラウンドは書き換えない。各ラウンドには、検証の行と、両方の reviewer の指摘を**全件そのまま**載せる（指摘が無ければその旨）。
+   **`## Research`・`## Implementation Log` の判断・実装中の経緯・検証の行は渡さない**（実装者の意図に引きずられず、合意と成果物だけで判定させるため。検証は 3 で全て pass になっている）。`.tixforge/` 配下のパスは渡さない。
+6. **結果を記録する**：`## Review` に**ラウンドとして追記する**（`### Round 1`、`### Round 2` …）。前のラウンドは書き換えない。各ラウンドには、検証の行と、両方の reviewer の指摘を**全件そのまま**載せる（指摘が無ければ「指摘なし」）。
    - **reviewer の指摘を削除・統合・言い換え・並べ替えしない。** 誤検知だと思っても消さず、推奨欄でそう述べる。
    - 各指摘の下に、このセッションの**推奨**（下の 4 つのどれか）と**根拠**を添える。根拠には `## Implementation Log` の判断や実装中の経緯を使ってよい（reviewer が知らない情報を補うのがこのセッションの役割）。
    - 推奨が「受け入れ」以外なら、**直し方**（どのファイルの何をどう変えるか。見直しなら、戻った先で何を変えるか）を根拠の後に書く。
    - **受け入れた場合**に何が残るか（直さないと、どんな入力・状態で何が起きるか。何も起きないならそう書く）を 1 行添える。
    - このセッションが別の問題に気づいた場合は、実装者による追加であると明記して、別の項目として追記する。
-7. 指摘があれば、**チャットに指摘を示してから**（下の「ゲートでの示し方」）、項目ごとに対処をユーザーに選んでもらう（勝手に決めない。推奨は理由付きで示すだけ）。示した後なら、「推奨どおり」でまとめて決めるか、個別に決めるかを尋ねてよい：
+7. 指摘があれば、**チャットに指摘を示してから**（下の「ゲートでの示し方」）、項目ごとに対処をユーザーに選んでもらう（勝手に決めない。推奨は理由付きで示すだけ）。Round 3 以降で推奨に「修正」があるときは、指摘ごとの推奨とは別に、「指摘が収まらないので、Approach か Plan の見直しを勧める」と、これまでのラウンドの指摘の傾向（同じファイル・同じ種類が繰り返しているか）を添える（決めるのはユーザー）。示した後なら、「推奨どおり」でまとめて決めるか、個別に決めるかを尋ねてよい：
    - **修正** — 実装が合意と違う／未実装／合意外の変更を取り除く／品質の問題を直す。Implement に戻って直す。
    - **計画の見直し** — 対応表の確かめ方や commit 分割が誤っていた。Plan に戻る。
    - **方針の見直し** — Approach 自体が誤っていた。Approach に戻る。
    - **受け入れ** — 実装のほうが妥当、誤検知、または今回は直さない。直さず、理由をその項目に記録する。
 8. 決まった対処を各項目に記録し、次のとおり進む：
-   - 「方針の見直し」か「計画の見直し」がある → `rewind.md` の手順で Approach（両方あれば Approach）か Plan に戻る。以降のフェーズもゲートを通り直す。
+   - 「方針の見直し」か「計画の見直し」がある → `rewind.md` を Read し、その手順で Approach（両方あれば Approach）か Plan に戻る。以降のフェーズもゲートを通り直す。
    - 「修正」がある（見直しは無い） → `Status: implement:in-progress` にして Implement へ（「Review からの差し戻し」）。修正後に Review へ戻り、次のラウンドを行う。
-   - 指摘なし、または全て「受け入れ」 → ゲート（`review`）へ。対処が決まっていない指摘は残っていないので、`gates` に `review` が無ければ自動で通過して `Status: pr:in-progress` にし、`pr.md` へ。`gates` にあれば `Status: review:awaiting-approval` にして要約を出し、停止。
+   - 指摘なし、または全て「受け入れ」 → ゲート（`review`）へ。`gates` に `review` が無ければ自動で通過して `Status: pr:in-progress` にし、`pr.md` へ。`gates` にあれば `Status: review:awaiting-approval` にして要約を出し、停止。
 
-`## Review` のラウンドの書き方（見出しと本文はドキュメント言語。reviewer の報告をそのまま貼り、`推奨`・`決定` の行だけをこのセッションが足す。日本語の例）：
+`## Review` のラウンドの書き方（見出しと本文は個人の言語。reviewer の報告をそのまま貼り、`推奨`・`受け入れた場合`・`決定` の行（と、手順 6 の実装者による追加の項目）だけをこのセッションが足す。日本語の例）：
 
 ```markdown
 ### Round 1
 Verification @ a1b2c3d: test pass, lint pass
 
 #### 合意とのズレ（tixforge:reviewer）
-- **R1 [未実装]** 受け入れ条件「…」に対応する処理が無い
-  - 合意側：チケット 受け入れ条件 2
-  - 実装側：該当する変更なし
-  - 重大度：高
-  - 確度：高
-  - 推奨：修正 — …。直し方：src/bar.ts の … に … を足す
+- **R1 [未実装]** …（reviewer の報告をそのまま）
+  - 推奨：修正 — <根拠>。直し方：…
   - 受け入れた場合：…
   - 決定：修正
 
 #### 品質（tixforge:quality-reviewer）
-- **Q1 [バグ]** 空の配列で例外になる
-  - 場所：src/foo.ts:42
-  - 起きること：…
-  - 重大度：中
-  - 確度：高
-  - 推奨：修正 — …。直し方：…
-  - 受け入れた場合：…
-  - 決定：受け入れ（理由：…）
+指摘なし
 ```
 
 ### ゲートでの示し方
 
-`## Review` を開かなくても判断できるように、手順 7 で尋ねる前に、最新ラウンドの指摘をチャットに示す（ドキュメント言語）。
+`## Review` を開かなくても判断できるように、手順 7 で尋ねる前に、最新ラウンドの指摘をチャットに示す（個人の言語）。
 
 - R と Q をまとめて、重大度の高い順に並べる（同じ重大度なら確度の高い順）。
 - 次のどれかに当たる指摘は**詳しく**示す：
@@ -226,7 +216,7 @@ Verification @ a1b2c3d: test pass, lint pass
   - `[未修正]`
   - 推奨が「受け入れ」以外（作業が発生するので、中身を見てから決めてもらう）
 - それ以外は **1 行**で示す。省かない（`## Review` には全件ある。示さずに受け入れたことにしないため）。
-- 最初に件数を 1 行で書く（例：「合意とのズレ 5 件・品質 2 件。詳しく 3 件、1 行 4 件」）。
+- 最初に件数を 1 行で書く（例：「合意とのズレ 5 件・品質 2 件。詳しく 3 件、1 行 4 件」）。Round 3 以降の見直しの勧め（手順 7）は、その直後に 1 段落で示す（`## Review` には書かない）。見直すなら、どれかの指摘の対処を「方針の見直し」か「計画の見直し」にする。
 
 日本語の例：
 

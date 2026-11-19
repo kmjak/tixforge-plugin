@@ -67,7 +67,7 @@ git -C "$plain" commit -q --allow-empty -m init
 
 # json_str <s>: s as a JSON string literal (enough for these fixtures).
 json_str() {
-  printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'NR > 1 { printf "\\n" } { printf "%s", $0 }')"
 }
 
 # verdict_of <dir> <json> [PATH]: prints pass | ask | deny
@@ -177,6 +177,9 @@ expect deny "$tfrepo" 'git push origin +GT-000001-login'
 expect ask "$tfrepo" 'gh pr create --title t --body "Closes #1"'
 expect ask "$tfrepo" 'gh pr create --title t --body "fixes #1"'
 expect deny "$tfrepo" 'gh pr create --title t --body "Closes #12"'
+expect ask "$tfrepo" 'gh pr create --title t --body "Closes: #1"'
+expect deny "$tfrepo" 'gh pr create --title t --body "hotfix #1"'
+expect deny "$tfrepo" 'gh pr create --title t --body "hot_fix #1"'
 expect deny "$tfrepo" 'gh pr create --fill'
 printf 'Summary\n\nCloses #1\n' > "$tmp/body.md"
 expect ask "$tfrepo" "gh pr create --title t --body-file $tmp/body.md"
@@ -280,6 +283,11 @@ set_state done
 expect pass "$tfrepo" 'git merge --no-ff GT-000001-login' # the run is closed
 set_state implement:in-progress
 git -C "$tfrepo" checkout -q GT-000001-login
+# The run whose Branch this is wins over an earlier run whose Base it is.
+mkdir -p "$tfrepo/.tixforge/GT-000000"
+printf '| Field | Value |\n|---|---|\n| Status | implement:in-progress |\n| Branch | GT-000000-x |\n| Base | GT-000001-login |\n' > "$tfrepo/.tixforge/GT-000000/state.md"
+reason_has "$tfrepo" 'git push' 'ブランチ GT-000001-login、Status implement:in-progress'
+rm -rf "$tfrepo/.tixforge/GT-000000"
 
 # A push on the branch of a finished run says so instead of "before the PR gate".
 state="finished run"
@@ -315,11 +323,147 @@ expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/src/a.ts\"}"
 git -C "$tfrepo" checkout -q main
 expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/src/a.ts\"}"
 git -C "$tfrepo" checkout -q GT-000001-login
+# A finished run's branch is not that run's work any more: editing asks.
+set_state done
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/src/a.ts\"}"
+# Only a run in Implement, Review or PR owns its branch: an unknown Status asks.
+for st in "—" foo implement; do
+  set_state "$st"
+  expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/src/a.ts\"}"
+done
 rm -rf "$tfrepo/.tixforge/GT-000002"
 set_state implement:in-progress
 
-# A local ticket (LT-) has no issue, so a PR needs no Closes line.
-state="local ticket"
+# A PR comment asks, as a PR comment rather than an unknown operation.
+state="pr comment"
+set_state pr:in-progress
+expect ask "$tfrepo" 'gh pr comment 9 --body-file /tmp/x'
+reason_has "$tfrepo" 'gh pr comment 9 --body-file /tmp/x' "PR へのコメントの投稿"
+reason_has "$tfrepo" 'gh pr comment 9 --body-file /tmp/x && git reset --hard HEAD~1' "git reset"
+reason_has "$tfrepo" 'gh pr comment 9 --delete-last' "許可リストにない"
+
+# Skipping the git hooks is denied on a run's branch and on the Base.
+state="hook bypass"
+set_state implement:in-progress
+expect deny "$tfrepo" 'git commit --no-verify -m x'
+expect deny "$tfrepo" 'git commit -n -m x'
+expect deny "$tfrepo" 'git commit -anm x'
+expect deny "$tfrepo" 'git -c core.hooksPath=/dev/null commit -m x'
+expect deny "$tfrepo" 'git -c CORE.HOOKSPATH=/tmp commit -m x'
+expect deny "$tfrepo" 'git -c include.path=/tmp/x commit -m x'
+expect deny "$tfrepo" 'git -c includeIf.gitdir:/x.path=/tmp/x commit -m x'
+expect deny "$tfrepo" 'bash -c "git commit --no-verify -m x"'
+expect deny "$tfrepo" 'git push --no-verify origin GT-000001-login'
+expect deny "$tfrepo" 'git merge --no-verify main'
+expect pass "$tfrepo" 'git commit -m "no flag here" --no-edit'
+# Words in a message or a PR body are not flags: not denied, though the
+# loose reading (quotes removed) still asks.
+expect ask "$tfrepo" 'git commit -m "fix -n handling"'
+expect ask "$tfrepo" 'git commit -m "docs: mention --no-verify"'
+expect pass "$tfrepo" 'git commit -m"initial"'
+expect pass "$tfrepo" 'git commit -uno -m x'
+expect pass "$tfrepo" 'git commit -am x'
+expect ask "$tfrepo" "$(printf 'git commit -F - <<EOF\n- git commit -n is denied\nEOF')"
+expect ask "$tfrepo" "$(printf 'gh pr create --title t --body "Closes #1\n- git commit --no-verify is denied"')"
+expect deny "$tfrepo" 'git commit --no-verif -m x'
+expect deny "$tfrepo" 'git rebase main && git commit --no-verify -m x'
+expect deny "$tfrepo" 'if git commit --no-verify -m x; then echo ok; fi'
+expect deny "$tfrepo" 'timeout 60 git commit -n -m x'
+expect deny "$tfrepo" 'nice -n 5 git commit --no-verify -m x'
+expect deny "$tfrepo" 'git --config-env=core.hooksPath=HP commit -m x'
+expect deny "$tfrepo" 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null git commit -m x'
+expect ask "$tfrepo" 'HUSKY=0 git commit -m x'
+expect ask "$tfrepo" 'SKIP=eslint git commit -m x'
+expect pass "$tfrepo" 'git -c core.hooksPath=/dev/null status'
+expect ask "$tfrepo" 'git merge -n main'
+expect pass "$tfrepo" 'git commit -m x' "$nojq"
+# Flags that take no value (or only an attached one) do not hide the rest.
+expect deny "$tfrepo" 'git commit -s --no-verify -m x'
+expect deny "$tfrepo" 'git commit -s -n -m x'
+expect deny "$tfrepo" 'git commit -S --no-verify -m x'
+expect deny "$tfrepo" 'git commit -u -n -m x'
+expect deny "$tfrepo" 'git push -u --no-verify origin GT-000001-login'
+expect deny "$tfrepo" 'git pull --no-verify'
+expect deny "$tfrepo" 'git rebase --no-verify main'
+expect deny "$tfrepo" 'git am --no-verify x.patch'
+# A line continued with a backslash is one command.
+expect deny "$tfrepo" "$(printf 'git commit \\\n  --no-verify -m x')"
+expect deny "$tfrepo" "$(printf 'git commit -m x \\\n  -n')"
+expect deny "$tfrepo" "$(printf 'git push \\\n  --force origin GT-000001-login')"
+# Prefixes with an option that takes a value.
+expect deny "$tfrepo" 'env -u FOO git commit --no-verify -m x'
+expect deny "$tfrepo" 'sudo -u me git commit --no-verify -m x'
+expect deny "$tfrepo" 'timeout -s KILL 60 git commit --no-verify -m x'
+expect deny "$tfrepo" '/usr/bin/env git commit --no-verify -m x'
+expect deny "$tfrepo" 'git commit -m x 2>&1 --no-verify'
+# Config values in quotes, bash -lc, and the other config forms.
+expect deny "$tfrepo" 'git -c "core.hooksPath=/dev/null" commit -m x'
+expect deny "$tfrepo" "GIT_CONFIG_PARAMETERS=\"'core.hooksPath'='/dev/null'\" git commit -m x"
+expect deny "$tfrepo" 'bash -lc "git commit --no-verify -m x"'
+expect deny "$tfrepo" 'git --config-env core.hooksPath=HP commit -m x'
+expect ask "$tfrepo" 'LEFTHOOK=0 git commit -m x'
+expect ask "$tfrepo" 'HUSKY_SKIP_HOOKS=1 git commit -m x'
+# Heredocs: bodies are not commands, whatever their delimiter (not denied;
+# the loose reading still asks).
+expect ask "$tfrepo" "$(printf 'cat <<\\EOF > f\n- git commit -n\nEOF')"
+expect ask "$tfrepo" "$(printf 'git commit -F - <<-EOF\n\t- git commit -n\n\tEOF')"
+expect deny "$tfrepo" "$(printf 'cat <<<foo\ngit commit --no-verify -m x')"
+expect ask "$tfrepo" 'echo x # ; git commit -n'
+expect deny "$tfrepo" "echo \$'it\\'s' && git commit --no-verify -m x"
+# A possible skip never lowers a deny that follows.
+expect deny "$tfrepo" 'HUSKY=0 git push --force origin GT-000001-login'
+expect deny "$tfrepo" 'git commit -m "mention --no-verify" && git push --force origin GT-000001-login'
+expect deny "$tfrepo" "$(printf 'gh pr create --title t --body "Fixes things\ngit commit --no-verify was used"')"
+git -C "$tfrepo" checkout -q main
+expect ask "$tfrepo" 'HUSKY=0 git commit -m x'
+git -C "$tfrepo" checkout -q GT-000001-login
+expect deny "$tfrepo" 'git commit --no-verify -m x' "$nojq"
+expect pass "$tfrepo" 'git -c user.name=x commit -m x'
+expect ask "$tfrepo" 'git push -n origin GT-000001-login'
+git -C "$tfrepo" checkout -q main
+expect deny "$tfrepo" 'git commit --no-verify -m x'
+git -C "$tfrepo" checkout -q GT-000001-login
+expect pass "$plain" 'git commit --no-verify -m x'
+
+# Editing an existing check config in Implement asks; a new one does not.
+state="check config in Implement"
+printf '{}\n' > "$tfrepo/eslint.config.js"
+printf '{}\n' > "$tfrepo/tsconfig.json"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+expect_tool ask "$tfrepo" Write "{\"file_path\":\"tsconfig.json\"}"
+expect_tool pass "$tfrepo" Write "{\"file_path\":\"$tfrepo/.prettierrc\"}"
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/pyproject.toml\"}"
+expect_tool ask "$tfrepo" MultiEdit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+mkdir -p "$tfrepo/.husky" && printf 'x\n' > "$tfrepo/.husky/pre-commit" && printf 'x\n' > "$tfrepo/.eslintignore"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/.husky/pre-commit\"}"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/.eslintignore\"}"
+rm -rf "$tfrepo/.husky" "$tfrepo/.eslintignore"
+printf 'exit 1\n' > "$tfrepo/.git/hooks/pre-commit"
+expect_tool ask "$tfrepo" Write "{\"file_path\":\"$tfrepo/.git/hooks/pre-commit\"}"
+rm -f "$tfrepo/.git/hooks/pre-commit"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/.git/config\"}"
+printf '{}\n' > "$tmp/tsconfig.json"
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tmp/tsconfig.json\"}"
+# Another run before its Plan does not change this: configs ask, code passes.
+mkdir -p "$tfrepo/.tixforge/GT-000002"
+printf '| Field   | Value |\n|---|---|\n| Status  | approach:in-progress |\n| Branch  | — |\n' > "$tfrepo/.tixforge/GT-000002/state.md"
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/src/a.ts\"}"
+rm -rf "$tfrepo/.tixforge/GT-000002"
+set_state pr:in-progress
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+set_state review:in-progress
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+set_state plan:awaiting-approval
+expect_tool ask "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+git -C "$tfrepo" checkout -q main
+set_state implement:in-progress
+expect_tool pass "$tfrepo" Edit "{\"file_path\":\"$tfrepo/eslint.config.js\"}"
+git -C "$tfrepo" checkout -q GT-000001-login
+rm -f "$tfrepo/eslint.config.js" "$tfrepo/tsconfig.json"
+
+# A branch with no issue (a local ticket v2 left behind) needs no Closes line.
+state="v2 local ticket"
 mkdir -p "$tfrepo/.tixforge/LT-000003"
 printf '| Field   | Value |\n|---|---|\n| Status  | pr:awaiting-approval |\n| Branch  | LT-000003-x |\n| Base    | main |\n' > "$tfrepo/.tixforge/LT-000003/state.md"
 git -C "$tfrepo" checkout -q -b LT-000003-x

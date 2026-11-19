@@ -2,15 +2,18 @@
 
 チケット駆動でアプリ開発を回す Claude Code の plugin。チケットを作り、1 つのチケットを **Research → Approach → Plan → Implement → Review → PR** の 6 フェーズで実装から PR まで進める。進捗は 1 つのファイルに集約するので、どのフェーズで止めても後から再開できる。
 
-| スキル | 内容 |
+| コマンド | 内容 |
 |--------|------|
-| `/tixforge:project` | `init`：プロジェクトを tixforge で使える状態にする。`update`：設定を変える・チケット管理を切り替える・テンプレートを最新にする |
+| `/tixforge:project` | `init`：プロジェクトを tixforge で使える状態にする。`update`：設定を変える・v2 の LT を issue に移す・テンプレートを最新にする。`setup`：自分だけの言語・ゲートを決める |
 | `/tixforge:ticket` | `create`：チケットを対話で作る。`edit`：書き換える。`cancel`：キャンセル済みにする |
 | `/tixforge:dev` | `<id>`：6 フェーズで進める（再開も同じ）。`rewind <id>`：前のフェーズに戻す |
+| `/tixforge-panel` | 自分の PR とチケットを右側のパネルに出す（下記「パネル」） |
 
-典型的な流れ：`/tixforge:project init` → `/tixforge:ticket ログイン画面を作りたい` → `/tixforge:dev LT-000001`
+典型的な流れ：`/tixforge:project init` → `/tixforge:ticket ログイン画面を作りたい` → `/tixforge:dev GT-000001`
 
-どのスキルも明示起動専用（Claude が勝手に起動しない）。引数なしで起動すると、選択肢を出す。
+3 つのスキルは明示起動専用（Claude が勝手に起動しない）。引数なしで起動すると、選択肢を出す。`/tixforge-panel` はスキルではなく、plugin の mod のコマンド。
+
+**GitHub が必須**：チケットは GitHub issue に、変更は PR にする。GitHub を使わないなら tixforge v2 のまま使う。v2 から上げるときは下記「v2 からの移行」。
 
 ## 導入
 
@@ -21,15 +24,33 @@ claude plugin install tixforge@tixforge
 
 セッションの中なら `/plugin marketplace add kmjak/tixforge` → `/plugin install tixforge@tixforge`。次に起動するセッションから使える。更新は `claude plugin marketplace update tixforge` → `claude plugin update tixforge@tixforge`（`version` を上げたリリースだけが届く）。
 
-plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer`・`tixforge:quality-reviewer`）・hook 2 つ（下記「hook」）が入っている。個別に導入・登録するものは無い。
+plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer`・`tixforge:quality-reviewer`）・hook 2 つ（下記「hook」）・パネルの mod が入っている。個別に導入・登録するものは無い。
+
+## v2 からの移行
+
+**更新する前に**：GitHub を使わない（v2 で `host: none` だった）なら、v3 に上げずに v2 に留まる（導入の節の更新コマンドを実行しない）。v3 は GitHub が必須。
+
+導入の節の更新コマンド（`claude plugin marketplace update tixforge` → `claude plugin update tixforge@tixforge`）を実行し、新しいセッションを始めた後に、当てはまるものを上から順に行う。
+
+| すること | 対象 |
+|---|---|
+| `/tixforge:project update` で、LT のチケットを issue に移す。進行中の LT の run は、新しい GT の id で始め直す。済むまで update 以外のスキルは止まる（Actions の更新などは、もう一度 update を起動して行う） | `tracker: local` か `host: none` だった人で、GitHub を使う人 |
+| 進行中の run は続けられる。`/tixforge:dev <id>` で再開すると、state.md を「更新する」「run を消して最初から」「中断する」から選ぶよう聞かれる。「更新する」の後、v2 の `ticket.md` を `snapshot.md` に移してよいかも聞かれる。「run を消して最初から」でも、前のブランチと commit は残る（新しい run は別の名前のブランチを作る。要らなければ自分で消す） | 進行中の GT の run がある人 |
+| `/tixforge:project update` の「テンプレートと Actions を最新にする」で、コピーした workflow を上げる（上げないと v2 の閉じ方のまま。issue はリリースではなく develop へのマージで閉じる） | Actions を入れた人 |
+| `.tixforge/config.yml` の `repository.close_issues` を消す（Actions を先に上げてから。`/tixforge:project update` の「設定の値を変える」で尋ねる） | `close_issues` を書いていた人 |
+| 動きの変化を知る：develop へのマージでは issue は閉じず `tixforge:merged` になり、main に入ったときに閉じて `tixforge:done` になる（下記「issue が閉じる時点」） | develop 運用で、`close_issues: merge` だった人か、キーを書かずに `tixforge-issue-sync` を使っていた人 |
+| 任意：自分だけの言語・ゲートを `/tixforge:project setup` で決める。自分の PR とチケットを `/tixforge-panel` で横に出す | 全員 |
+
+`base_branch` が GitHub の default branch（main など）だった人は、issue が閉じる時点は変わらない。上の表の対象に当たらなければ、更新の後にすることは無い（残った `host`・`close_issues` のキーは読まれないだけで、`/tixforge:project update` の「設定の値を変える」で消せる）。
 
 ## 置き場所
 
 | パス | 内容 | git |
 |------|------|-----|
 | `.tixforge/config.yml` | 設定（下記） | 管理する（チームで共有） |
+| `.tixforge/config.local.yml` | 個人の `language`・`gates`（`/tixforge:project setup` が書く） | 管理しない |
 | `.tixforge/.gitignore` | `*`・`!.gitignore`・`!config.yml`。それ以外を git から外す（プロジェクトの `.gitignore` は触らない） | 管理する |
-| `.tixforge/<id>/ticket.md` | チケット（`LT-`：これが正本。`GT-`：issue の作業用コピー） | 管理しない |
+| `.tixforge/<id>/snapshot.md` | dev がチケットの issue から取った版（edit は `editing.md` で書き換え、書き戻したら消す） | 管理しない |
 | `.tixforge/<id>/state.md` | run の状態（Status・ブランチ・各フェーズの記録） | 管理しない |
 | `.tixforge/<id>/history/` | 前のフェーズに戻したときの古い記録 | 管理しない |
 | `docs/context/**` | サービス・ドメインの知識、commit 規約（`commit.md`） | 管理する |
@@ -39,29 +60,20 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 ## 設定（`.tixforge/config.yml`）
 
 ```yaml
-language: ja            # チケット・context・run の記録・PR を書く言語
+language: ja            # チケット・context・PR の本文・issue を書く言語（PR のタイトルは commit 規約に合わせる）。会話と run の記録の言語の既定
 commands:               # dev が検証で書いた順に実行する（無ければ {}）
   test: npm test
-  lint: npm run lint
-ticket:
-  tracker: github       # create が作るチケット：github（GT-。issue と連携）| local（LT-。手元のみ）
 repository:
-  host: github          # github（PR を出す）| none（ローカルでマージする）
-  base_branch: develop  # dev がブランチを切る元・PR の向き先
-  close_issues: release # base_branch が GitHub の default branch と違うとき：release | merge
-review:
-  required: true        # PR の Approve を必須にするか（1 人なら false）
+  base_branch: main     # dev がブランチを切る元・PR の向き先
 gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる）
 ```
 
-`/tixforge:project init` が全てのキーを書く。値を変えるのは `/tixforge:project update`。スクリプトはこの形（2 段までの入れ子・1 行 1 キー・`#` コメント）だけを読む。値は全体を `"…"` で囲むか、まったく囲まない。
+`/tixforge:project init` が答えのたびにキーを書き、終わった時点で全てのキーがそろう（途中で止まっても、再実行で続きから進む）。値を変えるのは `/tixforge:project update`。自分だけの `language`・`gates` は `/tixforge:project setup` で `.tixforge/config.local.yml` に書く（git に載らない）。全てのキーと意味・値・書き方は [`references/config.md`](references/config.md) にある。
 
 ## チケット
 
-- **id**：ローカルのチケットは `LT-000001`、GitHub issue のチケットは `GT-000123`（issue #123）。チケットの扱いは id の接頭辞で決まり、`ticket.tracker` は create が次にどちらを作るかだけを決める（切り替えても既存のチケットはそのまま使える）。
-- **入力**：`gt-000123`（大文字小文字は問わない）・`#123`（issue 番号）・`123`（`ticket.tracker` に従う）。接頭辞付きで桁数が違う id（`GT-00123`）はエラーにして、0 を補わない（打ち間違いで別のチケットを指さないため）。
+- **id**：`GT-000123`（issue #123）。`gt-000123`（大文字小文字は問わない）・`#123`・`123` でも指せる。桁数が違う id（`GT-00123`）はエラーになる（決まりの全体は `scripts/ticket-id.sh` の冒頭）。
 - **create**：中身はユーザーが書き、Claude は質問で引き出す（案を出すのは「考えて」と頼んだときだけ）。`/tixforge:ticket <作りたいもの>` のように文だけ渡してもよい。似たチケットがあれば示し、大きすぎれば分割を提案する。作った後は「開発を始める／別のチケットを作る／終わる」を選べる。
-- **ローカルのチケット（`LT-`）** は手元にしか無い（1 人・1 台で使う前提）。GitHub に PR を出すときは、受け入れ条件が PR 本文に転記される。public リポジトリで「コードは公開、計画は手元」にしたいときにも使える。
 - **既定と違うブランチから作る**チケット（hotfix など）は、チケットに `## Base` の節を書く。
 
 ## dev の 6 フェーズ
@@ -70,34 +82,28 @@ gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる�
 |---|----------|------|
 | 1 | Research | チケットと `docs/context/**` を読み、コードの調査は Explore agent に任せる。チケットの未決事項を 1 項目ずつ片付ける（何を作るかの決定はチケットに書き戻し、どう作るかの決定は Approach の表へ） |
 | 2 | Approach | 実装方針（選択肢・採用案・トレードオフ）を決めて合意する |
-| 3 | Plan | Base・ブランチ・**受け入れ条件 → 確かめ方の対応表**・commit 分割。確かめ方の種別（自動／Claude（ブラウザ）／Claude（API）／ユーザー）は項目ごとにユーザーが選ぶ。Plan は常に止まる |
+| 3 | Plan | Base・ブランチ・**受け入れ条件 → 確かめ方の対応表**・commit 分割。確かめ方の種別（自動／Claude（ブラウザ）／Claude（API）／ユーザー）は項目ごとにユーザーが選ぶ。Plan は常に止まる（承認の前に `/compact` してよい） |
 | 4 | Implement | 計画どおりに実装・commit し、検証コマンド（`verify.sh`）と手動確認を通す。context と矛盾しないかもここで確かめる |
 | 5 | Review | 2 つの reviewer agent を並列に起動する。`tixforge:reviewer` は合意とのズレ（相違・未実装・合意外の変更・決定の無い未決事項）、`tixforge:quality-reviewer` は品質を見る。2 ラウンド目からは前のラウンドからの差分と、直すと決めた指摘が直ったかを見る。指摘ごとに修正・計画の見直し・方針の見直し・受け入れをユーザーが選ぶ |
-| 6 | PR | 明示的な確認の後にだけ push して PR を出し、レビュー・CI を見届ける（tixforge はマージしない）。`host: none` では、確認の後に Base へローカルでマージする |
+| 6 | PR | 明示的な確認の後にだけ push して PR を出し、レビュー・CI を見届ける（tixforge はマージしない）。PR 本文に受け入れ条件と検証の結果を載せ、PR を出した後の修正のたびに検証の結果を PR にコメントする |
 
 - **ゲート**：`gates` にあるフェーズでは必ず止まる。無いフェーズは、止まる条件（未決事項・ユーザーの判断・対処が決まっていない指摘など）が無ければ自動で通過する。PR の前は常に止まる。止まった所が再開点になる。
 - **Status**：`<phase>:in-progress`・`<phase>:awaiting-approval`、PR 後は `pr:awaiting-review`・`pr:ready-to-merge`（Approve・CI・コンフリクトの条件を満たしマージ待ち）。`done` はマージされたときだけ。
-- **巻き戻し**：`/tixforge:dev rewind <id>`（または dev の最中に「Plan からやり直したい」と頼む）で、前のフェーズに戻す。後のフェーズの記録は `history/` に移る。ブランチに commit があれば、そのブランチの上で続けるか作り直すかを選ぶ。GitHub のチケットは、ここから他の人に渡せる（手放す）。
+- **巻き戻し**：`/tixforge:dev rewind <id>`（または dev の最中に「Plan からやり直したい」と頼む）で、前のフェーズに戻す。後のフェーズの記録は `history/` に移る。ブランチに commit があれば、そのブランチの上で続けるか作り直すかを選ぶ。チケットは、ここから他の人に渡せる（手放す）。
 
-## GitHub 連携（`GT-` のチケット）
+## GitHub 連携
 
 - issue が正本。チケットの全文と、tixforge が書いたことを確かめるハッシュを本文に載せる。本文とタイトルは GitHub 上で直接編集せず、`/tixforge:ticket edit` で変える（直接編集されると検知して、取り込むか尋ねる）。2 人が同時に edit しても、後から書き戻す人の古いコピーは拒否される。
 - GitHub の画面で作られた issue も、`/tixforge:ticket create #<番号>` で取り込める（`project init` で issue フォームを入れておくと、見出しがそろう）。
-- tixforge が投稿するコメントは、キャンセル・巻き戻し・手放すときの判断の記録と、クローズのときの一言だけ。コメントを編集・削除しない。
+- tixforge が issue に投稿するコメントは、キャンセル・巻き戻し・手放すときの判断の記録と、クローズのときの一言だけ（PR には、修正のたびに検証の結果をコメントする）。コメントを編集・削除しない。
 
-| ラベル | 意味 |
-|--------|------|
-| `tixforge:todo` | 誰もまだ着手していない |
-| `tixforge:in-progress` | dev を進めている（assignee が担当） |
-| `tixforge:in-review` | PR のレビュー・マージ待ち |
-| `tixforge:merged` | Base（develop など）にマージ済み・リリース待ち |
-| `tixforge:done` | 完了 |
-| `tixforge:canceled` | キャンセル済み |
-| `tixforge:out-of-sync` | GitHub 上で本文かタイトルが直接編集された |
+状態ラベル（`tixforge:todo`・`in-progress`・`in-review`・`merged`・`done`・`canceled`）は常に 1 つだけ付く。それぞれの意味は、GitHub のラベルの説明（`project init` がドキュメント言語で作る。すでにあるラベルの説明は変えない）にある。直接編集を知らせる `tixforge:out-of-sync` は、状態とは別に付く。
 
-状態ラベルは常に 1 つだけ付く。
+**issue が閉じる時点**：issue はリリースされたとき（GitHub の default branch に入ったとき）に閉じる。Base が default branch なら、PR のマージで閉じる。develop などの場合は、develop にマージした時点では開いたまま `tixforge:merged` になり、main に入った時点で閉じる。Actions の `tixforge-issue-sync` を入れていれば、リリース PR のマージで（squash の設定に関係なく）閉じて `tixforge:done` になる。入れていなければ、最初の commit の `Closes #N` が main に入ったときに GitHub が閉じる（squash でそれが消えると閉じない。ラベルは `tixforge:merged` のまま）。リリースでは、commit を develop に入れた PR の本文まで読むことがあるので、commit が数百を超えると API の呼び出しの上限に当たることがある。
 
-**issue が閉じる時点**：Base が GitHub の default branch なら、PR のマージで閉じる。develop などの場合は `repository.close_issues` で選ぶ：`release` なら、develop にマージした時点では開いたまま `tixforge:merged` になり、main に入った時点（最初の commit の `Closes #N` により GitHub が閉じる）で `tixforge:done`。`merge` なら develop へのマージで閉じる（Actions の `tixforge-issue-sync` が必要）。
+**PR 本文の `Closes #N`**：PR 本文には `Closes #<番号>` が必須。guard（PR 作成のとき）・`tixforge-pr-link`（サーバー側）・dev の PR フェーズ（作成後）の 3 段で確かめる。本文の決まりは [`references/github/pr.md`](references/github/pr.md)。
+
+**2 つの「done」**：run の `Status: done` は Base にマージされた（開発者の作業が終わった）こと、issue の `tixforge:done` はリリースされた（世に出た）こと。develop 運用では、この 2 つの時点がずれるのが正しい動き。
 
 **Actions**（`project init` で任意に入れる。雛形は `templates/github/`）：
 
@@ -115,19 +121,14 @@ plugin を有効にしていれば、スキルを起動していないセッシ�
 
 | hook | イベント | 内容 |
 |------|----------|------|
-| `scripts/guard.sh` | PreToolUse（`Bash\|Edit\|Write\|MultiEdit\|NotebookEdit\|mcp__.*`） | push・PR 作成・許可リスト外の git / gh 操作に確認画面を出し、force push と `Closes` の無い PR をブロックする。Plan の承認前の run があるときのコード編集にも確認画面を出す |
+| `scripts/guard.sh` | PreToolUse（`Bash\|Edit\|Write\|MultiEdit\|NotebookEdit` と、名前に git を含む MCP） | push・PR 作成・許可リスト外の git / gh 操作に確認画面を出し、force push・hook を飛ばす操作・`Closes` の無い PR をブロックする。Plan の承認前の run があるときのコード編集と、Implement 中の lint などの設定の編集にも確認画面を出す |
 | `scripts/session-start.sh` | SessionStart（`compact\|resume`） | 会話の要約・再開の後、進行中の run と、読み直す手順ファイルを Claude に伝える |
 
-`guard.sh` の判定：
+`guard.sh` が止めるもの（判定の全体は `scripts/guard.sh` の冒頭）：
 
-| 場所 | 判定 | 対象 |
-|------|------|------|
-| run のブランチ・進行中の run の Base | **deny** | force push（`-f`・`--force-with-lease`・`+refspec`、`bash -c`・`eval` 経由も）。必要ならユーザーが `! git push --force-with-lease` で自分で実行する |
-| `GT-` の run のブランチ | **deny** | 本文に `Closes #<番号>` の無い `gh pr create` |
-| run のブランチ | **ask** | それ以外のすべての push・PR 作成（確認画面に Status・ブランチ・Base・PR の状況が出る） |
-| run のブランチ・進行中の run の Base | **ask** | 許可リストに無い git / gh 操作（merge・rebase・reset・cherry-pick・clean・`commit --amend`・`branch -D`・`switch -f`・`checkout -B`・`fetch +refspec`・`gh pr merge`・書き込みの `gh api` など）と、GitHub / git の MCP ツールの読み取り以外 |
-| 進行中の run の Base | **ask** | Base への commit・push |
-| Plan の承認前の run があるとき | **ask** | `docs/`・`.tixforge/` 以外のファイルへの Edit / Write（Implement 以降の run のブランチの上では出さない） |
+- **拒否**：run のブランチと進行中の run の Base での force push と、git の hook を飛ばす commit・push など（`HUSKY=0`・`SKIP=` などの道具ごとの変数は確認画面）。`Closes #<番号>` の無い PR 作成。本当に必要なら、ユーザーが `!` で自分で実行する（例：`! git push --force-with-lease`）。
+- **確認画面**：それ以外の push・PR 作成（Status・ブランチ・Base・PR の状況が出る）、許可リストに無い git / gh 操作（merge・rebase・reset・`gh pr merge` など。dev が修正のたびに投稿する `gh pr comment` も）と GitHub / git の MCP の書き込み、Base への commit。
+- **確認画面**：Plan の承認前の run があるときの `docs/`・`.tixforge/` 以外の編集（Implement 以降の run のブランチの上では出さない）。Implement 中・`pr:in-progress` の run のブランチでの、lint・formatter・型チェック・git hook の設定ファイルの編集。
 
 - `permissionDecision: "ask"` は、`permissions.allow` に `git push` を入れていても、auto モードでも確認画面を出す。
 - 検知はあえて広めにしている（引用符を外して `git` と `push` の組み合わせを拾うなど）。誤検知しても確認画面が出るだけ。commit メッセージに「push -f」と書いただけならブロックしない（確認画面に注記が付く）。
@@ -138,10 +139,12 @@ plugin を有効にしていれば、スキルを起動していないセッシ�
 Claude Code の画面の下に、今いる場所の run と Status を出せる（任意。plugin を入れただけでは出ない）。
 
 ```
-LT-000001 · plan:awaiting-approval
+GT-000001 · plan:awaiting-approval
 ```
 
 今のブランチの run を出す。どの run のブランチでもなければ、Plan の承認前の run（まだブランチが無い）を出し、複数あれば先頭の 1 つに `(+<残りの数>)` を付ける。run が無い場所では何も出さない。
+
+下の例のパスは marketplace の clone（`~/.claude/plugins/marketplaces/tixforge`）を指す。インストールした版の置き場所（`~/.claude/plugins/cache/tixforge/tixforge/<version>`）は更新のたびに変わるので使わない。clone は `claude plugin marketplace update tixforge` のときに最新の main になり、インストールした版より新しいことがある（statusline.sh は state.md を読むだけなので、ずれても困らない）。
 
 statusline を使っていなければ、`~/.claude/settings.json` に足す：
 
@@ -159,6 +162,15 @@ input=$(cat)
 tf=$(printf '%s' "$input" | bash ~/.claude/plugins/marketplaces/tixforge/scripts/statusline.sh)
 ```
 
+## パネル（`/tixforge-panel`）
+
+`/tixforge-panel` で、自分の open の PR（`pr-status.sh` と同じ判定）と、tixforge の状態ラベルが付いた open のチケット（自分の担当 → 未割り当て → 他の人の順、`●` が自分の担当）を右側のパネルに出す。もう一度打つと閉じる。
+
+- チケットを押すと詳細を取り直して出し、`tixforge:todo` で未割り当てか自分の担当なら **開始** で `/tixforge:dev <id>` を送る（作業中なら、手が空いてから始まる）。
+- 開いている間は 3 分ごとに取り直す。**更新** ですぐ取り直す。閉じている間は取らない。区画の開閉は次のセッションにも残る。
+- Claude Code の mod（plugin の `hooks/panel.tsx`）で出す。mod が使える Claude Code が要る（2.1.327 の `claude plugin test` で確かめた）。mod が使えない環境（`claude -p` など）や、端末が狭いとき（110 列未満）は横に並ばない。
+- コマンド名に `:` を使えないので、`/tixforge:panel` ではなく `/tixforge-panel`。
+
 ## 困ったとき
 
 - **run の状態ファイルが壊れた**：`.tixforge/<id>/state.md` を消せば、`/tixforge:dev <id>` で最初から始まる（チケットは残る）。
@@ -167,21 +179,7 @@ tf=$(printf '%s' "$input" | bash ~/.claude/plugins/marketplaces/tixforge/scripts
 
 ## tixforge 自体を開発する
 
-```sh
-brew install shellcheck shfmt actionlint zizmor editorconfig-checker jq   # 初回だけ
-git config blame.ignoreRevsFile .git-blame-ignore-revs   # 初回だけ。整形だけの commit を blame から外す
-claude --plugin-dir .                     # 作業ツリーをそのまま読み込む
-make check                                # PR の前に。lint・テスト・macOS の bash 3.2 でのテスト・claude plugin validate
-make fmt                                  # shfmt で整形（設定は .editorconfig）
-```
-
-- CI（`.github/workflows/test.yml`）は、どの変更でも lint と 4 つのテストを、gawk・mawk・macOS（bash 3.2 と BWK awk）で回す。ブランチルールで必須にするのは `result` だけ。
-
-- `skills/<名前>/SKILL.md` が起動時に読まれ、共通規約（`references/common.md`）を `scripts/common-rules.sh` で差し込む。手順は `skills/<名前>/*.md` と `references/github/*.md` に分け、使う場面で読む。
-- 結果が 1 つに決まる処理は `scripts/` に置き、テストで確かめる（gh はスタブに置き換える。`scripts.test.sh` には jq が要る。`json-get.test.sh` は jq があれば、guard が hook の入力を読む `json_get` を jq の結果とも突き合わせる）。
-- スクリプトの中で、`$var` の直後に全角文字を続けない（`${var}` と書く）。テストが検出する。
-- **リリース**：`.claude-plugin/plugin.json` の `version` を上げたものが、利用者に届く新しい版になる。version は release-please が管理する（`.github/workflows/release-please.yml`）。PR は squash でマージし、タイトルを Conventional Commits（`feat:`・`fix:` など）で書く。main に入るたびに、次の version と `CHANGELOG.md` を書き換えるリリース PR が更新され、それをマージすると `tixforge--v<version>` のタグ・GitHub Release・Discord 通知ができる。種類の選び方は `CLAUDE.md`。
-- **テンプレート**：`templates/github/` を変えたら、先頭のコメントの版数（`(v3)` など）を上げる。`/tixforge:project update` はこれで更新の有無を判断する。
+準備・構成・ルールは [CLAUDE.md](CLAUDE.md) にある。
 
 ## License
 

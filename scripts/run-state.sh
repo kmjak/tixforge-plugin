@@ -2,21 +2,32 @@
 # The tixforge run state file, .tixforge/<id>/state.md: creates it and reads
 # or writes its header table. Sections are written by Claude with Edit; this
 # script owns the header so Status and Updated never drift apart. The ticket
-# is .tixforge/<id>/ticket.md and a GT id carries its issue number, so the
+# is .tixforge/<id>/snapshot.md and a GT id carries its issue number, so the
 # header does not repeat them.
 #
 #   run-state.sh init <id>                   create state.md (Status research:in-progress)
 #   run-state.sh get <id> [field]            print a header field (default Status)
 #   run-state.sh set <id> <field> <value>    set Status / Branch / Base; also sets Updated
+#   run-state.sh statuses                    every valid Status, one per line
 #   run-state.sh list                        "<id>\t<Status>\t<Branch>" for every run
 #   run-state.sh rewind <id> <phase> [--keep-log] [--reason <text>]
 #                                            go back to research / approach / plan / implement
+#   run-state.sh migrate [--check] <id>      bring state.md to the current format
+#
+# The Format row of the header is the version of the file's layout (none:
+# 2, what v2 wrote). init writes the current one; migrate moves an older
+# file up, and --check only prints what it would change (nothing when the
+# file is current, or when the run is done or canceled: it goes no further,
+# so it needs no change). Only init and migrate write Format. Raise
+# STATE_FORMAT, and teach migrate the step, whenever a change makes the old
+# layout wrong.
 #
 # rewind moves the sections of the target phase and every later phase into
 # .tixforge/<id>/history/<time>.md (so they are not read as approved any
 # more, but can be looked up), leaves them empty in state.md, puts
-# "> 巻き戻し（<time>）：<reason>" under the target section, and sets Status
-# to <phase>:in-progress. Going back to implement keeps the Implementation
+# "> <rewind_note>" (scripts/messages.yml, in this person's language; line
+# breaks in the reason become spaces) under the target section, and sets
+# Status to <phase>:in-progress. Going back to implement keeps the Implementation
 # Log (the commits are still there) and moves Review and PR. --keep-log
 # keeps the Implementation Log too when going back further (the work goes
 # on on the same branch). Prints the history file. Refuses a done or
@@ -26,7 +37,8 @@
 # with their section.
 #
 # Exit: 0 ok, 1 no such run, 2 usage or invalid value (a phase after the
-#       current one, too), 3 run already exists, 4 the run is done or canceled.
+#       current one, too), 3 run already exists, 4 the run is done or canceled,
+#       5 the file is in a newer format than this tixforge knows.
 set -uo pipefail
 # shellcheck source=SCRIPTDIR/lib.sh
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -39,17 +51,20 @@ usage() {
 top=$(tf_top)
 sfile() { state_file "$1" "$top"; }
 
+# Every Status a run can have, in phase order (statuses prints them). The
+# meaning of each is in skills/dev/run.md ("Status のフォーマット").
+STATUSES="research:in-progress research:awaiting-approval
+approach:in-progress approach:awaiting-approval
+plan:in-progress plan:awaiting-approval
+implement:in-progress implement:awaiting-approval
+review:in-progress review:awaiting-approval
+pr:in-progress pr:awaiting-approval pr:awaiting-review pr:ready-to-merge
+done canceled"
 valid_status() {
-  case "$1" in
-    research:in-progress | research:awaiting-approval) ;;
-    approach:in-progress | approach:awaiting-approval) ;;
-    plan:in-progress | plan:awaiting-approval) ;;
-    implement:in-progress | implement:awaiting-approval) ;;
-    review:in-progress | review:awaiting-approval) ;;
-    pr:in-progress | pr:awaiting-approval | pr:awaiting-review | pr:ready-to-merge) ;;
-    done | canceled) ;;
-    *) return 1 ;;
-  esac
+  local v
+  [ -n "$1" ] || return 1
+  for v in $STATUSES; do [ "$v" = "$1" ] && return 0; done
+  return 1
 }
 
 # put <file> <field> <value>: rewrite one row of the header table.
@@ -69,16 +84,46 @@ put() {
   rm -f "$tmp"
 }
 
-# The empty placeholders of the sections (STATE_SECTIONS in lib.sh).
-placeholder() {
-  case "$1" in
-    Research) echo '<!-- Phase 1: organized understanding of the ticket + relevant context -->' ;;
-    Approach) echo '<!-- Phase 2: chosen implementation approach and key design decisions -->' ;;
-    Plan) echo '<!-- Phase 3: branch, base, acceptance criteria -> verification table, ordered commits -->' ;;
-    'Implementation Log') echo '<!-- Phase 4: commits, verification results, manual checks, notable decisions -->' ;;
-    Review) echo '<!-- Phase 5: reviewer findings as rounds, with recommendations and decisions -->' ;;
-    PR) echo '<!-- Phase 6: title, target branch, URL, review outcome -->' ;;
-  esac
+STATE_FORMAT=3
+
+# The comments v2 wrote under each empty section (format 2). migrate removes
+# exactly these lines; any other comment is the user's.
+V2_PLACEHOLDERS='<!-- Phase 1: organized understanding of the ticket + relevant context -->
+<!-- Phase 2: chosen implementation approach and key design decisions -->
+<!-- Phase 3: branch, base, acceptance criteria -> verification table, ordered commits -->
+<!-- Phase 4: commits, verification results, manual checks, notable decisions -->
+<!-- Phase 5: reviewer findings as rounds, with recommendations and decisions -->
+<!-- Phase 6: title, target branch, URL, review outcome -->'
+
+# format_of <file>: the Format row of the header table, or 2 when there is
+# none. Only the first table is read: a section may have a table of its own
+# with a Format row.
+format_of() {
+  local v
+  v=$(awk -F'|' '/^\|/ { t = 1; key = $2; gsub(/^[ \t]+|[ \t]+$/, "", key)
+      if (key == "Format") { v = $3; gsub(/^[ \t]+|[ \t]+$/, "", v); print v; exit }
+      next }
+    t { exit }' "$1")
+  printf '%s\n' "${v:-2}"
+}
+
+# v2_step <file> <count|write>: count the v2 placeholders outside fences, or
+# print the file without them and with a Format row after the header table.
+v2_step() {
+  RS_PH=$V2_PLACEHOLDERS awk -v mode="$2" -v fmt="$STATE_FORMAT" "$_section_awk"'
+    BEGIN { n = split(ENVIRON["RS_PH"], p, "\n"); for (i = 1; i <= n; i++) ph[p[i]] = 1 }
+    {
+      line = $0; sub(/\r$/, "", line)
+      heading_index($0)
+      if (_fence == "" && line in ph) { found++; next }
+      if (mode == "write" && !added && intable && line !~ /^\|/) { printf "| %-7s | %-34s |\n", "Format", fmt; added = 1 }
+      if (line ~ /^\|/) intable = 1
+      if (mode == "write") print
+    }
+    END {
+      if (mode == "count") print found + 0
+      else if (!added) printf "| %-7s | %-34s |\n", "Format", fmt
+    }' "$1"
 }
 
 cmd=${1:-}
@@ -102,27 +147,11 @@ case $cmd in
       printf '| %-7s | %-34s |\n' Field Value
       printf '|---------|------------------------------------|\n'
       printf '| %-7s | %-34s |\n' Status research:in-progress \
-        Branch — Base — Updated "$(tf_now)"
-      cat << 'EOF'
-
-## Research
-<!-- Phase 1: organized understanding of the ticket + relevant context -->
-
-## Approach
-<!-- Phase 2: chosen implementation approach and key design decisions -->
-
-## Plan
-<!-- Phase 3: branch, base, acceptance criteria -> verification table, ordered commits -->
-
-## Implementation Log
-<!-- Phase 4: commits, verification results, manual checks, notable decisions -->
-
-## Review
-<!-- Phase 5: reviewer findings as rounds, with recommendations and decisions -->
-
-## PR
-<!-- Phase 6: title, target branch, URL, review outcome -->
-EOF
+        Branch — Base — Updated "$(tf_now)" Format "$STATE_FORMAT"
+      old_ifs=$IFS
+      IFS='|'
+      for sec in $STATE_SECTIONS; do printf '\n## %s\n' "$sec"; done
+      IFS=$old_ifs
     } > "$f"
     printf '%s\n' "${f#$top/}"
     ;;
@@ -232,13 +261,11 @@ EOF
     # Implementation Log (4) with --keep-log. Text goes in through ENVIRON:
     # awk -v would turn the \t of C:\temp into a tab.
     RW_HIST=$hist RW_HEAD="# Rewound to $phase ($now)" RW_WAS="Status before: $before" \
-      RW_WHY=$reason RW_NOTE="> 巻き戻し（${now}）：${reason}" \
+      RW_WHY=$reason RW_NOTE="> $(msg_fill rewind_note "$(user_lang "$top")" time "$now" reason "$(printf '%s' "$reason" | tr -s '\r\n' '  ')")" \
       awk -v from="$from" -v keep="$keep" -v target="$target" \
-      -v ph1="$(placeholder Research)" -v ph2="$(placeholder Approach)" -v ph3="$(placeholder Plan)" \
-      -v ph4="$(placeholder 'Implementation Log')" -v ph5="$(placeholder Review)" -v ph6="$(placeholder PR)" "$_section_awk"'
+      "$_section_awk"'
       BEGIN {
         hist = ENVIRON["RW_HIST"]; why = ENVIRON["RW_WHY"]
-        ph[1] = ph1; ph[2] = ph2; ph[3] = ph3; ph[4] = ph4; ph[5] = ph5; ph[6] = ph6
         print ENVIRON["RW_HEAD"] > hist; print "" > hist; print ENVIRON["RW_WAS"] > hist
         if (why != "") print "Reason: " why > hist
       }
@@ -247,7 +274,7 @@ EOF
         moving = cur >= from && !(cur == 4 && keep != "")
         print
         if (cur == target + 0 && why != "") print ENVIRON["RW_NOTE"]
-        if (moving) { print "" > hist; print $0 > hist; print ph[cur]; print "" }
+        if (moving) { print "" > hist; print $0 > hist; print "" }
         next
       }
       moving { print > hist; next }
@@ -261,13 +288,50 @@ EOF
     put "$f" Updated "$now"
     printf '%s\n' "${hist#$top/}"
     ;;
+  migrate)
+    check=""
+    [ "${1:-}" = --check ] && check=1 && shift
+    [ $# -eq 1 ] || usage
+    f=$(sfile "$1")
+    [ -f "$f" ] || {
+      echo "no run: $1" >&2
+      exit 1
+    }
+    from=$(format_of "$f")
+    case $from in '' | *[!0-9]*)
+      echo "invalid Format in ${f#$top/}: $from" >&2
+      exit 2
+      ;;
+    esac
+    [ "$from" -gt "$STATE_FORMAT" ] && {
+      echo "${f#$top/} is format $from, newer than this tixforge ($STATE_FORMAT): update the plugin" >&2
+      exit 5
+    }
+    [ "$from" -eq "$STATE_FORMAT" ] && exit 0
+    # Format 2 -> 3 is the only step so far.
+    if [ -n "$check" ]; then
+      case $(field "$f" Status) in done | canceled) exit 0 ;; esac
+      printf 'format %s -> %s\n' "$from" "$STATE_FORMAT"
+      n=$(v2_step "$f" count)
+      [ "$n" -gt 0 ] && printf -- '- remove the placeholder comments (%s)\n' "$n"
+      printf -- '- add the Format row\n'
+      exit 0
+    fi
+    tmp=$(mktemp) || exit 1
+    v2_step "$f" write > "$tmp" || {
+      rm -f "$tmp"
+      exit 1
+    }
+    cat "$tmp" > "$f"
+    rm -f "$tmp"
+    printf 'format %s -> %s: %s\n' "$from" "$STATE_FORMAT" "${f#$top/}"
+    ;;
+  statuses)
+    [ $# -eq 0 ] || usage
+    for v in $STATUSES; do printf '%s\n' "$v"; done
+    ;;
   list)
-    for f in "$(tf_dir "$top")"/*/state.md; do
-      [ -f "$f" ] || continue
-      id=${f%/state.md}
-      id=${id##*/}
-      printf '%s\t%s\t%s\n' "$id" "$(field "$f" Status)" "$(field "$f" Branch)"
-    done
+    each_run "$top" | tr "$RUN_SEP" '\t' | cut -f1-3
     ;;
   *) usage ;;
 esac
