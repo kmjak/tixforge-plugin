@@ -101,7 +101,9 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
 
 目的：方針を具体的なブランチ・確かめ方・commit 計画に落とす。
 
-0. **Approach を自動で通過していたら**（`## Approach` の末尾が `gate_auto_pass` の行）、Plan を始める前に採用案を 1〜2 行でユーザーに示す（方針を確かめる最初の機会になるため。確かめ方を尋ねる前に方針が分かるようにする）。Plan の途中やゲートで、方針（採用案）を変える意見が来たら、`## Plan` だけを直さずに `rewind.md` を Read し、その手順で Approach に戻る（Review の「方針の見直し」と同じ）。
+0. **Approach を自動で通過していたら**（`## Approach` の末尾が、`> ` に続く `<scripts>/messages.yml` の `gate_auto_pass` の行。どの言語の行でもよい）、Plan を始める前に採用案を 1〜2 行でユーザーに示す（方針を確かめる最初の機会になるため。確かめ方を尋ねる前に方針が分かるようにする）。方針（採用案）を変える意見が来たら：
+   - `## Plan` にまだ何も書いていない → Approach のゲートへのフィードバックとして扱う（まだ合意していない案なので、巻き戻しにしない）。`bash <scripts>/run-state.sh set <ticket-id> Status approach:in-progress` にし、`## Approach` を書き直して自動通過の行を消し、Approach のゲートで止まる（ユーザーの判断が入ったので、`gates` に無くても止まる）。
+   - `## Plan` に書いた後（Plan のゲートを含む） → `## Plan` だけを直さずに `rewind.md` を Read し、その手順で Approach に戻る。
 1. **Base**（分岐元であり PR の向き先）を決める。優先順位：ユーザーがこの Plan で指定したもの ＞ チケットの `## Base` の節 ＞ `repository.base_branch` ＞ `git symbolic-ref --short refs/remotes/origin/HEAD` の `origin/` を除いたもの。そのブランチがリモートに今も存在するか確かめ、無ければ尋ねる。
 2. **ブランチ**：`<ticket-id>-<slug>`。slug は英小文字・数字・ハイフンだけにする（ドキュメント言語が日本語でも英語で書く）。その名前のブランチが無いことを、ローカル（`git show-ref`）とリモート（`git ls-remote --heads origin`）の両方で確かめる。あって、ヘッダの `Branch` でない（巻き戻しで残した古いブランチなど）場合は、別の名前（例：末尾に `-2`）にする。
 3. **受け入れ条件 → 確かめ方の対応表**を作る。チケットの受け入れ条件の**全項目**に 1 行ずつ、何で・誰が確かめるかを決める。
