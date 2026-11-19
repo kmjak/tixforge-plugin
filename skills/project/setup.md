@@ -16,7 +16,7 @@
 3. 何を変えるかを AskUserQuestion で尋ねる：language・gates・両方・個人の設定を消す（チームの設定に戻す）。選ばなかったキーは今の値のまま残す。
 4. 変えるキーを、1 つずつ AskUserQuestion で尋ねる。最初の選択肢は「チームの設定のままにする（<config.yml の値。キーが無ければ references/config.md の既定値>）」。チームの値と同じ選択肢は出さない。
    - **language**（会話・`state.md`・reviewer の報告の言語）：チームの設定のまま・日本語（`ja`）・English（`en`）（その他は自由入力。書く値は `ja`・`en` などの言語コードか言語名）
-   - **gates**（必ず止まるゲート）：チームの設定のまま・`[approach, plan, pr]`・`[plan, pr]`・`[]`（`pr` は書かなくても必ず止まる。その他は自由入力。`references/config.md` の `gates` の値にない名前が入ったら尋ね直す）
+   - **gates**（必ず止まるゲート）：チームの設定のまま・`[plan, pr]`・`[approach, plan, pr]`・`[]`（`pr` は書かなくても必ず止まる。その他は自由入力。`references/config.md` の `gates` の値にない名前が入ったら尋ね直す）
 
 ## Phase 3 — 書く（ゲート）
 
