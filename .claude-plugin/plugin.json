@@ -1,6 +1,6 @@
 {
   "name": "tixforge",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "チケット駆動でアプリ開発を回す tixforge（GitHub issue と PR）。/tixforge:project（init・update・setup）・/tixforge:ticket（create・edit・cancel）・/tixforge:dev（6 フェーズの開発・rewind）・/tixforge-panel（PR とチケットのパネル）。Review 用の agent 2 つと、push・PR・hook を飛ばす操作などを確認・拒否する hook を同梱する。",
   "author": {
     "name": "kmjak"
