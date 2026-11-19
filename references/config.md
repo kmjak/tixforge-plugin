@@ -20,7 +20,7 @@ gates: [approach, plan, pr]  # 必ず止まるゲート
 | キー | 意味 | 値 | 決める手順（init） | 無いとき | 読むもの |
 |---|---|---|---|---|---|
 | `repository.base_branch` | dev がブランチを切る元で、PR の向き先 | ブランチ名 | 「ブランチ運用」（新しいリポジトリなら「main だけ」か「main + develop」、既存なら GitHub の default branch か、develop などのどちらか） | 「init が途中」と出て、init 以外は止まる | dev の Plan（Base の既定値）、ticket の create、init の「CI」（`tixforge-ci.yml` に埋める） |
-| `language` | ドキュメント言語（チケット・`docs/context/**`・PR・issue）。個人の設定に `language` が無ければ、会話と `state.md` の言語にもなる | `ja`・`en`・その他の言語名（`ja`・`en` 以外は、スクリプトが書く決まった文言が英語になる） | 「ドキュメント言語」 | 日本語（`ja`） | 共通規約、`msg`（`templates/github/tixforge/messages.yml`。`issue-label.sh setup` など）、`verify.sh`・`run-state.sh rewind`（`user_lang`。個人の設定が優先）、`tixforge-pr-link.yml`・`tixforge-issue-guard.yml` |
+| `language` | ドキュメント言語（チケット・`docs/context/**`・PR の本文・issue。PR のタイトルは commit の件名と同じ決まり）。個人の設定に `language` が無ければ、会話と `state.md` の言語にもなる | `ja`・`en`・その他の言語名（`ja`・`en` 以外は、スクリプトが書く決まった文言が英語になる） | 「ドキュメント言語」 | 日本語（`ja`） | 共通規約、`msg`（`templates/github/tixforge/messages.yml`。`issue-label.sh setup` など）、`verify.sh`・`run-state.sh rewind`（`user_lang`。個人の設定が優先）、`tixforge-pr-link.yml`・`tixforge-issue-guard.yml` |
 | `commands` | dev の検証で実行するコマンド。名前: コマンド | 1 行 1 つ。無ければ `{}` | 「検証コマンド」（`package.json`・`Makefile` などから候補を作って確かめる） | 「init が途中」と出て、init 以外は止まる（`verify.sh` も終了コード 3 で止まる） | `verify.sh`、init の「CI」（`tixforge-ci.yml` に埋める） |
 | `ticket.tracker` | チケットの置き場 | `github` | 「チケット管理」（尋ねずに書く） | 「init が途中」と出て、init 以外は止まる | `project-status.sh`（v2 の `local` を見つける。`repository.base_branch`・`commands` と合わせて、無ければ「init が途中」と出す） |
 | `review.required` | PR の Approve を必須にするか | `true`・`false`（1 人なら `false`。GitHub では自分の PR を Approve できない） | 「レビューの要否」（「開発の人数」の答え） | `true` | dev の PR（`pr-status.sh` の判定と合わせる） |

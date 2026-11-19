@@ -34,5 +34,5 @@
 
 - **着手できるチケット**（dev の候補）：`gh issue list --state open --label tixforge:todo --limit 100 --json number,title`。
 - **開いているチケット**（edit の候補）：`gh issue list --state open --limit 100 --json number,title,labels` のうち、`tixforge:` で始まるラベルがあるもの。
-- **似たチケット**（create）：タイトルの主な名詞を 1〜3 語選び（日本語は文にせず、2〜4 文字の名詞にする）、1 語ずつ `gh issue list --state open --search "<語> in:title" --limit 100 --json number,title` で探して結果を合わせる（最大 3 回）。
+- **似たチケット**（create）：タイトルの主な名詞を 1〜3 語選び（日本語は文にせず、2〜4 文字の名詞にする。例：「完了したTODOをまとめて消したい」なら「完了」「削除」）、1 語ずつ `gh issue list --state open --search "<語> in:title" --limit 100 --json number,title` で探して結果を合わせる（最大 3 回）。
 - 番号は `bash <scripts>/ticket-id.sh normalize '#<番号>'` で id にして示す。

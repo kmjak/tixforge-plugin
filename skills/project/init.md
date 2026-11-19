@@ -155,5 +155,5 @@
     - 新しく作ったリポジトリで context を自分で書く場合も、上のとおり今 commit する（書き終えた後の変更は、ユーザーが別に commit する）。
     - **main + develop を選んだ場合**：commit の後に `git branch develop`。
     - 「リポジトリを作る場合」で「push する」を選んだ場合は、commit の後に push する（main + develop なら `git push -u origin main develop`、それ以外は `git push -u origin <base_branch>`。実行前にコマンドを示して確認を得る）。「push しない」を選んだ場合は push しない。
-    - それ以外なら、commit（と develop の作成）の後に、`git ls-remote --heads origin` でリモートに `base_branch`（main + develop なら main も）があるか確かめる。無いものがあれば、push するか尋ねる（`git push -u origin <無いブランチ…>` を示して確認を得てから行う）。あっても、`base_branch` に直接 commit したなら、`git push origin <base_branch>` を示して push するか尋ねる（push しないと、dev が `origin/<Base>` から切るブランチに init の commit が入らず、設定のファイルが作業ツリーから消える。他のメンバーにも届かない）。無いままだと、dev の Plan（Base がリモートにあるかの確認）と Implement（`git fetch origin <Base>`）で止まる。
+    - それ以外なら、commit（と develop の作成）の後に、`git ls-remote --heads origin` でリモートに `base_branch`（main + develop なら main も）があるか確かめる。無いものがあれば、push するか尋ねる（`git push -u origin <無いブランチ…>` を示して確認を得てから行う。無いままだと、dev の Plan（Base がリモートにあるかの確認）と Implement（`git fetch origin <Base>`）で止まる）。あっても、`base_branch` に直接 commit したなら、`git push origin <base_branch>` を示して push するか尋ねる（push しないと、dev が `origin/<Base>` から切るブランチに init の commit が入らず、設定のファイルが作業ツリーから消える。他のメンバーにも届かない）。push が拒否されたら（リモートが先に進んでいる）force せず、状況を示して止まる。
 19. 次の一手として `/tixforge:ticket create` を案内する。

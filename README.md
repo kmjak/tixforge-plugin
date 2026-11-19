@@ -58,7 +58,7 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 ## 設定（`.tixforge/config.yml`）
 
 ```yaml
-language: ja            # チケット・context・PR・issue を書く言語。会話と run の記録の言語の既定
+language: ja            # チケット・context・PR の本文・issue を書く言語（PR のタイトルは commit 規約に合わせる）。会話と run の記録の言語の既定
 commands:               # dev が検証で書いた順に実行する（無ければ {}）
   test: npm test
 repository:
