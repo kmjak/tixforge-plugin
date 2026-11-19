@@ -4,15 +4,16 @@
 
 | スキル | 内容 |
 |--------|------|
-| `/tixforge:project` | `init`：プロジェクトを tixforge で使える状態にする。`update`：設定を変える・v2 の LT を issue に移す・テンプレートを最新にする |
+| `/tixforge:project` | `init`：プロジェクトを tixforge で使える状態にする。`update`：設定を変える・v2 の LT を issue に移す・テンプレートを最新にする。`setup`：自分だけの言語・ゲートを決める |
 | `/tixforge:ticket` | `create`：チケットを対話で作る。`edit`：書き換える。`cancel`：キャンセル済みにする |
 | `/tixforge:dev` | `<id>`：6 フェーズで進める（再開も同じ）。`rewind <id>`：前のフェーズに戻す |
+| `/tixforge-panel` | 自分の PR とチケットを右側のパネルに出す（下記「パネル」） |
 
 典型的な流れ：`/tixforge:project init` → `/tixforge:ticket ログイン画面を作りたい` → `/tixforge:dev GT-000001`
 
 どのスキルも明示起動専用（Claude が勝手に起動しない）。引数なしで起動すると、選択肢を出す。
 
-**GitHub が必須**：チケットは GitHub issue に、変更は PR にする。GitHub を使わないなら tixforge v2 を使う（v2 の `LT-` のチケットと `host: none` は、v3 では `/tixforge:project update` で移す）。
+**GitHub が必須**：チケットは GitHub issue に、変更は PR にする。GitHub を使わないなら tixforge v2 を使う。v2 から上げるときは下記「v2 からの移行」。
 
 ## 導入
 
@@ -23,7 +24,19 @@ claude plugin install tixforge@tixforge
 
 セッションの中なら `/plugin marketplace add kmjak/tixforge` → `/plugin install tixforge@tixforge`。次に起動するセッションから使える。更新は `claude plugin marketplace update tixforge` → `claude plugin update tixforge@tixforge`（`version` を上げたリリースだけが届く）。
 
-plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer`・`tixforge:quality-reviewer`）・hook 2 つ（下記「hook」）が入っている。個別に導入・登録するものは無い。
+plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer`・`tixforge:quality-reviewer`）・hook 2 つ（下記「hook」）・パネルの mod が入っている。個別に導入・登録するものは無い。
+
+## v2 からの移行
+
+更新（上の `update` の 2 行）の後に、当てはまるものを行う。
+
+| すること | 対象 |
+|---|---|
+| `/tixforge:project update` で、LT のチケットを issue に移す。進行中の LT の run は、新しい GT の id で始め直す | `tracker: local` だった人 |
+| v2 に留まる（v3 は GitHub が必須） | `host: none` だった人・GitHub を使わない人 |
+| `/tixforge:project update` の「テンプレートと Actions を最新にする」で、コピーした workflow を上げる（上げないと develop 運用で issue が閉じない） | Actions を入れた人 |
+| `.tixforge/config.yml` の `repository.close_issues` を消す（`/tixforge:project update` が尋ねる。残っていても読まれないだけ） | `close_issues` を書いていた人 |
+| 動きの変化を知る：develop へのマージでは issue は閉じず `tixforge:merged` になり、main に入ったときに閉じて `tixforge:done` になる（下記「issue が閉じる時点」） | develop 運用で `close_issues: merge` だった人 |
 
 ## 置き場所
 
@@ -54,8 +67,7 @@ gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる�
 
 ## チケット
 
-- **id**：`GT-000123`（issue #123）。
-- **入力**：`gt-000123`（大文字小文字は問わない）・`#123`・`123`（issue 番号）。接頭辞付きで桁数が違う id（`GT-00123`）はエラーにして、0 を補わない（打ち間違いで別のチケットを指さないため）。
+- **id**：`GT-000123`（issue #123）。`#123`・`123` でも指せる。桁数が違う id（`GT-00123`）はエラーになる（決まりの全体は `scripts/ticket-id.sh` の冒頭）。
 - **create**：中身はユーザーが書き、Claude は質問で引き出す（案を出すのは「考えて」と頼んだときだけ）。`/tixforge:ticket <作りたいもの>` のように文だけ渡してもよい。似たチケットがあれば示し、大きすぎれば分割を提案する。作った後は「開発を始める／別のチケットを作る／終わる」を選べる。
 - **既定と違うブランチから作る**チケット（hotfix など）は、チケットに `## Base` の節を書く。
 
@@ -82,7 +94,9 @@ gates: [approach, plan, pr]  # 必ず止まるゲート（pr は常に止まる�
 
 状態ラベル（`tixforge:todo`・`in-progress`・`in-review`・`merged`・`done`・`canceled`）は常に 1 つだけ付く。それぞれの意味は、GitHub のラベルの説明（`project init` がドキュメント言語で作る。すでにあるラベルの説明は変えない）にある。直接編集を知らせる `tixforge:out-of-sync` は、状態とは別に付く。
 
-**issue が閉じる時点**：issue はリリースされたとき（GitHub の default branch に入ったとき）に閉じる。Base が default branch なら、PR のマージで閉じる。develop などの場合は、develop にマージした時点では開いたまま `tixforge:merged` になり、main に入った時点で閉じる。Actions の `tixforge-issue-sync` を入れていれば、リリース PR のマージで（squash の設定に関係なく）閉じて `tixforge:done` になる。入れていなければ、最初の commit の `Closes #N` が main に入ったときに GitHub が閉じる（squash でそれが消えると閉じない。ラベルは `tixforge:merged` のまま）。リリース PR の commit は compare で取り、`tixforge:merged` の issue が開いているときだけ、commit を develop に入れた PR の本文まで読む（commit が数百を超えるリリースでは、API の呼び出しの上限に当たることがある）。
+**issue が閉じる時点**：issue はリリースされたとき（GitHub の default branch に入ったとき）に閉じる。Base が default branch なら、PR のマージで閉じる。develop などの場合は、develop にマージした時点では開いたまま `tixforge:merged` になり、main に入った時点で閉じる。Actions の `tixforge-issue-sync` を入れていれば、リリース PR のマージで（squash の設定に関係なく）閉じて `tixforge:done` になる。入れていなければ、最初の commit の `Closes #N` が main に入ったときに GitHub が閉じる（squash でそれが消えると閉じない。ラベルは `tixforge:merged` のまま）。commit が数百を超えるリリースでは、API の呼び出しの上限に当たることがある。
+
+**PR 本文の `Closes #N`**：PR 本文には `Closes #<番号>` が必須。guard（PR 作成のとき）・`tixforge-pr-link`（サーバー側）・dev の PR フェーズ（作成後）の 3 段で確かめる（[`references/github/pr.md`](references/github/pr.md)）。
 
 **2 つの「done」**：run の `Status: done` は Base にマージされた（開発者の作業が終わった）こと、issue の `tixforge:done` はリリースされた（世に出た）こと。develop 運用では、この 2 つの時点がずれるのが正しい動き。
 
@@ -103,21 +117,13 @@ plugin を有効にしていれば、スキルを起動していないセッシ�
 | hook | イベント | 内容 |
 |------|----------|------|
 | `scripts/guard.sh` | PreToolUse（`Bash\|Edit\|Write\|MultiEdit\|NotebookEdit` と、名前に git を含む MCP） | push・PR 作成・許可リスト外の git / gh 操作に確認画面を出し、force push・hook を飛ばす操作・`Closes` の無い PR をブロックする。Plan の承認前の run があるときのコード編集と、Implement 中の lint などの設定の編集にも確認画面を出す |
-| `hooks/panel.tsx`（mod） | `/tixforge-panel` | 自分の PR とチケットを右側のパネルに出す。データは `scripts/panel-data.sh` が作り、mod は描画とボタンだけ |
 | `scripts/session-start.sh` | SessionStart（`compact\|resume`） | 会話の要約・再開の後、進行中の run と、読み直す手順ファイルを Claude に伝える |
 
-`guard.sh` の判定：
+`guard.sh` が止めるもの（判定の全体は `scripts/guard.sh` の冒頭）：
 
-| 場所 | 判定 | 対象 |
-|------|------|------|
-| run のブランチ・進行中の run の Base | **deny** | force push（`-f`・`--force-with-lease`・`+refspec`、`bash -c`・`eval` 経由も）。必要ならユーザーが `! git push --force-with-lease` で自分で実行する |
-| run のブランチ・進行中の run の Base | **deny** | git の hook を飛ばす commit・push・merge など（`--no-verify`・`commit -n`・`-c`・`--config-env`・`GIT_CONFIG_*` での `core.hooksPath`・`include.path`・`includeIf.*.path`）。`HUSKY=0`・`SKIP=` などは ask。必要ならユーザーが `!` で自分で実行する |
-| run のブランチ | **deny** | 本文に `Closes #<番号>` の無い `gh pr create` |
-| run のブランチ | **ask** | それ以外のすべての push・PR 作成（確認画面に Status・ブランチ・Base・PR の状況が出る） |
-| run のブランチ・進行中の run の Base | **ask** | 許可リストに無い git / gh 操作（merge・rebase・reset・cherry-pick・clean・`commit --amend`・`branch -D`・`switch -f`・`checkout -B`・`fetch +refspec`・`gh pr merge`・書き込みの `gh api` など）と、GitHub / git の MCP ツールの読み取り以外 |
-| 進行中の run の Base | **ask** | Base への commit・push |
-| Plan の承認前の run があるとき | **ask** | `docs/`・`.tixforge/` 以外のファイルへの Edit / Write（Implement 以降の run のブランチの上では出さない） |
-| Implement 中・`pr:in-progress` の run のブランチ | **ask** | 既にある lint・formatter・型チェック・git hook の設定ファイル（`eslint.config.*`・`.prettierrc*`・`.eslintignore`・`tsconfig*.json`・`ruff.toml`・`.golangci.yml`・`.husky/`・`.pre-commit-config.yaml` など）の Edit / Write。`pyproject.toml` と CI の workflow は対象外 |
+- **拒否**：run のブランチと進行中の run の Base での force push と、git の hook を飛ばす commit・push など。`Closes #<番号>` の無い PR 作成。必要ならユーザーが `!` で自分で実行する。
+- **確認画面**：それ以外の push・PR 作成（Status・ブランチ・Base・PR の状況が出る）、許可リストに無い git / gh 操作（merge・rebase・reset・`gh pr merge` など）と GitHub / git の MCP の書き込み、Base への commit。
+- **確認画面**：Plan の承認前の run があるときの `docs/`・`.tixforge/` 以外の編集。Implement 中・`pr:in-progress` の run のブランチでの、lint・formatter・型チェック・git hook の設定ファイルの編集。
 
 - `permissionDecision: "ask"` は、`permissions.allow` に `git push` を入れていても、auto モードでも確認画面を出す。
 - 検知はあえて広めにしている（引用符を外して `git` と `push` の組み合わせを拾うなど）。誤検知しても確認画面が出るだけ。commit メッセージに「push -f」と書いただけならブロックしない（確認画面に注記が付く）。
