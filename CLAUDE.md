@@ -62,6 +62,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
 | パネルが出すチケットの状態（`panel-data.sh` の `PANEL_STATES`）は、`label_defs` の open な状態と同じにする | `tests/scripts.test.sh` の panel-data.sh の節 |
 | パネルの mod（`hooks/panel.tsx`）に型エラーを残さない | `make validate`（claude CLI があるときだけ） |
 | `skills/` の手順ファイル（SKILL.md と dev の Phase 6 の `pr.md` を除く）は `## Phase 1 — ` から順に番号を振ったフェーズに分け、各見出しの次の段落に `目的：` を書き、手順の番号を通しにする（dev の `run.md` はフェーズごとに 1 から。`0.` で始めてよい） | `tests/plugin.test.sh` の「phases」 |
+| 巻き戻し・キャンセルの分類（`run-state.sh categories`）は、尋ねる手順（`rewind.md`・`cancel.md`）の一覧と同じにし、きっかけ（`run-state.sh triggers`）は全て `rewind.md` に書く | `tests/scripts.test.sh` の「run-state.sh events」 |
 | スクリプトは `make fmt` で整形する。手で整えない | `make lint` の `shfmt -d` |
 | PR のタイトルは Conventional Commits の形にする（下の「commit と PR」） | CI の `pr-title` |
 | ラベルの一覧と色は `issue-label.sh` の `label_defs` だけに書き、説明は `templates/github/tixforge/messages.yml` の `label_<名前>` に各言語で書く。Actions の雛形が使うラベル名は `label_defs` にあるものだけにする | `tests/scripts.test.sh` の issue-label.sh の節 |

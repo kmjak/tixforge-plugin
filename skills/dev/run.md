@@ -138,7 +138,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
    - **commit メッセージは `docs/context/commit.md` に従う**（最初の commit の前に読む。`Language:` の言語で書く）。`Source:` にパスがあればそのファイルを規約として読み、本文は補足として扱う。**`Source:` のファイルが読めなければ、黙って別の書式にしない。** 止まって伝え、`/tixforge:project update` で設定し直すか、今回は `commit.md` の本文と直近の `git log` の書式で進めるかを尋ねる。`commit.md` 自体が無ければ直近の `git log` の書式に合わせ、`/tixforge:project init` の再実行で作れることを伝える。
    - 最初の commit のメッセージに、`references/github/pr.md` を Read し、その「commit と PR 本文」のとおり紐付けを入れる。
 3. commit を積むごとに `## Implementation Log`（commit hash とメッセージ、実装中の重要な判断）を更新する。
-4. 承認された計画どおりに進められないと分かったら（ある commit を大きく変える必要がある、方針が誤っていた等）、停止して提起する。これは小さな確認ではなく本当の判断事項。戻るなら `rewind.md` を Read し、その手順で戻す。
+4. 承認された計画どおりに進められないと分かったら（ある commit を大きく変える必要がある、方針が誤っていた等）、停止して提起する。これは小さな確認ではなく本当の判断事項。戻るなら `rewind.md` を Read し、その手順で戻す（きっかけは `implement`）。
 5. 計画した commit を全て終えたら、**検証**・**手動確認**・**context の確認**（下記）を行う。通ったら `## Implementation Log` を更新し、ゲート（`implement`）へ。要約には検証結果・手動確認の結果を含める。
 
 **Review からの差し戻しで戻ってきた場合**（Review で「修正」と決まった指摘がある）：直すのは、`## Review` の全ラウンドで `Decision: fix` か `Decision: fix (auto)` で、`Fixed @` の行がまだ無い指摘だけにする（3.0 までの形式の指摘は、手順 2 の下の扱いに従う）。それ以外に手を広げない。指摘はラウンドをまたいで `Round N <番号>`（例：`Round 1 Q2`）で指す。
@@ -225,7 +225,7 @@ PR フェーズの手順は `<plugin>/skills/dev/pr.md` にあり、PR フェー
    - **受け入れ** — 実装のほうが妥当、誤検知、または今回は直さない。直さず、理由をその項目に記録する。
 
    決まった対処を各項目に `Decision: fix`・`replan`・`reapproach`・`accept` で書き（受け入れの理由は同じ行の後ろに個人の言語で。決めるたびに書く。中断しても続きから尋ねられるように）、全て決まったら次のとおり進む（手順 2 の 5・9・10 と同じ）：
-   - 「方針の見直し」か「計画の見直し」がある → `rewind.md` を Read し、その手順で Approach（両方あれば Approach）か Plan に戻る。以降のフェーズもゲートを通り直す。
+   - 「方針の見直し」か「計画の見直し」がある → `rewind.md` を Read し、その手順で Approach（両方あれば Approach）か Plan に戻る（きっかけは `review`）。以降のフェーズもゲートを通り直す。
    - 未実行の修正がある（見直しは無い。今回決めたものに限らない） → `Status: implement:in-progress` にして Implement へ。修正後に Review へ戻り、次のラウンドを行う（その後も手順 6〜8 のとおり回す。Round 3 以降の「修正」は `△` になるので、聞かずに直すことはない）。
    - どちらも無い → 手順 10 へ。
 10. 全ての指摘に `Decision:` があり、未実行の修正が無い → 全ラウンドの自動で決めた指摘（`○`・`×`）を、ここで 1 行ずつ示す（「最後の一覧の示し方」の 1 行の形。手順 9 で示したものも含めて全件。聞かずに決めたものを隠さないため）。続けてゲート（`review`）へ。`gates` に `review` が無ければ自動で通過して `Status: pr:in-progress` にし、`pr.md` へ。`gates` にあれば `Status: review:awaiting-approval` にして要約を出し、停止。

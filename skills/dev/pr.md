@@ -53,7 +53,7 @@
 - `pending`（draft・未レビュー・CI 実行中など）→ その旨と詳細を伝え、`pr:awaiting-review` のまま停止する（`pr:ready-to-merge` から戻ったなら `pr:awaiting-review` にする）。`commented_by` がある（コメントだけのレビュー）場合は内容を示し、対応するかユーザーに尋ねる。対応するなら `Status: pr:in-progress` にしてから直す。
 - `closed`（マージされずにクローズ）→ 報告し、どうするか尋ねる。勝手に `done` にしない。
 
-`conflict`・`ci_failing`・`changes_requested` への対応はブランチに commit し、`## Implementation Log` に「PR 対応：<判定>」（個人の言語）として記録してから、「修正の push」を行う。対応が方針や計画の変更を伴う大きさなら、その場で直さずに停止し、`rewind.md` を Read し、その手順で戻るかユーザーに尋ねる（PR を出した後に戻ると、追加の commit は既存の PR に入り、設定によっては Approve が外れる）。
+`conflict`・`ci_failing`・`changes_requested` への対応はブランチに commit し、`## Implementation Log` に「PR 対応：<判定>」（個人の言語）として記録してから、「修正の push」を行う。対応が方針や計画の変更を伴う大きさなら、その場で直さずに停止し、`rewind.md` を Read し、その手順で戻るかユーザーに尋ねる（きっかけは `pr`）（PR を出した後に戻ると、追加の commit は既存の PR に入り、設定によっては Approve が外れる）。
 
 ## 修正の push
 

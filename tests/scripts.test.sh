@@ -457,12 +457,67 @@ st rewind GT-000909 plan 2> /dev/null
 eq 4 $? "a done run is not rewound"
 # rewind events: from, to, reason, history, keep_log.
 grep '"GT-000909"' "$evf" | grep '"rewind"' | head -1 | jq -c 'del(.at, .history)' > "$tmp/rw1"
-eq '{"v":1,"ticket":"GT-000909","type":"rewind","from":"review:in-progress","to":"plan:in-progress","reason":"分割を変える","keep_log":false}' \
+eq '{"v":1,"ticket":"GT-000909","type":"rewind","from":"review:in-progress","to":"plan:in-progress","category":null,"trigger":null,"reason":"分割を変える","keep_log":false}' \
   "$(cat "$tmp/rw1")" "rewind logs from, to, reason and keep_log"
 has '.tixforge/GT-000909/history/' "$(grep '"GT-000909"' "$evf" | grep -m1 '"rewind"' | jq -r .history)" "rewind logs the history file"
 eq 'C:\temp\new' "$(grep '"GT-000909"' "$evf" | grep '"rewind"' | jq -r .reason | grep -F 'C:\')" "a reason with backslashes is logged as is"
 eq true "$(grep '"GT-000909"' "$evf" | grep '"rewind"' | grep -F '"to":"implement:in-progress"' | head -1 | jq .keep_log)" "rewinding to implement keeps the log"
 eq null "$(grep '"GT-000909"' "$evf" | grep '"rewind"' | grep -F '"to":"approach:in-progress"' | head -1 | jq .reason)" "no reason is null"
+# --category / --trigger: fixed words, logged with the rewind.
+st init GT-000908 > /dev/null
+st set GT-000908 Status review:in-progress > /dev/null
+st rewind GT-000908 plan --category typo 2> /dev/null
+eq 2 $? "rewind refuses an unknown category"
+st rewind GT-000908 plan --trigger typo 2> /dev/null
+eq 2 $? "rewind refuses an unknown trigger"
+eq review:in-progress "$(st get GT-000908)" "a refused rewind changes nothing"
+st rewind GT-000908 plan --category misread --trigger review --reason "R1" > /dev/null
+eq '{"category":"misread","trigger":"review","reason":"R1"}' "$(tail -1 "$evf" | jq -c '{category, trigger, reason}')" "rewind logs category and trigger"
+st rewind GT-000908 plan > /dev/null
+eq '{"category":null,"trigger":null}' "$(tail -1 "$evf" | jq -c '{category, trigger}')" "without them they are null"
+# cancel: Status canceled, with why.
+st cancel GT-000908 --category misread 2> /dev/null
+eq 2 $? "cancel has its own categories"
+eq canceled "$(st cancel GT-000908 --category duplicate --reason "GT-000045 に統合")" "cancel sets canceled"
+eq '{"ticket":"GT-000908","type":"canceled","from":"plan:in-progress","category":"duplicate","reason":"GT-000045 に統合"}' \
+  "$(tail -1 "$evf" | jq -c 'del(.v, .at)')" "cancel logs from, category and reason"
+n=$(wc -l < "$evf")
+st cancel GT-000908 2> /dev/null
+eq 4 $? "a canceled run is not canceled again"
+eq "$n" "$(wc -l < "$evf")" "and nothing is logged"
+st cancel GT-000404 2> /dev/null
+eq 1 $? "cancel: no such run"
+# release: the run and the ticket copy go, the log stays.
+st init GT-000907 > /dev/null
+d7=.tixforge/GT-000907
+mkdir -p "$d7/history" && echo x > "$d7/history/a.md" && echo t > "$d7/snapshot.md" && echo h > "$d7/.snapshot.md.hash"
+st set GT-000907 Status plan:in-progress > /dev/null
+eq "released: GT-000907" "$(st release GT-000907 --reason "Aさんに渡す")" "release"
+[ -e "$d7" ] && ng "release removes the run's folder" || ok
+eq '{"type":"released","from":"plan:in-progress","reason":"Aさんに渡す"}' "$(tail -1 "$evf" | jq -c '{type, from, reason}')" "release logs from and reason"
+eq 3 "$(grep -c '"GT-000907"' "$evf" | tr -d ' ')" "the run's earlier events stay (run_started, status, released)"
+st init GT-000906 > /dev/null
+echo keep > .tixforge/GT-000906/editing.md
+st release GT-000906 > /dev/null
+eq keep "$(cat .tixforge/GT-000906/editing.md)" "release leaves other files (editing.md) alone"
+rm -rf .tixforge/GT-000906
+st init GT-000906 > /dev/null
+st set GT-000906 Status done > /dev/null
+st release GT-000906 2> /dev/null
+eq 4 $? "a done run is not released"
+[ -f .tixforge/GT-000906/state.md ] && ok || ng "a refused release removes nothing"
+rm -rf .tixforge/GT-000906 .tixforge/GT-000908
+# The words the skills ask for are the ones run-state accepts: rewind.md and
+# cancel.md list each as "- `<word>`：<meaning>" under the step that asks.
+for kind in rewind cancel; do
+  case $kind in rewind) md="$here/../skills/dev/rewind.md" ;; cancel) md="$here/../skills/ticket/cancel.md" ;; esac
+  want=$(st categories $kind | paste -sd' ' -)
+  got=$(awk '/categories '"$kind"'/ { on = 1; next } on && /^ *- `/ { sub(/^ *- `/, ""); sub(/`.*/, ""); printf "%s%s", sep, $0; sep = " "; next } on { exit }' "$md")
+  eq "$want" "$got" "$kind categories in the skill match run-state"
+done
+for t in $(st triggers); do
+  grep -rqF "\`$t\`" "$here/../skills/dev/rewind.md" && ok || ng "rewind.md names the trigger $t"
+done
 # Every line of the log is one JSON object with v, at, ticket and type.
 eq 0 "$(jq -c 'select((.v|type) != "number" or (.at|type) != "string" or (.ticket|type) != "string" or (.type|type) != "string")' "$evf" | wc -l | tr -d ' ')" "every event has v, at, ticket and type"
 eq "$(wc -l < "$evf" | tr -d ' ')" "$(jq -c . "$evf" | wc -l | tr -d ' ')" "one JSON object per line"

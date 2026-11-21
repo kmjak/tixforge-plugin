@@ -16,13 +16,20 @@
 
 目的：理由と、行うことに確認を得る。
 
-3. やめる理由を 1 行で尋ねる（「優先度が下がった」「GT-000045 に統合」など）。
+3. やめる理由を尋ねる。
+   - **分類**（`--category`）：AskUserQuestion で 1 つ選んでもらう（単一選択。選択肢は下の `other` 以外の 4 つ）。「Other」に書かれたら `other` にし、その文を理由にする。値は `bash <scripts>/run-state.sh categories cancel` が出すものだけ：
+     - `priority`：優先度が下がった
+     - `duplicate`：重複している・別のチケットに統合した
+     - `spec_change`：仕様が変わって要らなくなった
+     - `infeasible`：技術的に無理だった
+     - `other`：その他
+   - 続けて、理由を 1 行で尋ねる（「GT-000045 に統合」など。分類で Other に書かれたなら尋ねない）。
 4. **行うことを一覧で示し、確認を得る**（実行もこの順に行う。GitHub の操作を先にし、state.md を最後にする：途中で失敗しても、state.md だけが canceled になってやり直せなくなるのを防ぐため）：
    - 取ってきた担当者に自分（`gh api user --jq .login`）以外がいれば、「担当者：<login>（自分以外）」を一覧の先頭に載せる。
    - 「閉じる」の「キャンセル」（`close.md`）。
    - `state.md` の `## Approach` が書かれていれば、`record.md` のとおり「記録を残す」を行う。投稿する本文もこの一覧で示す。
    - このチケットのブランチに開いている PR（`gh pr list --head <Branch> --state open`）があれば、**閉じるかどうかだけ**を尋ねる（残すと、レビュアーからは生きている PR に見える、と添える。閉じるなら `close.md` の「キャンセル」の PR の閉じ方で）。
-   - 最後に、`.tixforge/<ticket-id>/state.md` があれば、`bash <scripts>/run-state.sh set <ticket-id> Status canceled` を実行する。
+   - 最後に、`.tixforge/<ticket-id>/state.md` があれば、`bash <scripts>/run-state.sh cancel <ticket-id> --category <分類> --reason "<理由>"` を実行する。
 
 ## Phase 3 — 実行
 
