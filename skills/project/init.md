@@ -126,7 +126,7 @@
 
     対話で作った場合・まとめて渡した場合、完成したファイルには記入ガイドのコメントを残さない。自分で作る場合はコメントを残す。
 
-    **フロントエンドの設計**：context の後に、`docs/context/frontend.md` が無ければ、`references/frontend-design.md` を Read し、その手順で決める（フロントエンドが無ければ何もしない。「自分で作る」を選んだ場合も、決めるか尋ねる）。合意を得たら、その場で `docs/context/frontend.md` に書く。
+    **フロントエンドの設計**：context の後に、`docs/context/frontend.md` が無ければ、`references/frontend-design.md` を Read し、その手順で行う（フロントエンドが無ければ何もしない。今決めるか後にするかは、その手順 2 で尋ねる）。合意を得たら、その場で `docs/context/frontend.md` に書く。
 12. **CLAUDE.md**：`CLAUDE.md` から context を取り込む。
     - `docs/context/frontend.md` を作ったなら、それも取り込むファイルに含める（`@docs/context/frontend.md`）。
     - **先に `docs/context/overview.md` があるか確かめる。** 無ければ（既存の context が別の名前のファイルだけなど）、`@docs/context/overview.md` は書かない。`docs/context/` のどのファイルを取り込むか尋ねる（取り込まない、も選べる）。

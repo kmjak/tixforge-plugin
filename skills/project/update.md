@@ -19,7 +19,8 @@
 
 ### フロントエンドの設計を決める・見直す
 
-- `references/frontend-design.md` を Read し、その手順で決める（`docs/context/frontend.md` があれば、変える軸だけを尋ねる）。合意を得たら `docs/context/frontend.md` に書く。
+- `references/frontend-design.md` を Read し、その手順で決める（`docs/context/frontend.md` に節があるパッケージは、変える軸だけを尋ねる）。合意を得たら `docs/context/frontend.md` に書く。
+- 書いた後、dev を始める前に Base のブランチへ commit・push するよう伝える（commit しないまま dev を始めると、チケットのブランチに入り、その PR の変更になるため）。`CLAUDE.md` が `@docs/context/overview.md` を取り込んでいて、`@docs/context/frontend.md` が無ければ、足すか尋ねる（init の「CLAUDE.md」と同じ書き方）。
 - 進行中の run があれば、その Approach は前の設計のままなので、合わせるなら `/tixforge:dev rewind <id>` で Approach に戻せることを伝える。
 
 ### 設定の値を変える

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Write what the Review agents read, as files: the change of this run, the
-# ticket, the agreed Approach and Plan, and the agents' common rules. The
+# ticket, the agreed Approach and Plan, the project's frontend design, and
+# the agents' common rules. The
 # agents need no Bash (they stay read-only), and none of it passes through
 # the implementing session's context.
 #

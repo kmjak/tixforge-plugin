@@ -75,7 +75,7 @@
 | `ticket-id.sh` | id の取り出し・正規化・実在の確認・issue 番号への変換（上記） |
 | `run-state.sh` | 状態ファイルの作成（`init`）、ヘッダの読み書き（`get` / `set`。`Status` の値を検査し、`Updated` も更新する）、前の版の形式からの更新（`migrate`） |
 | `verify.sh` | 検証コマンドの実行と `Verification @ <hash>: …` の行の出力 |
-| `review-input.sh` | Review の agent が読む入力（差分・commit 一覧・チケット・Approach・Plan と、共通の規則をつけた `index.md`）をファイルに書き出す |
+| `review-input.sh` | Review の agent が読む入力（差分・commit 一覧・チケット・Approach・Plan・フロントエンドの設計と、共通の規則をつけた `index.md`）をファイルに書き出す |
 | `pr-status.sh` | PR の状況（レビュー・CI・コンフリクト）の判定 |
 | `issue-sync.sh` / `issue-label.sh` / `github-preflight.sh` | GitHub issue との同期・ラベルと担当者・事前チェック（`references/github/`） |
 | `project-status.sh` | 設定と進行中の run の一覧（起動時に上の「現在の状態」へ自動で入る） |
