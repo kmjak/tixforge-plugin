@@ -335,6 +335,53 @@ for v in $(st statuses); do
 done
 st set GT-000901 Status implement:in-progress > /dev/null
 eq 16 "$(st statuses | wc -l | tr -d ' ')" "statuses: 16 values"
+# The event log: init, every change of Status and rewind append one line.
+section="run-state.sh events"
+evf=.tixforge/events.jsonl
+lastev() { tail -1 "$evf" | jq -c "$@"; }
+eq '"run_started"' "$(grep -m1 '"GT-000901"' "$evf" | jq -c .type)" "init logs run_started"
+eq '{"v":1,"ticket":"GT-000901","type":"status","from":"canceled","to":"implement:in-progress","via":"other"}' \
+  "$(lastev 'del(.at)')" "set Status logs from, to and via"
+n=$(wc -l < "$evf")
+st set GT-000901 Status implement:in-progress > /dev/null
+st set GT-000901 Branch GT-000901-a > /dev/null
+eq "$n" "$(wc -l < "$evf")" "no event for an unchanged Status or for Branch"
+lastev -r .at | grep -Eq '[+-][0-9][0-9]:[0-9][0-9]$' && ok || ng "at ends with the UTC offset"
+TZ=UTC0 bash -c ". '$scripts/lib.sh'; tf_stamp" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+00:00$' && ok || ng "tf_stamp: ISO 8601 with +00:00 in UTC"
+TZ=JST-9 bash -c ". '$scripts/lib.sh'; tf_stamp" | grep -q '+09:00$' && ok || ng "tf_stamp: +09:00 in Japan"
+# transition: what each change of Status was.
+for t in "research:in-progress research:awaiting-approval gate" \
+  "research:awaiting-approval approach:in-progress approve" \
+  "approach:in-progress plan:in-progress forward" \
+  "review:awaiting-approval pr:in-progress approve" \
+  "review:in-progress implement:in-progress back" \
+  "plan:in-progress approach:in-progress back" \
+  "pr:awaiting-approval pr:awaiting-review pr" \
+  "pr:ready-to-merge pr:in-progress pr" \
+  "pr:ready-to-merge done done" \
+  "plan:in-progress canceled cancel" \
+  "plan:awaiting-approval plan:in-progress other" \
+  "research:in-progress plan:in-progress other"; do
+  set -- $t
+  st set GT-000901 Status "$1" > /dev/null
+  st set GT-000901 Status "$2" > /dev/null
+  eq "$3" "$(lastev -r .via)" "transition $1 -> $2"
+done
+set --
+st set GT-000901 Status implement:in-progress > /dev/null
+# json_str: what jq reads back is the text given.
+for s in 'a"b\c' "$(printf 'x\ty\r\nz')" 'C:\temp\new' 'あい"う' '' '%s -n' '-e'; do
+  eq "$s" "$(json_str "$s" | jq -j .)" "json_str round trip [$s]"
+done
+eq '"ab"' "$(json_str "$(printf 'a\001\033b')")" "json_str drops other control characters"
+# A log that cannot be written does not stop the change it records.
+mv "$evf" "$tmp/events.keep" && mkdir "$evf"
+eq plan:awaiting-approval "$(st set GT-000901 Status plan:awaiting-approval 2>&1)" "set works when the log cannot be written"
+eq plan:awaiting-approval "$(st get GT-000901)" "and the Status changed"
+rmdir "$evf" && mv "$tmp/events.keep" "$evf"
+st set GT-000901 Status implement:in-progress > /dev/null
+section="run-state.sh"
+
 st get GT-000404 2> /dev/null
 eq 1 $? "no such run"
 eq pr:ready-to-merge "$(st set GT-000901 Status pr:ready-to-merge)" "ready-to-merge is a Status"
@@ -408,6 +455,17 @@ has "Reason: one" "$(cat "$h1")" "the first history file is not overwritten"
 st set GT-000909 Status done > /dev/null
 st rewind GT-000909 plan 2> /dev/null
 eq 4 $? "a done run is not rewound"
+# rewind events: from, to, reason, history, keep_log.
+grep '"GT-000909"' "$evf" | grep '"rewind"' | head -1 | jq -c 'del(.at, .history)' > "$tmp/rw1"
+eq '{"v":1,"ticket":"GT-000909","type":"rewind","from":"review:in-progress","to":"plan:in-progress","reason":"分割を変える","keep_log":false}' \
+  "$(cat "$tmp/rw1")" "rewind logs from, to, reason and keep_log"
+has '.tixforge/GT-000909/history/' "$(grep '"GT-000909"' "$evf" | grep -m1 '"rewind"' | jq -r .history)" "rewind logs the history file"
+eq 'C:\temp\new' "$(grep '"GT-000909"' "$evf" | grep '"rewind"' | jq -r .reason | grep -F 'C:\')" "a reason with backslashes is logged as is"
+eq true "$(grep '"GT-000909"' "$evf" | grep '"rewind"' | grep -F '"to":"implement:in-progress"' | head -1 | jq .keep_log)" "rewinding to implement keeps the log"
+eq null "$(grep '"GT-000909"' "$evf" | grep '"rewind"' | grep -F '"to":"approach:in-progress"' | head -1 | jq .reason)" "no reason is null"
+# Every line of the log is one JSON object with v, at, ticket and type.
+eq 0 "$(jq -c 'select((.v|type) != "number" or (.at|type) != "string" or (.ticket|type) != "string" or (.type|type) != "string")' "$evf" | wc -l | tr -d ' ')" "every event has v, at, ticket and type"
+eq "$(wc -l < "$evf" | tr -d ' ')" "$(jq -c . "$evf" | wc -l | tr -d ' ')" "one JSON object per line"
 rm -rf .tixforge/GT-000909
 
 # --- project-status.sh -------------------------------------------------------------
