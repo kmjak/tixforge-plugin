@@ -131,6 +131,7 @@ plugin を有効にしていれば、スキルを起動していないセッシ�
 |------|----------|------|
 | `scripts/guard.sh` | PreToolUse（`Bash\|Edit\|Write\|MultiEdit\|NotebookEdit` と、名前に git を含む MCP） | push・PR 作成・許可リスト外の git / gh 操作に確認画面を出し、force push・hook を飛ばす操作・`Closes` の無い PR をブロックする。Plan の承認前の run があるときのコード編集と、Implement 中の lint などの設定の編集にも確認画面を出す |
 | `scripts/session-start.sh` | SessionStart（`compact\|resume`） | 会話の要約・再開の後、進行中の run と、読み直す手順ファイルを Claude に伝える |
+| `scripts/wait-hook.sh` | Stop・UserPromptSubmit と、AskUserQuestion の PreToolUse・PostToolUse | 人を待っている時間を、イベントログに `wait_start`・`wait_end` で書く（何も出さず、何も止めない） |
 
 `guard.sh` が止めるもの（判定の全体は `scripts/guard.sh` の冒頭）：
 
@@ -192,6 +193,7 @@ run の過程を、ほかのツール（tixforge の GUI など）が読める�
 | `rewind` | 前のフェーズに戻した | `from`（戻す前の `Status`）・`to`・`category`・`trigger`・`reason`・`history`（古い記録のファイル）・`keep_log` |
 | `canceled` | `/tixforge:ticket cancel` でやめた | `from`・`category`・`reason` |
 | `released` | チケットを手放した（run を消した） | `from`・`reason` |
+| `wait_start`・`wait_end` | 人を待ち始めた・人が答えた（hook が書く）。`turn`：Claude のターンが終わってから次の入力まで。`question`：AskUserQuestion の質問から答えまで | `cause`（`turn`・`question`）・`session` |
 | `review_round` | `review:in-progress` から出た（指摘を直しに行く・ゲート・PR・巻き戻し）。`## Review` のラウンドごとに 1 行 | `round`・`findings`・`unparsed` |
 
 `rewind`・`canceled`・`released` は `status` を別に書かない（`Status` の変化はこれらの `from`・`to` で分かる）。`category`・`trigger`・`reason` は無ければ `null`。
@@ -201,6 +203,8 @@ run の過程を、ほかのツール（tixforge の GUI など）が読める�
 - `trigger`（巻き戻しのきっかけ）：`human`（人が言い出した）・`review`（Review の見直し）・`implement`（Implement で計画どおりに進められない）・`pr`（PR の対応）・`ticket`（チケットの変更）
 
 `review_round` の `findings` は指摘ごとの `{id, label, auto_fix, decision, fixed}`：`id` は `R1`・`Q2`（実装者が足した指摘は `""`）、`label` は `[未実装]` などの種類を書かれたとおり（Review の言語のまま）、`auto_fix` は `fix`（○）・`accept`（×）・`ask`（△）、`decision` は `fix`・`fix (auto)`・`accept`・`accept (auto)`・`replan`・`reapproach` か `null`、`fixed` は `Fixed @` の hash か `null`。`unparsed` は `Auto-fix:` の行が無かった項目の数（書式の崩れに気づくため）。同じラウンドは Review を出るたびに書き直されるので、最後の行を使う（巻き戻すと Round 1 から数え直す）。
+
+待ち時間は、同じ `session`・`cause` の `wait_start` から次の `wait_end` まで。Status が変わらずに人を待つ場面（Plan の確かめ方・Review の手順 9 の質問など）も入る。この作業ディレクトリの run が 1 つに決まらないとき（run のブランチの上になく、Plan の承認前の run が 2 つ以上ある）は書かない。Esc で止めたターンは Stop が来ないので、始まりの無い `wait_end` がありうる。離席した時間も待ち時間に入る。
 
 `via` は変化の種類：`gate`（ゲートで止まった）・`approve`（ゲートの承認で次のフェーズへ）・`forward`（止まらずに次のフェーズへ。ゲートの自動通過か、Review の指摘を直して Review に戻った）・`back`（巻き戻しを使わずに前のフェーズへ。Review の指摘を直しに Implement へ、など）・`pr`（PR のフェーズの中）・`done`・`cancel`・`other`。
 

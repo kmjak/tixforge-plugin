@@ -5,6 +5,7 @@ tixforge のスクリプトの一覧（人向け。Claude は読まない）。�
 | スクリプト | 何をするか | 呼ぶもの | 触るもの |
 |---|---|---|---|
 | `guard.sh` | push・PR 作成・危ない git 操作と、Plan の承認前のコード編集に確認を出す／止める | hook（PreToolUse） | なし（判定だけ） |
+| `wait-hook.sh` | 人を待っている時間をイベントログに書く | hook（Stop・UserPromptSubmit・AskUserQuestion の前後） | `.tixforge/events.jsonl` |
 | `session-start.sh` | 会話の要約・再開の後に、読み直すファイルを伝える | hook（SessionStart） | なし |
 | `statusline.sh` | 画面の下に今の run と Status を出す | 利用者の statusline の設定（README） | なし |
 | `common-rules.sh` | 共通規約（`references/common.md`）をスキルに差し込む | 3 つの SKILL.md | なし |
