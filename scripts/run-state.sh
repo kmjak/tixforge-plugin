@@ -36,6 +36,10 @@
 # headings start a section (lib.sh), so "## " lines quoted in a fence stay
 # with their section.
 #
+# Every change of Status, init and rewind also append an event to
+# .tixforge/events.jsonl (lib.sh event; the README lists them). A log that
+# cannot be written stops nothing.
+#
 # Exit: 0 ok, 1 no such run, 2 usage or invalid value (a phase after the
 #       current one, too), 3 run already exists, 4 the run is done or canceled,
 #       5 the file is in a newer format than this tixforge knows.
@@ -85,6 +89,41 @@ put() {
 }
 
 STATE_FORMAT=3
+
+# phase_no <phase>: 1..6 in phase order, 0 for anything else (done, canceled).
+phase_no() {
+  case $1 in
+    research) echo 1 ;; approach) echo 2 ;; plan) echo 3 ;;
+    implement) echo 4 ;; review) echo 5 ;; pr) echo 6 ;; *) echo 0 ;;
+  esac
+}
+# transition <from> <to>: what a change of Status was, for the status event.
+#   gate     stopped at a gate (to <phase>:awaiting-approval)
+#   approve  from a gate to the next phase
+#   forward  to the next phase without stopping (a gate passed
+#            automatically, or back to Review after fixing its findings)
+#   back     to an earlier phase without a rewind (fixing Review findings,
+#            a failed verification)
+#   pr       within the PR phase (review, CI, conflicts)
+#   done, cancel, other
+transition() {
+  local fp tp
+  case $2 in
+    done) echo done && return ;;
+    canceled) echo cancel && return ;;
+    *:awaiting-approval) echo gate && return ;;
+  esac
+  fp=$(phase_no "${1%%:*}") tp=$(phase_no "${2%%:*}")
+  if [ "$fp" -eq 6 ] && [ "$tp" -eq 6 ]; then
+    echo pr
+  elif [ "$fp" -gt 0 ] && [ "$tp" -eq $((fp + 1)) ] && [ "${2#*:}" = in-progress ]; then
+    case ${1#*:} in awaiting-approval) echo approve ;; in-progress) echo forward ;; *) echo other ;; esac
+  elif [ "$tp" -gt 0 ] && [ "$tp" -lt "$fp" ]; then
+    echo back
+  else
+    echo other
+  fi
+}
 
 # The comments v2 wrote under each empty section (format 2). migrate removes
 # exactly these lines; any other comment is the user's.
@@ -153,6 +192,7 @@ case $cmd in
       for sec in $STATE_SECTIONS; do printf '\n## %s\n' "$sec"; done
       IFS=$old_ifs
     } > "$f"
+    event "$top" "$1" run_started status '"research:in-progress"'
     printf '%s\n' "${f#$top/}"
     ;;
   get)
@@ -182,8 +222,12 @@ case $cmd in
         exit 2
         ;;
     esac
+    [ "$2" = Status ] && before=$(field "$f" Status)
     put "$f" "$2" "$3"
     put "$f" Updated "$(tf_now)"
+    [ "$2" = Status ] && [ "$before" != "$3" ] \
+      && event "$top" "$1" status from "$(json_str "$before")" to "$(json_str "$3")" \
+        via "$(json_str "$(transition "$before" "$3")")"
     field "$f" "$2"
     ;;
   rewind)
@@ -286,6 +330,9 @@ case $cmd in
     rm -f "$tmp"
     put "$f" Status "$phase:in-progress"
     put "$f" Updated "$now"
+    event "$top" "$id" rewind from "$(json_str "$before")" to "$(json_str "$phase:in-progress")" \
+      reason "$(if [ -n "$reason" ]; then json_str "$reason"; else echo null; fi)" \
+      history "$(json_str "${hist#$top/}")" keep_log "$(if [ -n "$keep" ]; then echo true; else echo false; fi)"
     printf '%s\n' "${hist#$top/}"
     ;;
   migrate)

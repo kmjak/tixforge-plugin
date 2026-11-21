@@ -12,6 +12,7 @@ tf_top() { git rev-parse --show-toplevel 2> /dev/null || pwd; }
 #   .tixforge/<id>/snapshot.md  the ticket as dev took it from the issue
 #   .tixforge/<id>/editing.md   edit's copy while it edits (removed after)
 #   .tixforge/<id>/state.md     the run of that ticket
+#   .tixforge/events.jsonl      the event log of every run (event, below)
 tf_dir() { printf '%s/.tixforge\n' "${1:-$(tf_top)}"; }
 tf_config() { printf '%s/config.yml\n' "$(tf_dir "${1:-}")"; }
 # The person's own settings for this project (not in git): language and gates
@@ -347,6 +348,45 @@ json_get() {
 }
 
 tf_now() { date '+%Y-%m-%d %H:%M'; }
+
+# tf_stamp: the time to the second with its UTC offset, ISO 8601
+# (2026-11-21T10:15:00+09:00). date's %z is +0900 everywhere; %:z is GNU only.
+tf_stamp() { date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/\([+-][0-9][0-9]\)\([0-9][0-9]\)$/\1:\2/'; }
+
+# json_str <text>: <text> as a JSON string, quotes included. Backslash, quote,
+# tab, CR and newline are escaped, other control characters dropped; bytes
+# from 0x80 up pass as they are (UTF-8 stays UTF-8). A trailing newline is
+# dropped. Byte by byte (C locale), no jq.
+json_str() {
+  local tab cr
+  tab=$(printf '\t')
+  cr=$(printf '\r')
+  printf '%s' "$1" | LC_ALL=C tr -d '\000-\010\013\014\016-\037' \
+    | LC_ALL=C sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e "s/$tab/\\\\t/g" -e "s/$cr/\\\\r/g" \
+    | LC_ALL=C awk 'BEGIN { printf "\"" } NR > 1 { printf "%s", "\\n" } { printf "%s", $0 } END { printf "\"\n" }'
+}
+
+# The event log, .tixforge/events.jsonl: one JSON object per line, appended
+# only, for tools that show how runs went (the README lists the events and
+# their fields). Every line has v (EVENTS_SCHEMA), at (tf_stamp), ticket and
+# type. Raise EVENTS_SCHEMA when a field changes meaning or goes away;
+# adding a field or an event type does not need it.
+EVENTS_SCHEMA=1
+tf_events() { printf '%s/events.jsonl\n' "$(tf_dir "${1:-}")"; }
+# event <top> <ticket> <type> [<key> <json>]...: append one event. Each value
+# is JSON already (json_str for text, true/false/null, a number). Never
+# fails: a log that cannot be written must not stop what it records.
+event() {
+  local top=$1 line
+  line="{\"v\":$EVENTS_SCHEMA,\"at\":$(json_str "$(tf_stamp)"),\"ticket\":$(json_str "$2"),\"type\":$(json_str "$3")"
+  shift 3
+  while [ $# -ge 2 ]; do
+    line="$line,$(json_str "$1"):$2"
+    shift 2
+  done
+  { printf '%s}\n' "$line" >> "$(tf_events "$top")"; } 2> /dev/null || true
+  return 0
+}
 
 # is_open_status <status>: a run that is neither done nor canceled.
 is_open_status() { case "$1" in done | canceled | '') return 1 ;; *) return 0 ;; esac }

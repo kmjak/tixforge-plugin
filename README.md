@@ -53,6 +53,7 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 | `.tixforge/<id>/snapshot.md` | dev がチケットの issue から取った版（edit は `editing.md` で書き換え、書き戻したら消す） | 管理しない |
 | `.tixforge/<id>/state.md` | run の状態（Status・ブランチ・各フェーズの記録） | 管理しない |
 | `.tixforge/<id>/history/` | 前のフェーズに戻したときの古い記録 | 管理しない |
+| `.tixforge/events.jsonl` | run の過程のイベントログ（下記「イベントログ」） | 管理しない |
 | `docs/context/**` | サービス・ドメインの知識、commit 規約（`commit.md`）、フロントエンドの設計（`frontend.md`） | 管理する |
 
 チケットと run の状態は各個人の作業場所なので git に載せない。PR に載せるとレビュアーが検討過程に引っ張られるため。PR 本文には、合意した方針の結論と理由だけを書く。
@@ -177,6 +178,29 @@ tf=$(printf '%s' "$input" | bash ~/.claude/plugins/marketplaces/tixforge/scripts
 - 開いている間は 3 分ごとに取り直す。**更新** ですぐ取り直す。閉じている間は取らない。区画の開閉は次のセッションにも残る。
 - Claude Code の mod（plugin の `hooks/panel.tsx`）で出す。mod が使える Claude Code が要る（2.1.327 の `claude plugin test` で確かめた）。mod が使えない環境（`claude -p` など）や、端末が狭いとき（110 列未満）は横に並ばない。
 - コマンド名に `:` を使えないので、`/tixforge:panel` ではなく `/tixforge-panel`。
+
+## イベントログ（`.tixforge/events.jsonl`）
+
+run の過程を、ほかのツール（tixforge の GUI など）が読めるように、1 行 1 イベントの JSON で追記する。`run-state.sh` が state.md を書き換えるときに書くので、Claude の書き方に左右されない。手元だけに置き（git に載せない）、run を消しても残る。書けなくても、本来の操作は止めない。
+
+各行に必ずあるキー：`v`（形式の版数。今は `1`）・`at`（秒までの時刻と UTC からのずれ。`2026-11-21T10:15:00+09:00`）・`ticket`（チケット id）・`type`。並びはファイルの順（同じ秒のイベントもこの順に起きた）。
+
+| `type` | いつ | ほかのキー |
+|---|---|---|
+| `run_started` | `/tixforge:dev` が run を始めた | `status` |
+| `status` | `Status` が変わった（同じ値の `set` では書かない） | `from`・`to`・`via` |
+| `rewind` | 前のフェーズに戻した | `from`（戻す前の `Status`）・`to`・`reason`（無ければ `null`）・`history`（古い記録のファイル）・`keep_log` |
+
+`via` は変化の種類：`gate`（ゲートで止まった）・`approve`（ゲートの承認で次のフェーズへ）・`forward`（止まらずに次のフェーズへ。ゲートの自動通過か、Review の指摘を直して Review に戻った）・`back`（巻き戻しを使わずに前のフェーズへ。Review の指摘を直しに Implement へ、など）・`pr`（PR のフェーズの中）・`done`・`cancel`・`other`。
+
+```json
+{"v":1,"at":"2026-11-21T10:15:00+09:00","ticket":"GT-000123","type":"run_started","status":"research:in-progress"}
+{"v":1,"at":"2026-11-21T10:31:12+09:00","ticket":"GT-000123","type":"status","from":"research:in-progress","to":"approach:in-progress","via":"forward"}
+{"v":1,"at":"2026-11-21T10:48:40+09:00","ticket":"GT-000123","type":"status","from":"approach:in-progress","to":"approach:awaiting-approval","via":"gate"}
+{"v":1,"at":"2026-11-21T11:02:05+09:00","ticket":"GT-000123","type":"rewind","from":"review:in-progress","to":"plan:in-progress","reason":"commit の分け方を変える","history":".tixforge/GT-000123/history/20261121-110205.md","keep_log":false}
+```
+
+読む側は、知らない `type` とキーを読み飛ばす（版数を上げずに足すことがある）。キーの意味を変える・消すときは `v` を上げる。
 
 ## 困ったとき
 
