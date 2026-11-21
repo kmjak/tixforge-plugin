@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.3.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.2.0...tixforge--v3.3.0) (2026-11-21)
+
+
+### Features
+
+* log each Review round when a run leaves Review ([#76](https://github.com/kmjak/tixforge-plugin/issues/76)) ([f85bab1](https://github.com/kmjak/tixforge-plugin/commit/f85bab1524d4464a0baa9edaa031e326d4435ba8))
+* log run events to .tixforge/events.jsonl ([#74](https://github.com/kmjak/tixforge-plugin/issues/74)) ([a8a2826](https://github.com/kmjak/tixforge-plugin/commit/a8a28265fb8982eb7238579c0e5e2e6a2511d952))
+* log when the person is waited on ([#77](https://github.com/kmjak/tixforge-plugin/issues/77)) ([565992e](https://github.com/kmjak/tixforge-plugin/commit/565992e7099358a784be1816aab1d76168c9796a))
+* record why runs are rewound, canceled or released ([#75](https://github.com/kmjak/tixforge-plugin/issues/75)) ([7e559a7](https://github.com/kmjak/tixforge-plugin/commit/7e559a7a3732ecdd438acdbcb84976ab8dbe2805))
+
 ## [3.2.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.1.0...tixforge--v3.2.0) (2026-11-21)
 
 
