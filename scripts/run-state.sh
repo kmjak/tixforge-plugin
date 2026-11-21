@@ -11,7 +11,15 @@
 #   run-state.sh statuses                    every valid Status, one per line
 #   run-state.sh list                        "<id>\t<Status>\t<Branch>" for every run
 #   run-state.sh rewind <id> <phase> [--keep-log] [--reason <text>]
+#                [--category <c>] [--trigger <t>]
 #                                            go back to research / approach / plan / implement
+#   run-state.sh cancel <id> [--category <c>] [--reason <text>]
+#                                            set Status canceled
+#   run-state.sh release <id> [--reason <text>]
+#                                            remove the run: state.md, history/,
+#                                            snapshot.md and its hash
+#   run-state.sh categories <rewind|cancel>  every valid --category, one per line
+#   run-state.sh triggers                    every valid --trigger, one per line
 #   run-state.sh migrate [--check] <id>      bring state.md to the current format
 #
 # The Format row of the header is the version of the file's layout (none:
@@ -36,7 +44,14 @@
 # headings start a section (lib.sh), so "## " lines quoted in a fence stay
 # with their section.
 #
-# Every change of Status, init and rewind also append an event to
+# --category is why (rewind: the cause of going back; cancel: why the ticket
+# is dropped), --trigger is what started a rewind (the person, a Review
+# finding, Implement or PR finding the plan cannot hold, a changed ticket).
+# Both are fixed words (categories, triggers) for the event log only; the
+# reason is the person's own text. cancel and release refuse a done or
+# canceled run (exit 4).
+#
+# Every change of Status, init, rewind, cancel and release append an event to
 # .tixforge/events.jsonl (lib.sh event; the README lists them). A log that
 # cannot be written stops nothing.
 #
@@ -89,6 +104,37 @@ put() {
 }
 
 STATE_FORMAT=3
+
+# The words of --category and --trigger; the skill that asks lists each with
+# its meaning (rewind.md, cancel.md), and the tests keep the lists the same.
+REWIND_CATEGORIES="misread constraint infeasible spec_change other"
+CANCEL_CATEGORIES="priority duplicate spec_change infeasible other"
+TRIGGERS="human review implement pr ticket"
+# one_of <value> <words>: exit 0 when the value is one of the words.
+one_of() {
+  local v
+  for v in $2; do [ "$v" = "$1" ] && return 0; done
+  return 1
+}
+# jtext <text>: json_str, or null for nothing.
+jtext() { if [ -n "$1" ]; then json_str "$1"; else echo null; fi; }
+# open_run <id>: the state.md of a run that is neither done nor canceled;
+# exits 1 or 4 otherwise.
+open_run() {
+  local f st
+  f=$(sfile "$1")
+  [ -f "$f" ] || {
+    echo "no run: $1" >&2
+    exit 1
+  }
+  st=$(field "$f" Status)
+  case $st in done | canceled)
+    echo "run $1 is $st" >&2
+    exit 4
+    ;;
+  esac
+  printf '%s\n' "$f"
+}
 
 # phase_no <phase>: 1..6 in phase order, 0 for anything else (done, canceled).
 phase_no() {
@@ -232,7 +278,7 @@ case $cmd in
     ;;
   rewind)
     [ $# -ge 2 ] || usage
-    id=$1 phase=$2 keep="" reason=""
+    id=$1 phase=$2 keep="" reason="" category="" trigger=""
     shift 2
     while [ $# -gt 0 ]; do
       case $1 in
@@ -243,6 +289,24 @@ case $cmd in
         --reason)
           [ $# -ge 2 ] || usage
           reason=$2
+          shift 2
+          ;;
+        --category)
+          [ $# -ge 2 ] || usage
+          one_of "$2" "$REWIND_CATEGORIES" || {
+            echo "invalid category: $2 ($REWIND_CATEGORIES)" >&2
+            exit 2
+          }
+          category=$2
+          shift 2
+          ;;
+        --trigger)
+          [ $# -ge 2 ] || usage
+          one_of "$2" "$TRIGGERS" || {
+            echo "invalid trigger: $2 ($TRIGGERS)" >&2
+            exit 2
+          }
+          trigger=$2
           shift 2
           ;;
         *) usage ;;
@@ -331,7 +395,7 @@ case $cmd in
     put "$f" Status "$phase:in-progress"
     put "$f" Updated "$now"
     event "$top" "$id" rewind from "$(json_str "$before")" to "$(json_str "$phase:in-progress")" \
-      reason "$(if [ -n "$reason" ]; then json_str "$reason"; else echo null; fi)" \
+      category "$(jtext "$category")" trigger "$(jtext "$trigger")" reason "$(jtext "$reason")" \
       history "$(json_str "${hist#$top/}")" keep_log "$(if [ -n "$keep" ]; then echo true; else echo false; fi)"
     printf '%s\n' "${hist#$top/}"
     ;;
@@ -372,6 +436,73 @@ case $cmd in
     cat "$tmp" > "$f"
     rm -f "$tmp"
     printf 'format %s -> %s: %s\n' "$from" "$STATE_FORMAT" "${f#$top/}"
+    ;;
+  cancel)
+    [ $# -ge 1 ] || usage
+    id=$1 reason="" category=""
+    shift
+    while [ $# -gt 0 ]; do
+      case $1 in
+        --reason)
+          [ $# -ge 2 ] || usage
+          reason=$2
+          shift 2
+          ;;
+        --category)
+          [ $# -ge 2 ] || usage
+          one_of "$2" "$CANCEL_CATEGORIES" || {
+            echo "invalid category: $2 ($CANCEL_CATEGORIES)" >&2
+            exit 2
+          }
+          category=$2
+          shift 2
+          ;;
+        *) usage ;;
+      esac
+    done
+    f=$(open_run "$id") || exit $?
+    before=$(field "$f" Status)
+    put "$f" Status canceled
+    put "$f" Updated "$(tf_now)"
+    event "$top" "$id" canceled from "$(json_str "$before")" \
+      category "$(jtext "$category")" reason "$(jtext "$reason")"
+    field "$f" Status
+    ;;
+  release)
+    [ $# -ge 1 ] || usage
+    id=$1 reason=""
+    shift
+    while [ $# -gt 0 ]; do
+      case $1 in
+        --reason)
+          [ $# -ge 2 ] || usage
+          reason=$2
+          shift 2
+          ;;
+        *) usage ;;
+      esac
+    done
+    f=$(open_run "$id") || exit $?
+    before=$(field "$f" Status)
+    d=$(dirname "$f")
+    rm -rf "$d/history"
+    rm -f "$f" "$d/snapshot.md" "$d/.snapshot.md.hash"
+    rmdir "$d" 2> /dev/null || true
+    event "$top" "$id" released from "$(json_str "$before")" reason "$(jtext "$reason")"
+    printf 'released: %s\n' "$id"
+    ;;
+  categories)
+    [ $# -eq 1 ] || usage
+    case $1 in
+      rewind) words=$REWIND_CATEGORIES ;;
+      cancel) words=$CANCEL_CATEGORIES ;;
+      *) usage ;;
+    esac
+    for v in $words; do printf '%s\n' "$v"; done
+    ;;
+  triggers)
+    [ $# -eq 0 ] || usage
+    for v in $TRIGGERS; do printf '%s\n' "$v"; done
     ;;
   statuses)
     [ $# -eq 0 ] || usage
