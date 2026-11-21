@@ -81,7 +81,7 @@
 目的：context などのファイルを、確認を得てから作る。
 
 10. **作るもの**：`.tixforge/config.yml` に、`references/config.md` の `ticket.tracker`（Phase 4 で書く）以外の全てのキーがそろったことを確かめる（足りなければ Phase 2 の該当の手順に戻る）。次を一覧で提示してから作る（既にあるものは作らない・上書きしない）：
-    - `docs/context/`（中身は「context」）、`docs/context/commit.md`（「commit 規約」）
+    - `docs/context/`（中身は「context」）、`docs/context/commit.md`（「commit 規約」）、`docs/context/frontend.md`（フロントエンドがあるときだけ。「context」のフロントエンドの設計）
 11. **context**：`docs/context/` に（`commit.md` 以外の）ファイルが既にある場合は、作り方を尋ねずに既存の内容を読み、足りない点を提案するにとどめる（上書きしない）。無い場合は、作り方を選んでもらう：
     - **対話で作る** — 下記「対話で作る場合」の手順で、各項目の内容をユーザーと一緒に決めて `docs/context/overview.md` を書く。
     - **まとめて渡す** — アプリの説明を全部書いてもらい（手順 3 で説明をもらっていれば、それを示して足すことがあるか尋ねる）、下記「まとめて渡す場合」の手順で `docs/context/overview.md` を書く。
@@ -125,7 +125,10 @@
     ```
 
     対話で作った場合・まとめて渡した場合、完成したファイルには記入ガイドのコメントを残さない。自分で作る場合はコメントを残す。
+
+    **フロントエンドの設計**：context の後に、`docs/context/frontend.md` が無ければ、`references/frontend-design.md` を Read し、その手順で決める（フロントエンドが無ければ何もしない。「自分で作る」を選んだ場合も、決めるか尋ねる）。合意を得たら、その場で `docs/context/frontend.md` に書く。
 12. **CLAUDE.md**：`CLAUDE.md` から context を取り込む。
+    - `docs/context/frontend.md` を作ったなら、それも取り込むファイルに含める（`@docs/context/frontend.md`）。
     - **先に `docs/context/overview.md` があるか確かめる。** 無ければ（既存の context が別の名前のファイルだけなど）、`@docs/context/overview.md` は書かない。`docs/context/` のどのファイルを取り込むか尋ねる（取り込まない、も選べる）。
     - 取り込むファイルが決まったら、リポジトリのルートに `CLAUDE.md` があるか、既にその `@<パス>` を含むかを確かめる。含んでいれば何もしない。
     - 「取り込む（推奨。tixforge を起動していないセッションでも context を読める）」「取り込まない」を尋ねる。

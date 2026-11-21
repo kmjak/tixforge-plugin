@@ -13,6 +13,7 @@ tixforge の review 系 agent が最初に読む。`review-input.sh` が、最�
 - `ticket.md`：チケット
 - `approach.md`：合意済みの Approach（「未決事項の解決」の表を含む）
 - `plan.md`：合意済みの Plan（「受け入れ条件 → 確かめ方」の対応表を含む）
+- `frontend.md`：プロジェクトのフロントエンドの設計（`docs/context/frontend.md`。無いプロジェクトもある）
 
 呼び出し元からの指示：
 
