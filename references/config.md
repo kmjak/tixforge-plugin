@@ -32,16 +32,18 @@ gates: [plan, pr]       # 必ず止まるゲート
 
 ## 個人の設定 `.tixforge/config.local.yml`
 
-自分だけが使う値。`/tixforge:project setup` が書き、git に載らない（`.tixforge/.gitignore`）。書けるのは次の 2 つだけで、書いたキーは `config.yml` の値より優先する。無ければ `config.yml` の値を使う。形は `config.yml` と同じ。
+自分だけが使う値。`/tixforge:project setup` が書き、git に載らない（`.tixforge/.gitignore`）。書けるのは次の 3 つだけ。`language`・`gates` は書けば `config.yml` の値より優先し、無ければ `config.yml` の値を使う。`events_log` はこのファイルにだけ書く（パスは人と機械ごとのものなので、`config.yml` に書いても読まない）。形は `config.yml` と同じ。
 
 ```yaml
 language: en
 gates: [plan, pr]
+events_log: ~/tixforge-logs/myapp.jsonl
 ```
 
 | キー | 意味 | 無いとき |
 |---|---|---|
 | `language` | 個人の言語：会話・`state.md` の本文・reviewer の報告（チケット・PR・issue はドキュメント言語のまま） | `config.yml` の `language` |
 | `gates` | この人の dev で必ず止まるゲート | `config.yml` の `gates` |
+| `events_log` | イベントログ（README の「イベントログ」）のファイル。`~/` で始まればホームから、相対パスはリポジトリの最上位から。無いフォルダは作る。`git clean -xdf` やクローンし直しで消えないよう、リポジトリの外に置くときに使う。プロジェクトごとに別のファイルにする（イベントはチケット id だけで run を区別する） | `.tixforge/events.jsonl` |
 
 「現在の状態」の「この人が使う値」に、使う値とそのファイルが出る（`project-status.sh`）。

@@ -12,7 +12,8 @@ tf_top() { git rev-parse --show-toplevel 2> /dev/null || pwd; }
 #   .tixforge/<id>/snapshot.md  the ticket as dev took it from the issue
 #   .tixforge/<id>/editing.md   edit's copy while it edits (removed after)
 #   .tixforge/<id>/state.md     the run of that ticket
-#   .tixforge/events.jsonl      the event log of every run (event, below)
+#   .tixforge/events.jsonl      the event log of every run (event, below;
+#                               config.local.yml's events_log moves it)
 tf_dir() { printf '%s/.tixforge\n' "${1:-$(tf_top)}"; }
 tf_config() { printf '%s/config.yml\n' "$(tf_dir "${1:-}")"; }
 # The person's own settings for this project (not in git): language and gates
@@ -162,7 +163,9 @@ cfg_has() {
 # ucfg_file <top-level-key> [top]: the file this person's value of a key
 # comes from: config.local.yml when it has a value for the key (`gates: []`
 # counts; an empty `language:` does not), else config.yml. Only
-# language and gates are personal; every other key is the team's (cfg).
+# language and gates are personal and fall back to the team's; events_log is
+# read from config.local.yml alone (tf_events); every other key is the
+# team's (cfg).
 ucfg_file() {
   local l
   l=$(tf_local_config "${2:-}")
@@ -372,19 +375,37 @@ json_str() {
 # type. Raise EVENTS_SCHEMA when a field changes meaning or goes away;
 # adding a field or an event type does not need it.
 EVENTS_SCHEMA=1
-tf_events() { printf '%s/events.jsonl\n' "$(tf_dir "${1:-}")"; }
+# tf_events [top]: the event log file. .tixforge/events.jsonl unless this
+# person's config.local.yml has events_log (only there: a path is one
+# machine's, not the team's): "~/..." is under $HOME, a relative path is
+# from the top of the repository.
+tf_events() {
+  local top=${1:-$(tf_top)} p
+  p=$(cfg events_log "$(tf_local_config "$top")")
+  case $p in
+    '') printf '%s/events.jsonl\n' "$(tf_dir "$top")" ;;
+    '~') printf '%s\n' "$HOME" ;;
+    \~/*) printf '%s/%s\n' "$HOME" "${p#\~/}" ;;
+    /*) printf '%s\n' "$p" ;;
+    *) printf '%s/%s\n' "$top" "$p" ;;
+  esac
+}
 # event <top> <ticket> <type> [<key> <json>]...: append one event. Each value
 # is JSON already (json_str for text, true/false/null, a number). Never
 # fails: a log that cannot be written must not stop what it records.
 event() {
-  local top=$1 line
+  local top=$1 line log
   line="{\"v\":$EVENTS_SCHEMA,\"at\":$(json_str "$(tf_stamp)"),\"ticket\":$(json_str "$2"),\"type\":$(json_str "$3")"
   shift 3
   while [ $# -ge 2 ]; do
     line="$line,$(json_str "$1"):$2"
     shift 2
   done
-  { printf '%s}\n' "$line" >> "$(tf_events "$top")"; } 2> /dev/null || true
+  log=$(tf_events "$top")
+  {
+    [ -d "${log%/*}" ] || mkdir -p "${log%/*}"
+    printf '%s}\n' "$line" >> "$log"
+  } 2> /dev/null || true
   return 0
 }
 

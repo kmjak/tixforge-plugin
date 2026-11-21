@@ -52,8 +52,11 @@ if [ -f "$conf" ]; then
   [ -z "$ugates" ] && cfg_has gates "$gf" && ugates="[]（pr のみ）"
   lsrc=${lf##*/}
   [ -n "$(cfg language "$lf")" ] || lsrc=既定
+  esrc=config.local.yml
+  [ -n "$(cfg events_log "$(tf_local_config "$top")")" ] || esrc=既定
   echo "- この人が使う値: language=$(user_lang "$top")（${lsrc}）" \
-    "gates=${ugates:-（未設定）}（${gf##*/}）"
+    "gates=${ugates:-（未設定）}（${gf##*/}）" \
+    "events_log=$(tf_events "$top")（${esrc}）"
   # init writes config.yml one answer at a time and ticket.tracker last
   # (after the labels): a key with no default missing means it stopped
   # part way.

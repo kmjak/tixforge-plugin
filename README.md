@@ -53,7 +53,7 @@ plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer
 | `.tixforge/<id>/snapshot.md` | dev がチケットの issue から取った版（edit は `editing.md` で書き換え、書き戻したら消す） | 管理しない |
 | `.tixforge/<id>/state.md` | run の状態（Status・ブランチ・各フェーズの記録） | 管理しない |
 | `.tixforge/<id>/history/` | 前のフェーズに戻したときの古い記録 | 管理しない |
-| `.tixforge/events.jsonl` | run の過程のイベントログ（下記「イベントログ」） | 管理しない |
+| `.tixforge/events.jsonl` | run の過程のイベントログ（下記「イベントログ」。個人の設定 `events_log` で別の場所にできる） | 管理しない |
 | `docs/context/**` | サービス・ドメインの知識、commit 規約（`commit.md`）、フロントエンドの設計（`frontend.md`） | 管理する |
 
 チケットと run の状態は各個人の作業場所なので git に載せない。PR に載せるとレビュアーが検討過程に引っ張られるため。PR 本文には、合意した方針の結論と理由だけを書く。
@@ -183,6 +183,8 @@ tf=$(printf '%s' "$input" | bash ~/.claude/plugins/marketplaces/tixforge/scripts
 ## イベントログ（`.tixforge/events.jsonl`）
 
 run の過程を、ほかのツール（tixforge の GUI など）が読めるように、1 行 1 イベントの JSON で追記する。`run-state.sh` が state.md を書き換えるときに書くので、Claude の書き方に左右されない。手元だけに置き（git に載せない）、run を消しても残る。書けなくても、本来の操作は止めない。
+
+既定の置き場所は `.tixforge/events.jsonl`。git の外なので、`git clean -xdf` やクローンし直しで消える。残したいなら、`/tixforge:project setup` で個人の設定 `events_log` にリポジトリの外のパス（`~/tixforge-logs/myapp.jsonl` など）を書く（`references/config.md` の「個人の設定」）。今の置き場所は `/tixforge:project` の「現在の状態」の `events_log=` に出る。ほかのツールは、`.tixforge/config.local.yml` の `events_log`（`~/` はホーム、相対パスはリポジトリの最上位から）、無ければ `.tixforge/events.jsonl` を読む。
 
 各行に必ずあるキー：`v`（形式の版数。今は `1`）・`at`（秒までの時刻と UTC からのずれ。`2026-11-21T10:15:00+09:00`）・`ticket`（チケット id）・`type`。並びはファイルの順（同じ秒のイベントもこの順に起きた）。
 
