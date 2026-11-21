@@ -578,6 +578,30 @@ done
 for t in $(st triggers); do
   grep -rqF "\`$t\`" "$here/../skills/dev/rewind.md" && ok || ng "rewind.md names the trigger $t"
 done
+# events_log in config.local.yml moves the log (only there: config.yml's is
+# ignored). ~/ is $HOME, a relative path is from the top; folders are made.
+[ -e .tixforge/config.local.yml ] && ng "events_log tests expect no config.local.yml"
+st init GT-000904 > /dev/null
+printf 'events_log: ~/logs/a b/ev.jsonl   # mine\n' > .tixforge/config.local.yml
+HOME="$tmp/home" st set GT-000904 Status plan:in-progress > /dev/null
+eq '"plan:in-progress"' "$(jq -c .to "$tmp/home/logs/a b/ev.jsonl" 2> /dev/null)" "a path from home (~/) is under HOME, the folders are made"
+eq "$tmp/home/logs/a b/ev.jsonl" "$(HOME="$tmp/home" bash -c ". '$scripts/lib.sh'; tf_events .")" "tf_events resolves a path from home"
+has "events_log=$tmp/home/logs/a b/ev.jsonl（config.local.yml）" "$(HOME="$tmp/home" bash "$scripts/project-status.sh")" "project-status shows the log and where it comes from"
+printf 'events_log: "logs/ev.jsonl"\n' > .tixforge/config.local.yml
+st set GT-000904 Status plan:awaiting-approval > /dev/null
+eq '"plan:awaiting-approval"' "$(jq -c .to logs/ev.jsonl 2> /dev/null)" "a relative path is from the top"
+printf 'events_log: %s\n' "$tmp/abs/ev.jsonl" > .tixforge/config.local.yml
+(cd .tixforge && st set GT-000904 Status approach:in-progress > /dev/null)
+eq '"approach:in-progress"' "$(jq -c .to "$tmp/abs/ev.jsonl" 2> /dev/null)" "an absolute path, from a subdirectory too"
+rm -rf logs .tixforge/config.local.yml
+printf 'events_log: %s\n' "$tmp/team/ev.jsonl" >> .tixforge/config.yml
+n=$(wc -l < "$evf" | tr -d ' ')
+st set GT-000904 Status plan:in-progress > /dev/null
+eq $((n + 1)) "$(wc -l < "$evf" | tr -d ' ')" "config.yml's events_log is not read"
+[ -e "$tmp/team" ] && ng "config.yml's events_log makes nothing" || ok
+has "events_log=$(git rev-parse --show-toplevel)/.tixforge/events.jsonl（既定）" "$(bash "$scripts/project-status.sh")" "project-status shows the default"
+sed '/^events_log:/d' .tixforge/config.yml > "$tmp/cfg" && cat "$tmp/cfg" > .tixforge/config.yml
+rm -rf .tixforge/GT-000904
 # Every line of the log is one JSON object with v, at, ticket and type.
 eq 0 "$(jq -c 'select((.v|type) != "number" or (.at|type) != "string" or (.ticket|type) != "string" or (.type|type) != "string")' "$evf" | wc -l | tr -d ' ')" "every event has v, at, ticket and type"
 eq "$(wc -l < "$evf" | tr -d ' ')" "$(jq -c . "$evf" | wc -l | tr -d ' ')" "one JSON object per line"
@@ -589,7 +613,7 @@ rm -rf .tixforge/GT-000909
 section="wait-hook.sh"
 nojq="$tmp/nojq-bin"
 mkdir -p "$nojq"
-for t in bash git awk grep sed tr head cat dirname wc date; do
+for t in bash git awk grep sed tr head cat dirname wc date mkdir; do
   p=$(command -v "$t") && ln -s "$p" "$nojq/$t"
 done
 wh="$tmp/wh"
