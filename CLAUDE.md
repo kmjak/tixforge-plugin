@@ -52,7 +52,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
 | ルール | 守るもの |
 |---|---|
 | macOS の bash 3.2 と BWK awk、Linux の gawk・mawk のどれでも動かす。連想配列・`mapfile`・`${var,,}`、gawk だけの関数は使わない | `make test-bash32`・CI の gawk・mawk・macOS の行列 |
-| guard（hook）は jq に頼らない。`lib.sh` の `json_get` で読む | `tests/guard.test.sh`（jq の無い PATH で動かす）・`tests/json-get.test.sh` |
+| guard と wait-hook（hook）は jq に頼らない。`lib.sh` の `json_get` で読む | `tests/guard.test.sh`・`tests/scripts.test.sh` の wait-hook.sh の節（jq の無い PATH で動かす）・`tests/json-get.test.sh` |
 | スクリプトの中で、`$var` の直後に全角文字を続けない（`${var}` と書く） | `tests/scripts.test.sh` の「all scripts」 |
 | `skills/`・`references/`・`agents/` でファイルの名前を変えたら、参照している側も直す | `tests/plugin.test.sh` |
 | issue フォームの見出しは、チケットのテンプレート（`templates/docs/ticket.md`、`## Base` を除く）の見出しと同じ順で揃える | `tests/scripts.test.sh` の「ticket template」 |
