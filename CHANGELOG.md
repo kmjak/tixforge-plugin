@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/kmjak/tixforge/compare/tixforge--v3.1.0...tixforge--v3.2.0) (2026-11-21)
+
+
+### Features
+
+* decide the frontend design and hold the implementation to it ([#71](https://github.com/kmjak/tixforge/issues/71)) ([d684fa4](https://github.com/kmjak/tixforge/commit/d684fa4581186ec272aa4d290fa7b50908027a56))
+
 ## [3.1.0](https://github.com/kmjak/tixforge/compare/tixforge--v3.0.0...tixforge--v3.1.0) (2026-11-21)
 
 
