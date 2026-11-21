@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Write what the Review agents read, as files: the change of this run, the
-# ticket, the agreed Approach and Plan, and the agents' common rules. The
+# ticket, the agreed Approach and Plan, the project's frontend design, and
+# the agents' common rules. The
 # agents need no Bash (they stay read-only), and none of it passes through
 # the implementing session's context.
 #
@@ -26,6 +27,9 @@
 #                auto-passed gate note at their end, in any language of
 #                scripts/messages.yml: the implementer's history, which the
 #                reviewers must not see; other quotes stay)
+#   frontend.md  docs/context/frontend.md as it is now, when the project has
+#                one (the design the reviewer holds screen files to); removed
+#                otherwise
 #   index.md     the paths of these files, and then the common rules of the
 #                reviewers (references/review.md); the agents read it first
 # Prints the path of index.md. Writes nothing and exits 3 when there is no
@@ -127,11 +131,18 @@ fi
 cp "$snap" "$dir/ticket.md"
 printf '%s\n' "$approach" > "$dir/approach.md"
 printf '%s\n' "$plan" > "$dir/plan.md"
+if [ -f "$top/docs/context/frontend.md" ]; then
+  cp "$top/docs/context/frontend.md" "$dir/frontend.md"
+else
+  rm -f "$dir/frontend.md"
+fi
 {
   printf '# Review の入力：%s\n\n' "$id"
-  for f in diff.patch log.txt files.txt delta.patch ticket.md approach.md plan.md; do
+  for f in diff.patch log.txt files.txt delta.patch ticket.md approach.md plan.md frontend.md; do
     if [ -f "$dir/$f" ]; then
       printf -- '- `%s`\n' "$dir/$f"
+    elif [ "$f" = frontend.md ]; then
+      printf -- '- `%s`：無し（このプロジェクトはフロントエンドの設計を決めていない）\n' "$f"
     else
       printf -- '- `%s`：無し（1 ラウンド目）\n' "$f"
     fi

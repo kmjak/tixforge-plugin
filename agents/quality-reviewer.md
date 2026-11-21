@@ -14,7 +14,7 @@ model: inherit
 
 ## 受け取るもの
 
-共通のものだけ。`ticket.md`・`approach.md`・`plan.md` は読まない（合意に引きずられず、品質だけを見るため）。
+共通のものだけ。`ticket.md`・`approach.md`・`plan.md`・`frontend.md` は読まない（合意に引きずられず、品質だけを見るため）。
 
 ## ラベル
 

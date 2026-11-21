@@ -661,6 +661,15 @@ eq "plan body" "$(cat "$d/plan.md")" "plan.md: the Plan body, without the blank 
 has "\`delta.patch\`：無し" "$(cat "$idx")" "index.md: no delta.patch in round 1"
 has "- \`$d/plan.md\`" "$(cat "$idx")" "index.md lists the files by absolute path"
 has "## 受け取るもの" "$(cat "$idx")" "index.md carries references/review.md"
+has "\`frontend.md\`：無し" "$(cat "$idx")" "index.md: no frontend.md without docs/context/frontend.md"
+[ ! -e "$d/frontend.md" ] && ok || ng "no frontend.md copied without the design"
+mkdir -p docs/context && printf '# フロントエンドの設計\n\n## Path: .\n' > docs/context/frontend.md
+idx=$(bash "$scripts/review-input.sh" GT-000901 main)
+has "- \`$d/frontend.md\`" "$(cat "$idx")" "index.md lists frontend.md when the project has one"
+has "## Path: ." "$(cat "$d/frontend.md")" "frontend.md is docs/context/frontend.md"
+rm -rf docs/context
+bash "$scripts/review-input.sh" GT-000901 main > /dev/null
+[ ! -e "$d/frontend.md" ] && ok || ng "frontend.md removed when the design is gone"
 case "$(cat "$idx")" in *"# Review の共通の規則"*) ng "index.md leaves out review.md's maintainer lines" ;; *) ok ;; esac
 # --since writes the change after a given commit as delta.patch.
 since=$(git rev-parse HEAD)

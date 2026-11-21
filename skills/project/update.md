@@ -10,11 +10,18 @@
    - **設定の値を変える**
    - **v2 の LT を issue に移す**
    - **テンプレートと Actions を最新にする**
+   - **フロントエンドの設計を決める・見直す**
 2. 選んだものの手順（Phase 2 の下記）に進む。書いたファイルは commit しない（一覧で示し、commit するかはユーザーに任せる。commit するなら `docs/context/commit.md` の規約に従う）。
 
 ## Phase 2 — 変更（ゲート）
 
 目的：選んだものを、差分を示して確認を得てから書く。
+
+### フロントエンドの設計を決める・見直す
+
+- `references/frontend-design.md` を Read し、その手順で決める（`docs/context/frontend.md` に節があるパッケージは、変える軸だけを尋ねる）。合意を得たら `docs/context/frontend.md` に書く。
+- 書いた後、dev を始める前に Base のブランチへ commit・push するよう伝える（commit しないまま dev を始めると、チケットのブランチに入り、その PR の変更になるため）。`CLAUDE.md` が `@docs/context/overview.md` を取り込んでいて、`@docs/context/frontend.md` が無ければ、足すか尋ねる（init の「CLAUDE.md」と同じ書き方）。
+- 進行中の run があれば、その Approach は前の設計のままなので、合わせるなら `/tixforge:dev rewind <id>` で Approach に戻せることを伝える。
 
 ### 設定の値を変える
 
