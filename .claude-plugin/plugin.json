@@ -5,7 +5,7 @@
   "author": {
     "name": "kmjak"
   },
-  "repository": "https://github.com/kmjak/tixforge",
+  "repository": "https://github.com/kmjak/tixforge-plugin",
   "license": "MIT",
   "types": "./types/index.d.ts"
 }
