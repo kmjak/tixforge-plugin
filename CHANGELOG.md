@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.3.0...tixforge--v3.4.0) (2026-11-21)
+
+
+### Features
+
+* let each person choose where the event log is kept ([#79](https://github.com/kmjak/tixforge-plugin/issues/79)) ([3c24aac](https://github.com/kmjak/tixforge-plugin/commit/3c24aacd7b37b85300d7c1858710b99b273ffcf0))
+
 ## [3.3.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.2.0...tixforge--v3.3.0) (2026-11-21)
 
 
