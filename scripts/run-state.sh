@@ -51,6 +51,11 @@
 # reason is the person's own text. cancel and release refuse a done or
 # canceled run (exit 4).
 #
+# When a run leaves review:in-progress (to fix findings, to the gate, to the
+# PR, or by a rewind from Review), the rounds of ## Review are logged too,
+# one review_round event each (review_rounds), so the counts never depend on
+# Claude writing an event.
+#
 # Every change of Status, init, rewind, cancel and release append an event to
 # .tixforge/events.jsonl (lib.sh event; the README lists them). A log that
 # cannot be written stops nothing.
@@ -110,6 +115,85 @@ STATE_FORMAT=3
 REWIND_CATEGORIES="misread constraint infeasible spec_change other"
 CANCEL_CATEGORIES="priority duplicate spec_change infeasible other"
 TRIGGERS="human review implement pr ticket"
+# review_rounds <state.md>: one line per "### Round <n>" of ## Review,
+# "<n>\t<findings>\t<unparsed>". findings is a JSON array, one object per
+# finding in the order written (a finding is a top-level "- " item of a
+# round): id and label from "- **R1 [kind]**" (label as written, in the
+# review's language; both "" for an item the implementer added), auto_fix
+# (fix / accept / ask for ○ / × / △), decision (fix, fix (auto), accept,
+# accept (auto), replan, reapproach; null before one is written) and fixed
+# (the hash of "Fixed @", or null). Every finding has an Auto-fix line
+# (run.md); an item without one is not in findings but counted in unparsed,
+# so a slip in the format shows. Lines in a fence are skipped. The symbols are
+# matched as strings (index), never in a bracket expression: in the C locale
+# [○×△] would match single bytes.
+review_rounds() {
+  LC_ALL=C awk "$_section_awk"'
+    function esc(t,   o, i, c) {
+      o = ""
+      for (i = 1; i <= length(t); i++) {
+        c = substr(t, i, 1)
+        if (c == "\\" || c == "\"") o = o "\\" c; else o = o c
+      }
+      return "\"" o "\""
+    }
+    function str(t) { return t == "" ? "null" : esc(t) }
+    function close_finding() {
+      if (!open_f) return
+      if (af == "") unparsed++
+      else items = items (items == "" ? "" : ",") "{\"id\":" esc(fid) ",\"label\":" esc(lab) ",\"auto_fix\":" esc(af) ",\"decision\":" str(dec) ",\"fixed\":" str(fx) "}"
+      open_f = 0; fid = ""; lab = ""; af = ""; dec = ""; fx = ""
+    }
+    function close_round() {
+      close_finding()
+      if (round != "") printf "%s\t[%s]\t%d\n", round, items, unparsed
+      round = ""; items = ""; unparsed = 0
+    }
+    {
+      line = $0; sub(/\r$/, "", line)
+      h = heading_index(line)
+      if (h) { if (inrev) close_round(); inrev = (h == 5); next }
+      if (!inrev || _fence != "" || line ~ /^ ? ? ?(```|~~~)/) next
+      if (line ~ /^### Round [0-9]+[ \t]*$/) {
+        close_round(); round = line; sub(/^### Round /, "", round); sub(/[ \t]+$/, "", round); next
+      }
+      if (round == "") next
+      if (line ~ /^- /) {
+        close_finding(); open_f = 1
+        if (line ~ /^- \*\*[A-Z][0-9]+ \[/ && index(line, "]")) {
+          t = substr(line, 5)
+          fid = substr(t, 1, index(t, " ") - 1)
+          t = substr(t, index(t, "[") + 1); lab = substr(t, 1, index(t, "]") - 1)
+        }
+        next
+      }
+      if (line ~ /^[ \t]*- Auto-fix:/) {
+        if (!open_f) next
+        if (index(line, "○")) af = "fix"; else if (index(line, "×")) af = "accept"; else if (index(line, "△")) af = "ask"
+        next
+      }
+      if (open_f && line ~ /^[ \t]*- Decision:/) {
+        t = line; sub(/^[ \t]*- Decision:[ \t]*/, "", t)
+        if (t ~ /^fix \(auto\)/) dec = "fix (auto)"; else if (t ~ /^accept \(auto\)/) dec = "accept (auto)"
+        else if (t ~ /^fix/) dec = "fix"; else if (t ~ /^accept/) dec = "accept"
+        else if (t ~ /^replan/) dec = "replan"; else if (t ~ /^reapproach/) dec = "reapproach"
+        next
+      }
+      if (open_f && line ~ /^[ \t]*- Fixed @ /) { t = line; sub(/^[ \t]*- Fixed @ /, "", t); sub(/[ \t].*$/, "", t); fx = t }
+    }
+    END { if (inrev) close_round() }' "$1"
+}
+# log_review <state.md> <id>: a review_round event per round.
+log_review() {
+  local n items unparsed
+  while IFS="$(printf '\t')" read -r n items unparsed; do
+    [ -n "$n" ] || continue
+    event "$top" "$2" review_round round "$n" findings "$items" unparsed "$unparsed"
+  done << EOF
+$(review_rounds "$1")
+EOF
+}
+
 # one_of <value> <words>: exit 0 when the value is one of the words.
 one_of() {
   local v
@@ -269,6 +353,7 @@ case $cmd in
         ;;
     esac
     [ "$2" = Status ] && before=$(field "$f" Status)
+    [ "$2" = Status ] && [ "$before" = review:in-progress ] && [ "$3" != "$before" ] && log_review "$f" "$1"
     put "$f" "$2" "$3"
     put "$f" Updated "$(tf_now)"
     [ "$2" = Status ] && [ "$before" != "$3" ] \
@@ -354,6 +439,7 @@ case $cmd in
       echo "cannot rewind to $phase: run $id is at $before (rewind goes back, not forward)" >&2
       exit 2
     fi
+    case $before in review:*) log_review "$f" "$id" ;; esac
     now=$(tf_now)
     # Two rewinds in the same second must not share a file (awk truncates it).
     stamp=$(date '+%Y%m%d-%H%M%S')

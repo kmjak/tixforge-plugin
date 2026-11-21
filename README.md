@@ -192,12 +192,15 @@ run の過程を、ほかのツール（tixforge の GUI など）が読める�
 | `rewind` | 前のフェーズに戻した | `from`（戻す前の `Status`）・`to`・`category`・`trigger`・`reason`・`history`（古い記録のファイル）・`keep_log` |
 | `canceled` | `/tixforge:ticket cancel` でやめた | `from`・`category`・`reason` |
 | `released` | チケットを手放した（run を消した） | `from`・`reason` |
+| `review_round` | `review:in-progress` から出た（指摘を直しに行く・ゲート・PR・巻き戻し）。`## Review` のラウンドごとに 1 行 | `round`・`findings`・`unparsed` |
 
 `rewind`・`canceled`・`released` は `status` を別に書かない（`Status` の変化はこれらの `from`・`to` で分かる）。`category`・`trigger`・`reason` は無ければ `null`。
 
 - `category`（巻き戻し）：`misread`（要件の読み違い）・`constraint`（既存のコード・制約を知らなかった）・`infeasible`（技術的に無理・方針の誤り）・`spec_change`（仕様の変更）・`other`
 - `category`（キャンセル）：`priority`（優先度が下がった）・`duplicate`（重複・統合）・`spec_change`・`infeasible`・`other`
 - `trigger`（巻き戻しのきっかけ）：`human`（人が言い出した）・`review`（Review の見直し）・`implement`（Implement で計画どおりに進められない）・`pr`（PR の対応）・`ticket`（チケットの変更）
+
+`review_round` の `findings` は指摘ごとの `{id, label, auto_fix, decision, fixed}`：`id` は `R1`・`Q2`（実装者が足した指摘は `""`）、`label` は `[未実装]` などの種類を書かれたとおり（Review の言語のまま）、`auto_fix` は `fix`（○）・`accept`（×）・`ask`（△）、`decision` は `fix`・`fix (auto)`・`accept`・`accept (auto)`・`replan`・`reapproach` か `null`、`fixed` は `Fixed @` の hash か `null`。`unparsed` は `Auto-fix:` の行が無かった項目の数（書式の崩れに気づくため）。同じラウンドは Review を出るたびに書き直されるので、最後の行を使う（巻き戻すと Round 1 から数え直す）。
 
 `via` は変化の種類：`gate`（ゲートで止まった）・`approve`（ゲートの承認で次のフェーズへ）・`forward`（止まらずに次のフェーズへ。ゲートの自動通過か、Review の指摘を直して Review に戻った）・`back`（巻き戻しを使わずに前のフェーズへ。Review の指摘を直しに Implement へ、など）・`pr`（PR のフェーズの中）・`done`・`cancel`・`other`。
 

@@ -507,6 +507,66 @@ st release GT-000906 2> /dev/null
 eq 4 $? "a done run is not released"
 [ -f .tixforge/GT-000906/state.md ] && ok || ng "a refused release removes nothing"
 rm -rf .tixforge/GT-000906 .tixforge/GT-000908
+# review_round: the rounds of ## Review, logged when the run leaves
+# review:in-progress, from the fixed keys only.
+st init GT-000905 > /dev/null
+f5=.tixforge/GT-000905/state.md
+cat > "$tmp/review.md" << 'EOF'
+## Review
+### Round 1
+Verification @ a1b2c3d: test pass
+
+#### 合意とのズレ（tixforge:reviewer）
+- **R1 [未実装]** "引用" と \ がある
+  - 推奨：修正
+  - Auto-fix: ○
+  - Decision: fix (auto) 理由
+  - Fixed @ b2c3d4e
+- **R2 [合意外の変更]** x
+  - Auto-fix: △
+```markdown
+- **R9 [相違]** in a fence
+  - Auto-fix: ×
+```
+
+#### 品質（tixforge:quality-reviewer）
+- **Q1 [バグ]** y
+  - Auto-fix: ×
+  - Decision: accept (auto)
+- **Q2 [性能]** no Auto-fix line
+- 実装者による追加：z
+  - Auto-fix: △
+  - Decision: reapproach
+
+### Round 2
+Verification @ c3d4e5f: test pass
+
+#### 合意とのズレ（tixforge:reviewer）
+指摘なし
+EOF
+awk -v r="$tmp/review.md" '$0 == "## Review" { while ((getline l < r) > 0) print l; next } { print }' "$f5" > "$tmp/s5" && cat "$tmp/s5" > "$f5"
+st set GT-000905 Status review:in-progress > /dev/null
+n=$(wc -l < "$evf")
+st set GT-000905 Status implement:in-progress > /dev/null
+eq $((n + 3)) "$(wc -l < "$evf" | tr -d " ")" "leaving review:in-progress logs each round, then the status"
+eq '{"round":1,"findings":[{"id":"R1","label":"未実装","auto_fix":"fix","decision":"fix (auto)","fixed":"b2c3d4e"},{"id":"R2","label":"合意外の変更","auto_fix":"ask","decision":null,"fixed":null},{"id":"Q1","label":"バグ","auto_fix":"accept","decision":"accept (auto)","fixed":null},{"id":"","label":"","auto_fix":"ask","decision":"reapproach","fixed":null}],"unparsed":1}' \
+  "$(grep '"review_round"' "$evf" | tail -2 | head -1 | jq -c '{round, findings, unparsed}')" "round 1: findings from the fixed keys, fences skipped, an item without Auto-fix is unparsed"
+eq '{"round":2,"findings":[],"unparsed":0}' "$(grep '"review_round"' "$evf" | tail -1 | jq -c '{round, findings, unparsed}')" "a round without findings"
+n=$(wc -l < "$evf")
+st set GT-000905 Status review:in-progress > /dev/null
+eq $((n + 1)) "$(wc -l < "$evf" | tr -d " ")" "entering Review logs no rounds"
+# English labels, CRLF, and a rewind from Review (logged before ## Review moves).
+sed -e 's/未実装/missing/' -e 's/$/\r/' "$tmp/review.md" > "$tmp/review-en.md"
+awk '$0 == "## Review" { skip = 1; print; next } skip && /^## / { skip = 0 } !skip' "$f5" > "$tmp/s5"
+awk -v r="$tmp/review-en.md" '$0 == "## Review" { while ((getline l < r) > 0) print l; next } { print }' "$tmp/s5" > "$f5"
+st rewind GT-000905 plan --category misread --trigger review > /dev/null
+eq '"missing"' "$(grep '"review_round"' "$evf" | tail -2 | head -1 | jq -c '.findings[0].label')" "a rewind from Review logs the rounds first (CRLF read)"
+eq rewind "$(tail -1 "$evf" | jq -r .type)" "then the rewind"
+n=$(wc -l < "$evf")
+st set GT-000905 Status review:in-progress > /dev/null
+st set GT-000905 Status pr:in-progress > /dev/null
+eq $((n + 2)) "$(wc -l < "$evf" | tr -d " ")" "an empty ## Review logs no rounds"
+rm -rf .tixforge/GT-000905
 # The words the skills ask for are the ones run-state accepts: rewind.md and
 # cancel.md list each as "- `<word>`：<meaning>" under the step that asks.
 for kind in rewind cancel; do
