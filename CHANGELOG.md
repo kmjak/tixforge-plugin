@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.1.0](https://github.com/kmjak/tixforge/compare/tixforge--v3.0.0...tixforge--v3.1.0) (2026-11-21)
+
+
+### Features
+
+* fix agreed review findings on their own for up to three rounds ([#67](https://github.com/kmjak/tixforge/issues/67)) ([4b54841](https://github.com/kmjak/tixforge/commit/4b548416f07aa74355fb3e15fdeb828f1aa417bf))
+* let users hand over a whole description and get a filled draft ([#69](https://github.com/kmjak/tixforge/issues/69)) ([1148068](https://github.com/kmjak/tixforge/commit/114806813178a9ffda03aa9d86d8d0d5b8cd83d5))
+* stop at the Plan and PR gates by default ([#66](https://github.com/kmjak/tixforge/issues/66)) ([e23c3c3](https://github.com/kmjak/tixforge/commit/e23c3c31fae11c674664104733e97bc0d5280d38))
+
+
+### Bug Fixes
+
+* let Research read a few known files without Explore ([#65](https://github.com/kmjak/tixforge/issues/65)) ([c438217](https://github.com/kmjak/tixforge/commit/c438217924e082ed390ad02f7ab390b806b92477))
+
 ## [3.0.0](https://github.com/kmjak/tixforge/compare/tixforge--v2.2.0...tixforge--v3.0.0) (2026-11-19)
 
 
