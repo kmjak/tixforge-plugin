@@ -10,3 +10,7 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    # PR titles must be Conventional Commits (the pr-title check), and
+    # action bumps do not reach users, so they are "ci:".
+    commit-message:
+      prefix: ci
