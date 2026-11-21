@@ -2,7 +2,7 @@
 
 ## 報告のしかた
 
-脆弱性は公開の issue に書かず、[GitHub の非公開の報告](https://github.com/kmjak/tixforge/security/advisories/new) から送ってください。内容は作者と報告者だけが見られます。
+脆弱性は公開の issue に書かず、[GitHub の非公開の報告](https://github.com/kmjak/tixforge-plugin/security/advisories/new) から送ってください。内容は作者と報告者だけが見られます。
 
 対象の例：
 

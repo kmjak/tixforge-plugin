@@ -18,11 +18,11 @@
 ## 導入
 
 ```sh
-claude plugin marketplace add kmjak/tixforge
+claude plugin marketplace add kmjak/tixforge-plugin
 claude plugin install tixforge@tixforge
 ```
 
-セッションの中なら `/plugin marketplace add kmjak/tixforge` → `/plugin install tixforge@tixforge`。次に起動するセッションから使える。更新は `claude plugin marketplace update tixforge` → `claude plugin update tixforge@tixforge`（`version` を上げたリリースだけが届く）。
+セッションの中なら `/plugin marketplace add kmjak/tixforge-plugin` → `/plugin install tixforge@tixforge`。次に起動するセッションから使える。更新は `claude plugin marketplace update tixforge` → `claude plugin update tixforge@tixforge`（`version` を上げたリリースだけが届く）。
 
 plugin には、スキル 3 つ・Review 用の agent 2 つ（`tixforge:reviewer`・`tixforge:quality-reviewer`）・hook 2 つ（下記「hook」）・パネルの mod が入っている。個別に導入・登録するものは無い。
 
