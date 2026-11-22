@@ -674,29 +674,44 @@ if command -v python3 > /dev/null && command -v curl > /dev/null; then
   srv="$tmp/srv"
   mkdir -p "$srv"
   cat > "$tmp/server.py" << 'EOF'
-import http.server, json, os, sys
+import http.server, json, os, sys, threading, time
 d = sys.argv[1]
 n = [0]
+lock = threading.Lock()
 class H(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
-        n[0] += 1
-        rec = {"path": self.path, "auth": self.headers.get("Authorization"),
-               "type": self.headers.get("Content-Type"), "body": json.loads(body)}
         try:
-            code = int(open(os.path.join(d, "code")).read())
+            code = open(os.path.join(d, "code")).read().strip()
         except Exception:
-            code = 200
+            code = "200"
+        if code == "sleep":
+            time.sleep(15)
+            return
+        try:
+            parsed = json.loads(body)
+        except Exception:
+            self.send_response(400)
+            self.end_headers()
+            open(os.path.join(d, "bad-json"), "a").write("x")
+            return
+        with lock:
+            n[0] += 1
+            k = n[0]
+        rec = {"path": self.path, "auth": self.headers.get("Authorization"),
+               "type": self.headers.get("Content-Type"), "body": parsed}
+        code = int(code)
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(b'{"accepted":0,"duplicates":0}')
-        with open(os.path.join(d, "req-%d.json.tmp" % n[0]), "w") as f:
+        with open(os.path.join(d, "req-%d.json.tmp" % k), "w") as f:
             json.dump(rec, f, ensure_ascii=False)
-        os.rename(os.path.join(d, "req-%d.json.tmp" % n[0]), os.path.join(d, "req-%d.json" % n[0]))
+        os.rename(os.path.join(d, "req-%d.json.tmp" % k), os.path.join(d, "req-%d.json" % k))
     def log_message(self, *a):
         pass
-s = http.server.HTTPServer(("127.0.0.1", 0), H)
+s = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+s.daemon_threads = True
 open(os.path.join(d, "port.tmp"), "w").write(str(s.server_address[1]))
 os.rename(os.path.join(d, "port.tmp"), os.path.join(d, "port"))
 s.serve_forever()
@@ -744,7 +759,15 @@ EOF
   export TIXFORGE_EVENTS_TOKEN='tok-"secret\1'
   printf 'events:\n  endpoint: http://example.com/api/events\n' > .tixforge/config.yml
   eq "events_sync=off（events.endpoint が https:// でない）" "$(ps_sync)" "off for http:// other than localhost"
-  for u in https://example.com/api/events http://localhost:3000/api/events http://127.0.0.1/api; do
+  for u in http://localhost:80@evil.example/x https://user@example.com/x; do
+    printf 'events:\n  endpoint: %s\n' "$u" > .tixforge/config.yml
+    eq "events_sync=off（events.endpoint に使えない文字（空白・@・\\））" "$(ps_sync)" "off for user info in $u (the token would go to another host)"
+  done
+  for u in http://localhost.evil.example/x http://127.0.0.1.evil.example/ http://127.0.0.1:8a/x; do
+    printf 'events:\n  endpoint: %s\n' "$u" > .tixforge/config.yml
+    eq "events_sync=off（events.endpoint が https:// でない）" "$(ps_sync)" "off for a look-alike of localhost: $u"
+  done
+  for u in https://example.com/api/events http://localhost:3000/api/events http://127.0.0.1/api http://localhost; do
     printf 'events:\n  endpoint: %s\n' "$u" > .tixforge/config.yml
     eq "events_sync=on" "$(ps_sync)" "on for $u"
   done
@@ -818,6 +841,60 @@ EOF
   printf '\n' >> "$esev"
   esh flush > /dev/null
   eq "$(wc -l < "$esev" | tr -d ' ')" "$(cat "$esev.sent")" "a broken line is passed over, not retried forever"
+  # A write cut short has no newline: the next event joins it into one line
+  # that starts with { and ends with }, but is not JSON. It is passed over
+  # (the endpoint would answer 400 for every request with it).
+  printf '{"v":1,"id":"cut","at":"t","ticket":"GT-000001","ty' >> "$esev"
+  r=$(reqs)
+  has "unsent: 0" "$(esh status)" "a line still being written is not counted"
+  st set GT-000001 Status approach:in-progress > /dev/null
+  settle $((r + 1))
+  eq approach:in-progress "$(req "$(reqs)" | jq -r '.body.events[-1].to')" "the event after a cut-short write is sent"
+  case "$(req "$(reqs)" | jq -c .body.events)" in *'"cut"'*) ng "the cut part is not sent" ;; *) ok ;; esac
+  [ -e "$srv/bad-json" ] && ng "no request was rejected as bad JSON" || ok
+  eq "$(wc -l < "$esev" | tr -d ' ')" "$(cat "$esev.sent")" "and counted as sent"
+  # Blank lines only: nothing to POST.
+  printf '\n\n' >> "$esev"
+  r=$(reqs)
+  esh flush > /dev/null
+  eq "$r" "$(reqs)" "blank lines make no request"
+  eq "$(wc -l < "$esev" | tr -d ' ')" "$(cat "$esev.sent")" "blank lines are passed over"
+  # Two identical lines without id are two events, with ids that stay.
+  dup='{"v":1,"at":"2026-11-21T10:00:01+09:00","ticket":"GT-000003","type":"wait_end","cause":"turn"}'
+  printf '%s\n%s\n' "$dup" "$dup" >> "$esev"
+  esh flush > /dev/null
+  ids=$(req "$(reqs)" | jq -r '.body.events[] | select(.ticket == "GT-000003") | .id' | paste -sd' ' -)
+  eq 2 "$(printf '%s\n' $ids | sort -u | wc -l | tr -d ' ')" "identical lines without id get different ids"
+  echo $(($(cat "$esev.sent") - 2)) > "$esev.sent"
+  esh flush > /dev/null
+  eq "$ids" "$(req "$(reqs)" | jq -r '.body.events[] | select(.ticket == "GT-000003") | .id' | paste -sd' ' -)" "and the same ids when sent again"
+  # Without md5sum and md5, cksum gives the id.
+  nomd5="$tmp/nomd5-bin"
+  mkdir -p "$nomd5"
+  for t in bash git awk sed tr cat cut wc date mkdir mktemp mv rm rmdir find touch od curl cksum dirname sleep head grep; do
+    p=$(command -v "$t") && ln -sf "$p" "$nomd5/$t"
+  done
+  echo $(($(cat "$esev.sent") - 2)) > "$esev.sent"
+  PATH="$nomd5" bash "$scripts/events-sync.sh" flush > /dev/null
+  eq 0 $? "flush works without md5"
+  req "$(reqs)" | jq -r '.body.events[] | select(.ticket == "GT-000003") | .id' \
+    | grep -cE '^[0-9a-f]{8}-[0-9a-f]{4}-3[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' | grep -qx 2 && ok || ng "cksum gives well-formed ids"
+  # Two senders at once: every line is sent, .sent ends at the end.
+  unset TIXFORGE_EVENTS_TOKEN
+  for t in plan approach plan approach plan; do st set GT-000001 Status "$t:in-progress" > /dev/null; done
+  export TIXFORGE_EVENTS_TOKEN='tok-"secret\1'
+  want=$(jq -Rr 'fromjson? | select(.id) | .id' "$esev" | tail -5)
+  r=$(reqs)
+  esh flush > /dev/null 2>&1 &
+  f1=$!
+  esh flush > /dev/null 2>&1 &
+  f2=$!
+  wait "$f1" "$f2" # not a bare wait: the endpoint runs in the background too
+  got=$(for i in $(seq $((r + 1)) "$(reqs)"); do req "$i" | jq -r '.body.events[].id'; done | sort -u)
+  for id in $want; do printf '%s\n' "$got" | grep -qx "$id" || ng "two senders: $id was not sent"; done
+  ok
+  eq "$(wc -l < "$esev" | tr -d ' ')" "$(cat "$esev.sent")" "two senders: .sent reaches the end"
+  [ -d "$esev.lock" ] && ng "two senders: the lock is released" || ok
   # The lock: another sender running, and one that died long ago.
   mkdir "$esev.lock"
   esh flush > /dev/null 2>&1
@@ -826,6 +903,37 @@ EOF
   esh flush > /dev/null 2>&1
   eq 0 $? "a lock older than 2 minutes is taken over"
   [ -d "$esev.lock" ] && ng "flush releases the lock" || ok
+  # The endpoint takes the connection but never answers: run-state and the
+  # hook return at once; the sender gives up after its timeout (5 s).
+  echo sleep > "$srv/code"
+  n=$(cat "$esev.sent")
+  t0=$(date +%s)
+  out=$(st set GT-000001 Status plan:awaiting-approval)
+  eq "0:plan:awaiting-approval" "$?:$out" "set: same exit and output with an endpoint that never answers"
+  printf '{"session_id":"s","cwd":"%s","hook_event_name":"Stop"}' "$es" | bash "$scripts/wait-hook.sh" | cat > /dev/null
+  [ $(($(date +%s) - t0)) -le 1 ] && ok || ng "set and the hook do not wait for an endpoint that never answers"
+  i=0
+  while [ -d "$esev.lock" ] && [ $i -lt 300 ]; do # the background senders time out
+    sleep 0.1
+    i=$((i + 1))
+  done
+  t0=$(date +%s)
+  esh flush > /dev/null 2>&1
+  eq 1 $? "flush fails when the endpoint never answers"
+  t=$(($(date +%s) - t0))
+  [ "$t" -ge 4 ] && [ "$t" -le 8 ] && ok || ng "flush gives up after about 5 s (took $t s)"
+  eq "$n" "$(cat "$esev.sent")" "nothing marked sent after a timeout"
+  i=0
+  while [ -d "$esev.lock" ] && [ $i -lt 100 ]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+  rm -f "$srv/code"
+  # The hook starts the sender too.
+  r=$(reqs)
+  printf '{"session_id":"s","cwd":"%s","hook_event_name":"Stop"}' "$es" | bash "$scripts/wait-hook.sh"
+  settle $((r + 1))
+  eq wait_start "$(req "$(reqs)" | jq -r '.body.events[-1].type')" "the hook's event is sent"
   # The endpoint is down: run-state does not wait, the line stays unsent.
   kill "$srv_pid" 2> /dev/null
   wait "$srv_pid" 2> /dev/null

@@ -31,7 +31,7 @@
   - `commands` → 「検証コマンド」（値は全体を囲むか囲まないか）。
   - `review.required` → 人数に合わせる（1 人なら `false`）。
   - `language`・`gates` → そのまま書き換える。これはチームの値で、「この人が使う値」が `config.local.yml` から来ているなら本人の dev には効かないことと、自分だけ変えるなら `/tixforge:project setup` を使うことを伝える。`language` を変えたら、前の言語で作ったもの（issue フォーム `.github/ISSUE_TEMPLATE/tixforge-ticket.yml`・PR テンプレート・`docs/context/**`、フォームから取り込んだチケットの見出し）は前の言語のまま残ることを伝える（訳し直しはしない）。
-- `events.endpoint`（イベントログの送り先）→ URL を尋ねて書く（`https://` だけ。手元で確かめるなら `http://127.0.0.1`・`http://localhost` も可。それ以外なら尋ね直す）。消すなら行ごと消す（`events:` の下に何も無くなれば `events:` も消す）。送るのは各自が環境変数 `TIXFORGE_EVENTS_TOKEN` にトークンを置いたときだけで、トークンは設定ファイルにもチャットにも書かないことを伝える。書いた後、`bash <scripts>/project-status.sh` の `events_sync=` で送るかどうかを示す。
+- `events.endpoint`（イベントログの送り先）→ URL を尋ねて書く（`https://` だけ。手元で確かめるなら、ホストがちょうど `127.0.0.1`・`localhost` の `http://` も可。`@`・空白・`\` を含むものとそれ以外は尋ね直す）。消すなら行ごと消す（`events:` の下に何も無くなれば `events:` も消す）。送るのは各自が環境変数 `TIXFORGE_EVENTS_TOKEN` にトークンを置いたときだけで、トークンは設定ファイルにもチャットにも書かないことを伝える。書いた後、`bash <scripts>/project-status.sh` の `events_sync=` で送るかどうかを示す。
 - `ticket.tracker` は `github` のままにする。`repository.host` のキーがあれば、使われていないことを伝えて消すか尋ねる。
 - `repository.close_issues` のキーがあれば（v3 で廃止）、issue はリリースで閉じるようになったこと（`merge` だった develop 運用では、develop へのマージでは閉じなくなる）を伝える。`.github/workflows/tixforge-issue-sync.yml` の版が `(v6)` より前なら、先に「テンプレートと Actions を最新にする」を勧める（古い版はこのキーで閉じ方を決めるため）。そのうえでキーを消すか尋ねる。
 - 変わる内容を差分で示し、確認を得てから `config.yml` に書く。

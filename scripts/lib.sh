@@ -435,10 +435,25 @@ events_sync_check() {
     ES_REASON="events.endpoint なし"
     return 1
   fi
+  # No user info (http://localhost:80@other.host would go to other.host)
+  # and, for http://, exactly localhost or 127.0.0.1 with an optional port.
   case $ES_ENDPOINT in
-    *[[:space:]]*) ES_REASON="events.endpoint が URL でない" && return 1 ;;
+    *[[:space:]@\\]*) ES_REASON="events.endpoint に使えない文字（空白・@・\\）" && return 1 ;;
     https://?*) ;;
-    http://127.0.0.1 | http://127.0.0.1[:/]* | http://localhost | http://localhost[:/]*) ;;
+    http://*)
+      u=${ES_ENDPOINT#http://}
+      u=${u%%[/?#]*}
+      case $u in
+        localhost | 127.0.0.1 | localhost:[0-9]* | 127.0.0.1:[0-9]*)
+          case ${u#*:} in *[!0-9]*) [ "${u#*:}" = "$u" ] || {
+            ES_REASON="events.endpoint が https:// でない"
+            return 1
+          } ;;
+          esac
+          ;;
+        *) ES_REASON="events.endpoint が https:// でない" && return 1 ;;
+      esac
+      ;;
     *) ES_REASON="events.endpoint が https:// でない" && return 1 ;;
   esac
   if [ -z "${TIXFORGE_EVENTS_TOKEN:-}" ]; then
