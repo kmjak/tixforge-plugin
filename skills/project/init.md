@@ -80,7 +80,7 @@
 
 目的：context などのファイルを、確認を得てから作る。
 
-10. **作るもの**：`.tixforge/config.yml` に、`references/config.md` の `ticket.tracker`（Phase 4 で書く）以外の全てのキーがそろったことを確かめる（足りなければ Phase 2 の該当の手順に戻る）。次を一覧で提示してから作る（既にあるものは作らない・上書きしない）：
+10. **作るもの**：`.tixforge/config.yml` に、`references/config.md` の `ticket.tracker`（Phase 4 で書く）と `events.endpoint`（任意。init では尋ねない）以外の全てのキーがそろったことを確かめる（足りなければ Phase 2 の該当の手順に戻る）。次を一覧で提示してから作る（既にあるものは作らない・上書きしない）：
     - `docs/context/`（中身は「context」）、`docs/context/commit.md`（「commit 規約」）、`docs/context/frontend.md`（フロントエンドがあり、今決めるときだけ。「context」のフロントエンドの設計）
 11. **context**：`docs/context/` に（`commit.md` 以外の）ファイルが既にある場合は、作り方を尋ねずに既存の内容を読み、足りない点を提案するにとどめる（上書きしない）。無い場合は、作り方を選んでもらう：
     - **対話で作る** — 下記「対話で作る場合」の手順で、各項目の内容をユーザーと一緒に決めて `docs/context/overview.md` を書く。

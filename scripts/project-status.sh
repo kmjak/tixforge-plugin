@@ -56,7 +56,8 @@ if [ -f "$conf" ]; then
   [ -n "$(cfg events_log "$(tf_local_config "$top")")" ] || esrc=既定
   echo "- この人が使う値: language=$(user_lang "$top")（${lsrc}）" \
     "gates=${ugates:-（未設定）}（${gf##*/}）" \
-    "events_log=$(tf_events "$top")（${esrc}）"
+    "events_log=$(tf_events "$top")（${esrc}）" \
+    "events_sync=$(if events_sync_check "$top"; then echo on; else echo "off（${ES_REASON}）"; fi)"
   # init writes config.yml one answer at a time and ticket.tracker last
   # (after the labels): a key with no default missing means it stopped
   # part way.

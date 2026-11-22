@@ -186,7 +186,7 @@ run の過程を、ほかのツール（tixforge の GUI など）が読める�
 
 既定の置き場所は `.tixforge/events.jsonl`。git の外なので、`git clean -xdf` やクローンし直しで消える。残したいなら、`/tixforge:project setup` で個人の設定 `events_log` にリポジトリの外のパス（`~/tixforge-logs/myapp.jsonl` など）を書く（`references/config.md` の「個人の設定」）。今の置き場所は `/tixforge:project` の「現在の状態」の `events_log=` に出る。ほかのツールは、`.tixforge/config.local.yml` の `events_log`（`~/` はホーム、相対パスはリポジトリの最上位から）、無ければ `.tixforge/events.jsonl` を読む。
 
-各行に必ずあるキー：`v`（形式の版数。今は `1`）・`at`（秒までの時刻と UTC からのずれ。`2026-11-21T10:15:00+09:00`）・`ticket`（チケット id）・`type`。並びはファイルの順（同じ秒のイベントもこの順に起きた）。
+各行に必ずあるキー：`v`（形式の版数。今は `1`）・`id`（イベントごとの UUID。送り直しても 1 件にまとめるため。v3.5 より前に書いた行には無い）・`at`（秒までの時刻と UTC からのずれ。`2026-11-21T10:15:00+09:00`）・`ticket`（チケット id）・`type`。並びはファイルの順（同じ秒のイベントもこの順に起きた）。
 
 | `type` | いつ | ほかのキー |
 |---|---|---|
@@ -211,13 +211,23 @@ run の過程を、ほかのツール（tixforge の GUI など）が読める�
 `via` は変化の種類：`gate`（ゲートで止まった）・`approve`（ゲートの承認で次のフェーズへ）・`forward`（止まらずに次のフェーズへ。ゲートの自動通過か、Review の指摘を直して Review に戻った）・`back`（巻き戻しを使わずに前のフェーズへ。Review の指摘を直しに Implement へ、など）・`pr`（PR のフェーズの中）・`done`・`cancel`・`other`。
 
 ```json
-{"v":1,"at":"2026-11-21T10:15:00+09:00","ticket":"GT-000123","type":"run_started","status":"research:in-progress"}
-{"v":1,"at":"2026-11-21T10:31:12+09:00","ticket":"GT-000123","type":"status","from":"research:in-progress","to":"approach:in-progress","via":"forward"}
+{"v":1,"id":"6f1c2a8e-3b4d-4e5f-9a6b-7c8d9e0f1a2b","at":"2026-11-21T10:15:00+09:00","ticket":"GT-000123","type":"run_started","status":"research:in-progress"}
+{"v":1,"id":"9a2e4c6d-8f01-4a23-b456-789abcdef012","at":"2026-11-21T10:31:12+09:00","ticket":"GT-000123","type":"status","from":"research:in-progress","to":"approach:in-progress","via":"forward"}
 {"v":1,"at":"2026-11-21T10:48:40+09:00","ticket":"GT-000123","type":"status","from":"approach:in-progress","to":"approach:awaiting-approval","via":"gate"}
 {"v":1,"at":"2026-11-21T11:02:05+09:00","ticket":"GT-000123","type":"rewind","from":"review:in-progress","to":"plan:in-progress","category":"misread","trigger":"review","reason":"commit の分け方を変える","history":".tixforge/GT-000123/history/20261121-110205.md","keep_log":false}
 ```
 
 読む側は、知らない `type` とキーを読み飛ばす（版数を上げずに足すことがある）。キーの意味を変える・消すときは `v` を上げる。
+
+### チームの受け口に送る
+
+`.tixforge/config.yml` に `events.endpoint`（`/tixforge:project update` の「設定の値を変える」）があり、各自が環境変数 `TIXFORGE_EVENTS_TOKEN` にトークンを置いていれば、イベントを書くたびに、まだ送っていない行を裏で送る（`scripts/events-sync.sh`）。手元のログが控えで、送れなくても記録は消えず、次の機会に同じ行から送り直す。送る処理は、run-state.sh や hook を待たせず、終了コードと出力を変えない。トークンはどのファイルにも書かない（curl にも標準入力で渡す）。
+
+- `POST <events.endpoint>`。ヘッダは `Content-Type: application/json` と `Authorization: Bearer <トークン>`。本文は `{"repo": "<owner/repo>", "events": [<ログの行をそのまま>]}`。`repo` は `git remote get-url origin` から求める（求められなければ送らない）。1 回に最大 500 行。
+- `2xx` で送り済みにする。それ以外（`4xx`・`5xx`・接続 2 秒・全体 5 秒のタイムアウト）は送り済みにしない。受け口は `id` で重複を除くので、同じ行を送り直してよい。`id` の無い前の版の行には、行の文面から毎回同じ id を付けて送る（ログは書き換えない）。途中で切れた行は飛ばす。
+- 送り済みの行数はログの隣の `<ログ>.sent`、最後の失敗は `<ログ>.sync-error`、同時に 2 つ送らないためのロックは `<ログ>.lock`（`events_log` でリポジトリの外に置いても、その隣）。
+- `bash <plugin>/scripts/events-sync.sh status` で、送るかどうか・送り済みと未送信の行数・最後の失敗を見る。`flush` ですぐ送る。送るかどうかは `/tixforge:project` の「現在の状態」の `events_sync=on|off（理由）` にも出る。
+- `reason` などの文章もそのまま送る（チームの中だけで見える受け口に送る前提）。
 
 ## 困ったとき
 
