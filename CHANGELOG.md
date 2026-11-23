@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.4.0...tixforge--v3.5.0) (2026-11-23)
+
+
+### Features
+
+* send the event log to the team's endpoint ([#81](https://github.com/kmjak/tixforge-plugin/issues/81)) ([857c990](https://github.com/kmjak/tixforge-plugin/commit/857c9900f7b05698680cd49114ac995911056bd6))
+
 ## [3.4.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.3.0...tixforge--v3.4.0) (2026-11-21)
 
 
