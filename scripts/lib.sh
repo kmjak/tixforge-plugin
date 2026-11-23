@@ -4,6 +4,8 @@
 # Portable to macOS bash 3.2 and BWK awk (no gawk, no yq).
 
 tf_top() { git rev-parse --show-toplevel 2> /dev/null || pwd; }
+# The folder of the scripts (events_kick starts events-sync.sh from it).
+_tf_scripts=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Everything tixforge keeps in a project lives under .tixforge/:
 #   .tixforge/config.yml        settings (in git, shared)
@@ -371,8 +373,8 @@ json_str() {
 
 # The event log, .tixforge/events.jsonl: one JSON object per line, appended
 # only, for tools that show how runs went (the README lists the events and
-# their fields). Every line has v (EVENTS_SCHEMA), at (tf_stamp), ticket and
-# type. Raise EVENTS_SCHEMA when a field changes meaning or goes away;
+# their fields). Every line has v (EVENTS_SCHEMA), id (new_uuid: the same
+# event sent twice is one event), at (tf_stamp), ticket and type. Raise EVENTS_SCHEMA when a field changes meaning or goes away;
 # adding a field or an event type does not need it.
 EVENTS_SCHEMA=1
 # tf_events [top]: the event log file. .tixforge/events.jsonl unless this
@@ -390,12 +392,20 @@ tf_events() {
     *) printf '%s/%s\n' "$top" "$p" ;;
   esac
 }
+# new_uuid: a random UUID (version 4), from /dev/urandom.
+new_uuid() {
+  local h
+  h=$(od -An -N16 -tx1 /dev/urandom 2> /dev/null | tr -d ' \n')
+  [ ${#h} -eq 32 ] || h=$(printf '%04x' $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM)
+  printf '%s-%s-4%s-%x%s-%s\n' "${h:0:8}" "${h:8:4}" "${h:13:3}" $(((0x${h:16:1} & 3) | 8)) "${h:17:3}" "${h:20:12}"
+}
 # event <top> <ticket> <type> [<key> <json>]...: append one event. Each value
 # is JSON already (json_str for text, true/false/null, a number). Never
-# fails: a log that cannot be written must not stop what it records.
+# fails: a log that cannot be written must not stop what it records. Then
+# starts sending what is not sent yet (events_kick).
 event() {
   local top=$1 line log
-  line="{\"v\":$EVENTS_SCHEMA,\"at\":$(json_str "$(tf_stamp)"),\"ticket\":$(json_str "$2"),\"type\":$(json_str "$3")"
+  line="{\"v\":$EVENTS_SCHEMA,\"id\":\"$(new_uuid)\",\"at\":$(json_str "$(tf_stamp)"),\"ticket\":$(json_str "$2"),\"type\":$(json_str "$3")"
   shift 3
   while [ $# -ge 2 ]; do
     line="$line,$(json_str "$1"):$2"
@@ -405,7 +415,80 @@ event() {
   {
     [ -d "${log%/*}" ] || mkdir -p "${log%/*}"
     printf '%s}\n' "$line" >> "$log"
-  } 2> /dev/null || true
+  } 2> /dev/null && events_kick "$top"
+  return 0
+}
+
+# Sending the log to the team's endpoint (events-sync.sh): config.yml's
+# events.endpoint (https://, or http:// to 127.0.0.1 / localhost for a
+# local check) with this person's token, TIXFORGE_EVENTS_TOKEN (never in a
+# file). events_sync_check [top] sets ES_ENDPOINT and ES_REPO (owner/repo
+# from origin's URL, no gh: a hook must stay fast) and returns 0 when
+# sending is on; otherwise ES_REASON says why not. Call it directly, not in
+# $(...), to keep the variables.
+# shellcheck disable=SC2034 # ES_* are read by the callers
+events_sync_check() {
+  local top=${1:-$(tf_top)} u name rest owner
+  ES_ENDPOINT="" ES_REPO="" ES_REASON=""
+  ES_ENDPOINT=$(cfg events.endpoint "$(tf_config "$top")")
+  if [ -z "$ES_ENDPOINT" ]; then
+    ES_REASON="events.endpoint なし"
+    return 1
+  fi
+  # No user info (http://localhost:80@other.host would go to other.host)
+  # and, for http://, exactly localhost or 127.0.0.1 with an optional port.
+  case $ES_ENDPOINT in
+    *[[:space:]@\\]*) ES_REASON="events.endpoint に使えない文字（空白・@・\\）" && return 1 ;;
+    https://?*) ;;
+    http://*)
+      u=${ES_ENDPOINT#http://}
+      u=${u%%[/?#]*}
+      case $u in
+        localhost | 127.0.0.1 | localhost:[0-9]* | 127.0.0.1:[0-9]*)
+          case ${u#*:} in *[!0-9]*) [ "${u#*:}" = "$u" ] || {
+            ES_REASON="events.endpoint が https:// でない"
+            return 1
+          } ;;
+          esac
+          ;;
+        *) ES_REASON="events.endpoint が https:// でない" && return 1 ;;
+      esac
+      ;;
+    *) ES_REASON="events.endpoint が https:// でない" && return 1 ;;
+  esac
+  if [ -z "${TIXFORGE_EVENTS_TOKEN:-}" ]; then
+    ES_REASON="TIXFORGE_EVENTS_TOKEN なし"
+    return 1
+  fi
+  if ! command -v curl > /dev/null 2>&1; then
+    ES_REASON="curl なし"
+    return 1
+  fi
+  u=$(git -C "$top" remote get-url origin 2> /dev/null)
+  u=${u%/}
+  u=${u%.git}
+  name=${u##*/}
+  rest=${u%/*}
+  owner=${rest##*/}
+  owner=${owner##*:}
+  # A remote URL (https://host/o/r, ssh://..., git@host:o/r), not a path.
+  case $u in *://*/* | *:*/*) ;; *) name="" ;; esac
+  case "$owner/$name" in
+    /* | */ | *[!A-Za-z0-9._/-]*)
+      ES_REASON="origin から owner/repo が分からない"
+      return 1
+      ;;
+  esac
+  ES_REPO="$owner/$name"
+  return 0
+}
+# events_kick <top>: start sending in the background when it is on, without
+# waiting (a hook and run-state.sh return at once). Cheap when off: the
+# token is checked first.
+events_kick() {
+  [ -n "${TIXFORGE_EVENTS_TOKEN:-}" ] || return 0
+  [ -n "$(cfg events.endpoint "$(tf_config "$1")")" ] || return 0
+  (bash "$_tf_scripts/events-sync.sh" bg "$1" > /dev/null 2>&1 < /dev/null &) 2> /dev/null
   return 0
 }
 
