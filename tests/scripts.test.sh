@@ -1073,9 +1073,12 @@ out=$(printf '{"source":"compact","cwd":"%s"}' "$repo" | bash "$scripts/session-
 has "run GT-000901" "$out" "run on this branch"
 has "skills/dev/run.md" "$out" "tells to re-read run.md"
 case "$out" in *"skills/dev/pr.md"*) ng "pr.md only in the PR phase" ;; *) ok ;; esac
+has "skills/dev/phase/implement.md" "$out" "and the file of the phase in Status"
+[ -f "$scripts/../skills/dev/phase/implement.md" ] && ok || ng "the phase file it names exists"
 bash "$scripts/run-state.sh" set GT-000901 Status pr:awaiting-review > /dev/null
 out=$(printf '{"source":"compact","cwd":"%s"}' "$repo" | bash "$scripts/session-start.sh")
 has "skills/dev/pr.md" "$out" "the PR phase also re-reads pr.md"
+case "$out" in *"skills/dev/phase/"*) ng "no phase file in the PR phase" ;; *) ok ;; esac
 bash "$scripts/run-state.sh" set GT-000901 Status implement:in-progress > /dev/null
 git switch -q main
 out=$(printf '{"source":"compact","cwd":"%s"}' "$repo" | bash "$scripts/session-start.sh")

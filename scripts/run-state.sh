@@ -123,7 +123,7 @@ TRIGGERS="human review implement pr ticket"
 # (fix / accept / ask for ○ / × / △), decision (fix, fix (auto), accept,
 # accept (auto), replan, reapproach; null before one is written) and fixed
 # (the hash of "Fixed @", or null). Every finding has an Auto-fix line
-# (run.md); an item without one is not in findings but counted in unparsed,
+# (skills/dev/phase/review.md); an item without one is not in findings but counted in unparsed,
 # so a slip in the format shows. Lines in a fence are skipped. The symbols are
 # matched as strings (index), never in a bracket expression: in the C locale
 # [○×△] would match single bytes.
