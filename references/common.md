@@ -59,7 +59,7 @@
 - プロジェクトの `.gitignore` は触らない（`.tixforge/` の中は `.tixforge/.gitignore` が外す）。
 - PR 本文に書く方針（Approach）は、合意した**結論と理由**（2〜3 行）だけ。チケットや検討の過程にレビュアーが引っ張られず、実装そのものを見るため。
 - **言語**：チームで共有するものはドキュメント言語、本人だけが読むものは個人の言語。どちらも無ければ日本語。
-  - **ドキュメント言語**（`.tixforge/config.yml` の `language`）：チケット・`docs/context/**`・PR の本文とコメント（検証の結果）・issue のコメント（判断の記録・閉じるときのコメント）・GitHub に出る決まった文言。チケットと context は見出しもこの言語。PR のタイトルは commit の件名と同じ決まり（`skills/dev/pr.md`）。
+  - **ドキュメント言語**（`.tixforge/config.yml` の `language`）：チケット・`docs/context/**`・PR の本文とコメント（検証の結果）・issue のコメント（判断の記録・閉じるときのコメント）・GitHub に出る決まった文言。チケットと context は見出しもこの言語。PR のタイトルは commit の件名と同じ決まり（`skills/dev/pr/create.md`）。
   - **個人の言語**（「この人が使う値」の `language`）：会話（質問・説明・ゲートでの要約）・`state.md` の本文・Review の reviewer の報告。`state.md` の見出し・ヘッダ表のキー・`Verification @`・`PR comment @`・`PR head @` は英語の固定キーのまま。
   - `state.md` の内容を GitHub に出すとき（PR 本文の方針・受け入れ条件、判断の記録）は、そのまま貼らずにドキュメント言語で書き直す。
 - **設定**（`.tixforge/config.yml`）のキー・値・無いときの扱い・書き方は `references/config.md`。キーを説明するとき、設定を書く・直すとき、キーが無いときに Read する。無いときの既定：`gates` は `[plan, pr]`、`review.required` は `true`、`language` は日本語。「現在の状態」に「init が途中」があれば、`/tixforge:project init` 以外は、init で続けるよう案内して止まる（「移行が要る」もあれば update が先）。

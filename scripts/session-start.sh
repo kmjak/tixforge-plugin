@@ -42,8 +42,16 @@ st=$(field "$run" Status)
 # The file of the phase in Status (run.md, "フェーズの手順").
 extra=""
 case "$st" in
+  pr:awaiting-approval) extra="
+- ${here%/scripts}/skills/dev/pr.md
+- ${here%/scripts}/skills/dev/pr/create.md" ;;
+  pr:awaiting-review | pr:ready-to-merge) extra="
+- ${here%/scripts}/skills/dev/pr.md
+- ${here%/scripts}/skills/dev/pr/follow.md" ;;
   pr:*) extra="
-- ${here%/scripts}/skills/dev/pr.md" ;;
+- ${here%/scripts}/skills/dev/pr.md
+- ${here%/scripts}/skills/dev/pr/create.md
+- ${here%/scripts}/skills/dev/pr/follow.md" ;;
   research:* | approach:* | plan:* | implement:* | review:*) extra="
 - ${here%/scripts}/skills/dev/phase/${st%%:*}.md" ;;
 esac

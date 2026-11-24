@@ -1078,6 +1078,16 @@ has "skills/dev/phase/implement.md" "$out" "and the file of the phase in Status"
 bash "$scripts/run-state.sh" set GT-000901 Status pr:awaiting-review > /dev/null
 out=$(printf '{"source":"compact","cwd":"%s"}' "$repo" | bash "$scripts/session-start.sh")
 has "skills/dev/pr.md" "$out" "the PR phase also re-reads pr.md"
+has "skills/dev/pr/follow.md" "$out" "pr:awaiting-review: the file for after the PR"
+case "$out" in *"skills/dev/pr/create.md"*) ng "pr:awaiting-review: not the file for creating it" ;; *) ok ;; esac
+bash "$scripts/run-state.sh" set GT-000901 Status pr:awaiting-approval > /dev/null
+out=$(printf '{"source":"compact","cwd":"%s"}' "$repo" | bash "$scripts/session-start.sh")
+has "skills/dev/pr/create.md" "$out" "pr:awaiting-approval: the file for creating the PR"
+bash "$scripts/run-state.sh" set GT-000901 Status pr:in-progress > /dev/null
+out=$(printf '{"source":"compact","cwd":"%s"}' "$repo" | bash "$scripts/session-start.sh")
+has "skills/dev/pr/create.md" "$out" "pr:in-progress: both files (the PR may or may not exist)"
+has "skills/dev/pr/follow.md" "$out" "pr:in-progress: both files"
+for f in pr.md pr/create.md pr/follow.md; do [ -f "$scripts/../skills/dev/$f" ] && ok || ng "skills/dev/$f exists"; done
 case "$out" in *"skills/dev/phase/"*) ng "no phase file in the PR phase" ;; *) ok ;; esac
 bash "$scripts/run-state.sh" set GT-000901 Status implement:in-progress > /dev/null
 git switch -q main
