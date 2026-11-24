@@ -24,7 +24,7 @@
 # On the branch of a run in Implement or pr:in-progress, editing an existing
 #   lint / formatter / type-check / git hook config of the repository
 #   (eslint, prettier, tsconfig, ruff, golangci, .husky/, pre-commit, ...)
-#   asks: loosening the checks to pass them is not allowed (run.md), and a
+#   asks: loosening the checks to pass them is not allowed (skills/dev/phase/implement.md), and a
 #   planned change is confirmed on the prompt. pyproject.toml and CI
 #   workflows hold more than checks, so they are left alone.
 # While a run is before Implement (research / approach / plan), editing a
@@ -130,7 +130,7 @@ EOF
           esac
           ;;
       esac
-      ask "run ${own} で、lint・formatter・型チェック・git hook の設定（${path#"$top"/}）を編集しようとしています。Plan にある変更か確かめてください。テストや lint を通すために検査を緩める変更（ルールの無効化・除外の追加・strict を外すなど）なら止めてください（run.md）。承認しますか？"
+      ask "run ${own} で、lint・formatter・型チェック・git hook の設定（${path#"$top"/}）を編集しようとしています。Plan にある変更か確かめてください。テストや lint を通すために検査を緩める変更（ルールの無効化・除外の追加・strict を外すなど）なら止めてください（implement.md の「検証」）。承認しますか？"
     fi
     [ -n "$path" ] || ask "Plan の承認前の run があります：${early}。hook の入力から編集するファイルを読み取れなかったため、docs/・.tixforge/ の中かを判定できません。承認しますか？"
     case "$path" in /*) ;; *) path="$cwd/$path" ;; esac

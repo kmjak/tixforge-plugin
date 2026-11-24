@@ -39,7 +39,7 @@
    - `## Approach` が書かれていて、Approach 以前に戻す（方針を捨てる）なら、`references/github/record.md` を Read し、「記録を残す」を行う（状態ファイルから方針が消える前に）。
    - `bash <scripts>/run-state.sh rewind <ticket-id> <phase> --category <分類> --trigger <きっかけ> --reason "<理由>"`（「このブランチの上で続ける」なら `--keep-log` を付ける）。出力された history のファイルを伝える（戻したセクションは消えずに、このファイルに移る）。
    - 「新しいブランチで作り直す」なら、`bash <scripts>/run-state.sh set <ticket-id> Branch —` でヘッダのブランチを外し、決めたブランチの片付けを行う。
-8. 戻したフェーズから、`<plugin>/skills/dev/run.md` を Read し、そのフェーズの手順で続ける。
+8. 戻したフェーズから、`<plugin>/skills/dev/run.md` の「フェーズの手順」に従い、そのフェーズのファイルを Read して続ける。
 
 ## 手放す（チケットを他の人に渡す）
 

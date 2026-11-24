@@ -108,15 +108,30 @@ $hits"
 
 # --- phases ------------------------------------------------------------------
 # Every instruction file starts its steps with "## Phase 1 — <name>" and
-# numbers its phases in order. SKILL.md routes; pr.md is dev's Phase 6.
+# numbers its phases in order. SKILL.md routes; so does dev's run.md, whose
+# phases are one file each in skills/dev/phase/ (Phase 1 to 5, in the order
+# of run.md's "フェーズの手順"); pr.md is dev's Phase 6.
 section="phases"
-for f in skills/*/*.md; do
-  case $f in */SKILL.md | skills/dev/pr.md) continue ;; esac
-  got=$(sed -n 's/^## Phase \([0-9]*\) — .*/\1/p' "$f" | paste -sd' ' -)
-  want=$(seq 1 "$(printf '%s\n' "$got" | wc -w)" | paste -sd' ' -)
-  [ -n "$got" ] && [ "$got" = "$want" ] && ok || ng "$f: phases are ## Phase 1 — … numbered in order (got: $got)"
-  # dev's run.md numbers each phase from 1 (or 0; Status names the phase).
-  bad=$(awk -v per="$([ "$f" = skills/dev/run.md ] && echo 1 || echo 0)" '
+order=$(awk -F'`' '/^\| [a-z]+ \| `<plugin>\/skills\/dev\/phase\// { n = split($2, p, "/"); sub(/\.md$/, "", p[n]); print p[n] }' skills/dev/run.md | paste -sd' ' -)
+[ "$order" = "research approach plan implement review" ] && ok || ng "run.md lists the phase files in order (got: $order)"
+i=0
+for n in $order; do
+  i=$((i + 1))
+  got=$(sed -n 's/^## Phase \([0-9]*\) — .*/\1/p' "skills/dev/phase/$n.md" | paste -sd' ' -)
+  [ "$got" = "$i" ] && ok || ng "phase/$n.md has only ## Phase $i (got: $got)"
+done
+[ "$(ls skills/dev/phase | sed 's/\.md$//' | sort | paste -sd' ' -)" = "$(printf '%s\n' $order | sort | paste -sd' ' -)" ] && ok || ng "every file in skills/dev/phase is in run.md"
+for f in skills/*/*.md skills/dev/phase/*.md; do
+  case $f in */SKILL.md | skills/dev/pr.md | skills/dev/run.md) continue ;; esac
+  dev=0
+  case $f in skills/dev/phase/*) dev=1 ;; esac
+  if [ $dev -eq 0 ]; then
+    got=$(sed -n 's/^## Phase \([0-9]*\) — .*/\1/p' "$f" | paste -sd' ' -)
+    want=$(seq 1 "$(printf '%s\n' "$got" | wc -w)" | paste -sd' ' -)
+    [ -n "$got" ] && [ "$got" = "$want" ] && ok || ng "$f: phases are ## Phase 1 — … numbered in order (got: $got)"
+  fi
+  # dev's phase files number their steps from 1 (or 0; Status names the phase).
+  bad=$(awk -v per="$dev" '
     BEGIN { if (per) last = -2 }
     /^## Phase/ && !/^## Phase [0-9]+ — [^ ]/ { print FILENAME ":" FNR ": not ## Phase N — <name>" }
     /^## Phase / { want = 1; if (per) last = -2; next }
