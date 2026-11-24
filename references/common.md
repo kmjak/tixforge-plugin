@@ -74,6 +74,7 @@
 |------------|------|
 | `ticket-id.sh` | id の取り出し・正規化・実在の確認・issue 番号への変換（上記） |
 | `run-state.sh` | 状態ファイルの作成（`init`）、ヘッダの読み書き（`get` / `set`。`Status` を検査し、`Updated` も更新）、巻き戻し（`rewind`）・キャンセル（`cancel`）・手放す（`release`）、前の形式からの更新（`migrate`）。どれもイベントログを書くので、手で同じことをしない |
+| `branch.sh` | Plan の Base（ユーザー・チケットの `## Base`・設定・origin の既定の順）とブランチ名（空いている名前）の決定 |
 | `verify.sh` | 検証コマンドの実行と `Verification @ <hash>: …` の行の出力 |
 | `review-input.sh` | Review の agent が読む入力（差分・commit 一覧・チケット・Approach・Plan・フロントエンドの設計と、共通の規則をつけた `index.md`）の書き出し |
 | `pr-status.sh` | PR の状況（レビュー・CI・コンフリクト）の判定 |
