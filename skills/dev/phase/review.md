@@ -7,17 +7,12 @@
 目的：作ったものを、合意とのズレと品質の両面から調べる。**検出は 2 つの reviewer agent**、このセッションは各指摘に推奨と自動修正を添える。合意の中で直せるものは聞かずに直して回し（Round 3 まで）、判断が要るものだけを最後にまとめて尋ねる。
 
 1. **agent の確認**：`tixforge:reviewer` と `tixforge:quality-reviewer` が使えるか確かめる。無ければ止まり、tixforge plugin が有効か（`/plugin`）を確かめるよう案内する。**別の agent で代用しない**。
-2. **どこから進めるか**：Review に入るたび（最初・差し戻しから・再開）、上から確かめ、最初に当たったところから続ける（「未実行の修正」は `Decision: fix`・`fix (auto)` で `Fixed @` の無い指摘）：
-   1. `## Review` にラウンドが無い → 手順 3
-   2. 最新ラウンドが書きかけ（どちらかの reviewer の節に、指摘も「指摘なし」も無い）→ そのラウンドを消して手順 3
-   3. 最新ラウンドに、`Auto-fix:` も `Decision:` も無い指摘がある（3.0 までの決定の行も無い）→ 手順 6
-   4. 最新ラウンドに、`Decision:` の無い `○` か `×` がある → 手順 7
-   5. どれかのラウンドに `Decision: reapproach` か `replan` がある → 手順 9 の見直しの分岐（rewind）
-   6. 最新ラウンドに、未実行の修正の `○` がある → `Status: implement:in-progress` にして `implement.md` の「Review からの差し戻し」へ
-   7. HEAD が最新ラウンドの `Verification @` の commit より進んでいる → 手順 3
-   8. どれかのラウンドに、`Decision:` の無い `△` か、済んでいない `Manual re-check:` がある → 手順 9
-   9. どれかのラウンドに、未実行の修正がある → `Status: implement:in-progress` にして Implement へ
-   10. どれにも当たらない → 手順 10
+2. **どこから進めるか**：Review に入るたび（最初・差し戻しから・再開）、`bash <scripts>/run-state.sh review-next <ticket-id>` を実行し、`step:` に従う。自分で `## Review` を読んで判定し直さない。
+   - `3` → 手順 3。`drop: Round N` があれば、先にそのラウンド（書きかけ）を `## Review` から消す。
+   - `6`・`7`・`9`・`10` → その手順。`recheck: #N …` は手順 9 でやり直す手動確認の候補（今の `## Plan` の対応表で `#N` が `ユーザー` でなければ要らない）。
+   - `implement` → `Status: implement:in-progress` にして `implement.md` の「Review からの差し戻し」へ（「未実行の修正」は `Decision: fix`・`fix (auto)` で `Fixed @` の無い指摘）。
+   - `rewind` → 手順 9 の見直しの分岐（`rewind.md`）。
+   - `legacy: Round N, …` が出たときだけ、そのラウンドに 3.0 までの形式の指摘があるか確かめる。あれば `step:` を使わず、下の注意を当てはめたうえで次の順に判定する：①ラウンドが無い → 3、②最新ラウンドが書きかけ → 消して 3、③最新ラウンドに `Auto-fix:`・`Decision:`・3.0 の決定の行の無い指摘 → 6、④最新ラウンドに `Decision:` の無い `○`・`×` → 7、⑤`reapproach`・`replan` → rewind、⑥最新ラウンドに未実行の修正の `○` → implement、⑦HEAD が最新ラウンドの `Verification @` より進んでいる → 3、⑧`Decision:` の無い `△` か済んでいない `Manual re-check:` → 9、⑨未実行の修正 → implement、⑩どれでもない → 10。
 
    **3.0 までの形式の指摘**（`Auto-fix:`・`Decision:` が無く、個人の言語の「決定」の行がある）は、その決定を `Decision:` に読み替える（修正 → `fix`、受け入れ → `accept`、計画の見直し → `replan`、方針の見直し → `reapproach`）。「修正」は直したものとして扱う。ただし最新ラウンドで、その `Verification @` の後に commit が無ければ未修正（3.0 は直した後に次のラウンドを起こした）なので、Implement が直して `Fixed @` を足す。手順 5 の「前のラウンドの後に直した指摘」には、最新ラウンドの 3.0 の「修正」も入れる。
 3. **検証**：`bash <scripts>/verify.sh --reuse` を実行する（今の commit で全て通った結果があれば、実行せずにその行を出す）。1 行目が Log の最新の `Verification @` と違えば Log に書き写す。失敗か `+dirty` があれば `Status: implement:in-progress` に戻し、`implement.md` の「検証」で扱う。

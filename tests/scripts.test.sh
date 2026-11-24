@@ -569,6 +569,86 @@ st set GT-000905 Status review:in-progress > /dev/null
 st set GT-000905 Status pr:in-progress > /dev/null
 eq $((n + 2)) "$(wc -l < "$evf" | tr -d " ")" "an empty ## Review logs no rounds"
 rm -rf .tixforge/GT-000905
+# review-next: where Review goes on from (phase/review.md step 2), a case per
+# branch in the order they are tried. A commit of its own makes "HEAD is
+# ahead of the round's Verification" both false and true.
+st init GT-000907 > /dev/null
+f7=.tixforge/GT-000907/state.md
+cp "$f7" "$tmp/rn-orig"
+back=$(git symbolic-ref --short HEAD)
+git switch -q -c rn-test
+git commit -q --allow-empty -m rn1
+v1=$(git rev-parse --short HEAD)
+# rn <log> <review>: the Implementation Log and ## Review, then review-next.
+rn() {
+  printf '%s\n' "$1" > "$tmp/rn-log"
+  printf '%s\n' "$2" > "$tmp/rn-rev"
+  awk -v l="$tmp/rn-log" -v r="$tmp/rn-rev" '
+    $0 == "## Implementation Log" { print; while ((getline x < l) > 0) print x; skip = 1; next }
+    $0 == "## Review" { print; while ((getline x < r) > 0) print x; skip = 1; next }
+    /^## / { skip = 0 }
+    !skip' "$tmp/rn-orig" > "$f7"
+  st review-next GT-000907
+}
+# round <n> <hash> <reviewer's findings> [<quality findings>]
+round() { printf '### Round %s\nVerification @ %s: test pass\n\n#### 合意とのズレ（tixforge:reviewer）\n%s\n\n#### 品質（tixforge:quality-reviewer）\n%s\n' "$1" "$2" "$3" "${4:-指摘なし}"; }
+# fnd <id> [auto-fix] [decision] [fixed]
+fnd() {
+  printf -- '- **%s [バグ]** x\n  - 推奨：修正\n' "$1"
+  [ -z "${2:-}" ] || printf '  - Auto-fix: %s\n' "$2"
+  [ -z "${3:-}" ] || printf '  - Decision: %s\n' "$3"
+  [ -z "${4:-}" ] || printf '  - Fixed @ %s\n' "$4"
+}
+step() { printf '%s\n' "$1" | sed -n 's/^step: //p'; }
+out=$(rn "" "")
+eq 3 "$(step "$out")" "review-next: no round -> 3"
+has "round: none" "$out" "review-next: round none"
+out=$(rn "" "$(printf '### Round 1\nVerification @ %s: test pass\n\n#### 合意とのズレ（tixforge:reviewer）\n指摘なし\n\n#### 品質（tixforge:quality-reviewer）\n' "$v1")")
+eq 3 "$(step "$out")" "review-next: a reviewer section left empty -> 3"
+has "drop: Round 1" "$out" "review-next: the cut-short round is dropped"
+out=$(rn "" "$(printf '### Round 1\nVerification @ %s: test pass\n\n#### 合意とのズレ（tixforge:reviewer）\n指摘なし\n' "$v1")")
+has "drop: Round 1" "$out" "review-next: one reviewer section is cut short"
+out=$(rn "" "$(round 1 "$v1" "$(fnd R1)")")
+eq 6 "$(step "$out")" "review-next: a finding with neither Auto-fix nor Decision -> 6"
+has "legacy: Round 1" "$out" "review-next: and its round is listed as legacy (3.0 may have decided it)"
+out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ○)")")
+eq 7 "$(step "$out")" "review-next: ○ without a Decision -> 7"
+out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ×)")")
+eq 7 "$(step "$out")" "review-next: × without a Decision -> 7"
+out=$(rn "" "$(round 1 "$v1" "$(fnd R1 △ replan)")
+$(round 2 "$v1" "$(fnd R2 × 'accept (auto)')")")
+eq rewind "$(step "$out")" "review-next: replan in an earlier round -> rewind"
+eq 2 "$(printf '%s\n' "$out" | sed -n 's/^round: //p')" "review-next: round is the latest"
+out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ○ 'fix (auto)')")")
+eq implement "$(step "$out")" "review-next: ○ decided fix, not fixed -> implement"
+out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ○ 'fix (auto)' "$v1")")")
+eq 10 "$(step "$out")" "review-next: fixed and HEAD at the Verification -> 10"
+git commit -q --allow-empty -m rn2
+out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ○ 'fix (auto)' "$(git rev-parse --short HEAD)")")")
+eq 3 "$(step "$out")" "review-next: HEAD ahead of the round's Verification -> 3"
+case "$out" in *drop:*) ng "review-next: a complete round is not dropped" ;; *) ok ;; esac
+v2=$(git rev-parse --short HEAD)
+out=$(rn "" "$(round 1 "$v2" "$(fnd R1 △)")")
+eq 9 "$(step "$out")" "review-next: △ without a Decision -> 9"
+out=$(rn "- Manual re-check: #2" "$(round 1 "$v2" "$(fnd R1 × 'accept (auto)')")")
+eq 9 "$(step "$out")" "review-next: an open Manual re-check -> 9"
+has "recheck: #2" "$out" "review-next: lists it"
+out=$(rn "$(printf -- '- Manual re-check: #2 #12\n- Verification @ %s: test pass #2\n- 手動確認 @ %s: #2 ok（ユーザー）' "$v2" "$v2")" "$(round 1 "$v2" "$(fnd R1 × 'accept (auto)')")")
+has "recheck: #12" "$out" "review-next: #12 is still open"
+case "$out" in *"#2 "* | *"#2"$'\n'*) ng "review-next: #2 was checked after (a Verification line does not count)" ;; *) ok ;; esac
+out=$(rn "$(printf -- '- Manual re-check: #2\n- 手動確認 @ %s: #2 ok（ユーザー）' "$v2")" "$(round 1 "$v2" "$(fnd R1 △ 'fix')")
+$(round 2 "$v2" "$(fnd R2 × 'accept (auto)')")")
+eq implement "$(step "$out")" "review-next: a fix decided in step 9 in an earlier round -> implement"
+fence=$(printf '\140\140\140')
+out=$(rn "" "$(round 1 "$v2" "$(fnd R1 △ 'accept ok')" "$(fnd Q1 ○ 'fix (auto)' "$v2")")
+$(printf '%s\n### Round 9\n- **R9 [x]** in a fence\n%s' "${fence}markdown" "$fence")")
+eq 10 "$(step "$out")" "review-next: all decided and fixed, a fenced round ignored -> 10"
+eq 1 "$(printf '%s\n' "$out" | sed -n 's/^round: //p')" "review-next: a fenced Round heading is not a round"
+st review-next GT-999999 > /dev/null 2>&1
+eq 1 $? "review-next: no such run"
+git switch -q "$back"
+git branch -q -D rn-test
+rm -rf .tixforge/GT-000907
 # The words the skills ask for are the ones run-state accepts: rewind.md and
 # cancel.md list each as "- `<word>`：<meaning>" under the step that asks.
 for kind in rewind cancel; do
