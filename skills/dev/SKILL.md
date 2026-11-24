@@ -42,7 +42,8 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 | `${CLAUDE_PLUGIN_ROOT}/references/frontend-design.md` | フロントエンドの設計を決めるとき（画面を触るのに設計が無いとき。`phase/approach.md` が指示する） |
 | `${CLAUDE_SKILL_DIR}/phase/<フェーズ>.md` | そのフェーズに入るとき・再開するとき（`run.md` の「フェーズの手順」が指示する） |
 | `${CLAUDE_SKILL_DIR}/pr.md` | PR フェーズに入るとき・`pr:*` から再開するとき（`run.md` が指示する） |
-| `${CLAUDE_PLUGIN_ROOT}/references/ticket-changed.md` | チケットが変わり、フェーズを戻すか決めるとき（`run.md`・`pr.md` が指示する） |
+| `${CLAUDE_SKILL_DIR}/pr/<場面>.md` | PR を出すとき（`create`）・出した後（`follow`）（`pr.md` が指示する） |
+| `${CLAUDE_PLUGIN_ROOT}/references/ticket-changed.md` | チケットが変わり、フェーズを戻すか決めるとき（`run.md`・`pr/create.md` が指示する） |
 
 以下の置き場所・手順ファイルの読み方・共通規約は、このスキルのすべてに適用する。
 
