@@ -18,6 +18,7 @@ tixforge のスクリプトの一覧（人向け。Claude は読まない）。�
 | `pr-template.sh` | リポジトリの既定の PR テンプレートを探す | dev の PR・project の init | なし |
 | `branch.sh` | Plan の Base とブランチ名を決める | dev の Plan | なし（git を読むだけ） |
 | `pr-status.sh` | PR の状況（レビュー・CI・コンフリクト）を判定する | dev の PR | なし（GitHub は読むだけ） |
+| `pr-resume.sh` | PR フェーズをどこから再開するかを判定する | dev の PR | なし（`git fetch` と GitHub を読むだけ） |
 | `github-preflight.sh` | gh が使えるか（インストール・ログイン・リポジトリ）を確かめる | GitHub を使う手順 | なし |
 | `issue-sync.sh` | issue の作成・状態の判定と、手元のコピー（`snapshot.md`・`editing.md`）との同期 | ticket・dev の手順・project の update | `.tixforge/<id>/`・GitHub issue |
 | `issue-label.sh` | issue の状態ラベルと担当者を変える・ラベルを作る | ticket・dev の手順・project の init と update | GitHub issue |

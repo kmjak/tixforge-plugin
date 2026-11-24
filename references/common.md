@@ -78,6 +78,7 @@
 | `verify.sh` | 検証コマンドの実行と `Verification @ <hash>: …` の行の出力（`--reuse`：今の commit で全て通った結果があれば、実行せずにその行） |
 | `review-input.sh` | Review の agent が読む入力（差分・commit 一覧・チケット・Approach・Plan・フロントエンドの設計と、共通の規則をつけた `index.md`）の書き出し |
 | `pr-status.sh` | PR の状況（レビュー・CI・コンフリクト）の判定 |
+| `pr-resume.sh` | PR フェーズをどこから再開するか（PR の有無・push していない commit・検証のコメント）の判定 |
 | `issue-sync.sh` / `issue-label.sh` / `github-preflight.sh` | GitHub issue との同期・ラベルと担当者・事前チェック（`references/github/`） |
 | `project-status.sh` | 設定と進行中の run の一覧（起動時に「現在の状態」へ入る） |
 
