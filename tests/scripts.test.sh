@@ -1342,7 +1342,8 @@ set -- "${args[@]}"
 case "$1 $2" in
   "issue view") jq -r "$jqf" "$GH_DIR/issue-$3.json" ;;
   "pr list") jq -r "$jqf" "$GH_DIR/prs.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
-  "pr view") jq -r "$jqf" "$GH_DIR/pr-view.json" 2>/dev/null || jq -rn "{comments: []} | $jqf" ;;
+  "pr view") [ -z "${GH_FAIL_PRVIEW:-}" ] || exit 1
+    jq -r "$jqf" "$GH_DIR/pr-view.json" 2>/dev/null || jq -rn "{comments: []} | $jqf" ;;
   "issue list") [ -z "${GH_FAIL_ISSUES:-}" ] || { echo "${GH_FAIL_ISSUES}" >&2; exit 1; }
     printf '%s\n' "$*" | grep -q -- 'label:"tixforge:todo","tixforge:in-progress","tixforge:in-review","tixforge:merged"' || { echo "stub gh: issue list without the label search" >&2; exit 1; }
     jq -r "$jqf" "$GH_DIR/issues.json" 2>/dev/null || jq -rn "[] | $jqf" ;;
@@ -1876,10 +1877,18 @@ has "comment: missing" "$out" "and the verification comment is missing"
 has "head: $(git rev-parse --short HEAD)" "$out" "the PR's head"
 comments "x" "$(printf 'Verification @ %s: test pass\n\n### test' "${h1:0:7}")"
 has "comment: present" "$(prr GT-000909)" "a comment for the PR's head"
+comments "$(printf 'Verification @ %s+dirty: test pass' "${h1:0:7}")" "$(printf 'Verification @ %s: test pass' "${h1:0:3}")"
+has "comment: missing" "$(prr GT-000909)" "a +dirty or too short hash is no comment for the head"
+GH_FAIL_PRVIEW=1 prr GT-000909 > /dev/null 2>&1
+eq 4 $? "gh pr view fails: exit 4"
 st set GT-000909 Status pr:awaiting-review > /dev/null
 eq status "$(nxt)" "awaiting review: status"
 prs_of CLOSED "$h1"
 has "pr: https://github.com/o/r/pull/1" "$(prr GT-000909)" "awaiting review and the PR was closed: status with it"
+prs_of
+printf '\n## PR\n- URL: https://github.com/o/r/pull/7\n' >> "$f9"
+has "pr: https://github.com/o/r/pull/7" "$(prr GT-000909)" "awaiting review, no PR found: the URL in ## PR"
+awk '$0 == "## PR" { exit } { print }' "$f9" > "$tmp/f9" && cat "$tmp/f9" > "$f9"
 st set GT-000909 Status pr:in-progress > /dev/null
 prs_of OPEN "$h1"
 comments

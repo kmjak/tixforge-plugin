@@ -16,7 +16,7 @@
 #   next: merged          the PR is merged: 「PR の状況確認」's merged
 #   pr: <url>             the PR: an open one, else a merged one, else (once
 #                         the PR was made: pr:awaiting-review / ready-to-merge)
-#                         a closed one; none
+#                         a closed one or the URL in ## PR; none
 #   closed: <url> ...     closed PRs of the branch, not used
 #   head: <short hash>    the PR's head (open PR)
 #   comment: present|missing
@@ -57,8 +57,9 @@ last_key() {
     on && index($0, k " @ ") { t = substr($0, index($0, k " @ ") + length(k) + 3); sub(/[^0-9a-f].*$/, "", t); if (t != "") v = t }
     END { print v }' s="$1" k="$2" "$f"
 }
-# is_prefix <short> <full>
-is_prefix() { [ -n "$1" ] && case $2 in "$1"*) true ;; *) false ;; esac }
+# is_prefix <short> <full>: a short hash (7 or more digits, as git prints
+# them) of the commit.
+is_prefix() { [ ${#1} -ge 7 ] && case $2 in "$1"*) true ;; *) false ;; esac }
 
 prs=$(gh pr list --head "$branch" --state all --json number,state,url,headRefOid \
   --jq '.[] | [.state, .url, .number, .headRefOid] | @tsv' 2> /dev/null) || {
@@ -77,16 +78,21 @@ done << EOF
 $prs
 EOF
 
-# comment_for <full hash>: present when a comment of the open PR has
-# "Verification @ <prefix of it>".
-comment_for() {
-  local hs h
-  hs=$(gh pr view "$open_no" --json comments --jq '.comments[].body' 2> /dev/null \
-    | sed -n 's/.*Verification @ \([0-9a-f][0-9a-f]*\).*/\1/p') || {
+# The hashes of the open PR's "Verification @ <hash>" comments (a +dirty one
+# stands for no commit, so it is left out). Read here, not in a $(...), so a
+# failing gh stops the script.
+vhashes=""
+if [ -n "$open_url" ]; then
+  bodies=$(gh pr view "$open_no" --json comments --jq '.comments[].body' 2> /dev/null) || {
     echo "gh pr view failed" >&2
     exit 4
   }
-  for h in $hs; do is_prefix "$h" "$1" && {
+  vhashes=$(printf '%s\n' "$bodies" | sed -n 's/.*Verification @ \([0-9a-f+]*\).*/\1/p' | grep -v '+' || true)
+fi
+# comment_for <full hash>: present when a comment has a Verification for it.
+comment_for() {
+  local h
+  for h in $vhashes; do is_prefix "$h" "$1" && {
     echo present
     return
   }; done
@@ -109,6 +115,11 @@ if [ -z "$open_url" ]; then
   case $st in pr:awaiting-review | pr:ready-to-merge)
     shown=${closed# }
     shown=${shown%% *}
+    # None found (the branch was renamed?): the URL ## PR recorded.
+    [ -n "$shown" ] || shown=$(awk "$_section_awk"'
+      { h = heading_index($0); if (h) { on = (h == 6); next } }
+      on && match($0, /https:\/\/[^ )>]*\/pull\/[0-9]+/) { u = substr($0, RSTART, RLENGTH) }
+      END { print u }' "$f")
     out status
     ;;
   esac
@@ -121,10 +132,11 @@ case $st in
 esac
 
 # pr:in-progress with an open PR.
-git -C "$top" fetch -q origin "$branch" 2> /dev/null || true
+git -C "$top" fetch -q origin "$branch" 2> /dev/null \
+  || echo "git fetch origin $branch failed: judged from the last fetched origin/$branch" >&2
 ahead=$(git -C "$top" rev-list --count "origin/$branch..$branch" 2> /dev/null || echo 0)
 [ "$ahead" -gt 0 ] && out push-fix
-headfull=$(git -C "$top" rev-parse HEAD)
+headfull=$(git -C "$top" rev-parse "$branch" 2> /dev/null || git -C "$top" rev-parse HEAD)
 c=$(comment_for "$headfull")
 if is_prefix "$(last_key 6 'PR head')" "$headfull" || is_prefix "$(last_key 4 'PR comment')" "$headfull" || [ "$c" = present ]; then
   out status "$c"
