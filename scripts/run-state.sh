@@ -23,6 +23,7 @@
 #   run-state.sh migrate [--check] <id>      bring state.md to the current format
 #   run-state.sh review-next <id>            where Review goes on from (phase/review.md step 2)
 #   run-state.sh pass <id> <phase>           pass the gate of research / approach / implement / review
+#   run-state.sh passed <id> <phase>         yes when the phase passed its gate automatically, else no
 #
 # The Format row of the header is the version of the file's layout (none:
 # 2, what v2 wrote). init writes the current one; migrate moves an older
@@ -761,6 +762,27 @@ case $cmd in
     cat "$tmp" > "$f"
     rm -f "$tmp"
     bash "$0" set "$1" Status "$nxt:in-progress"
+    ;;
+  passed)
+    # The phase's section ends with the gate_auto_pass note (any language),
+    # as pass writes it.
+    [ $# -eq 2 ] || usage
+    f=$(sfile "$1")
+    [ -f "$f" ] || {
+      echo "no run: $1" >&2
+      exit 1
+    }
+    case $2 in research) sec=1 ;; approach) sec=2 ;; implement) sec=4 ;; review) sec=5 ;; *) usage ;; esac
+    notes=""
+    for l in $(sed -n 's/^\([a-z][a-z_-]*\):$/\1/p' "$(dirname "$0")/messages.yml"); do
+      notes="${notes}> $(msg gate_auto_pass "$l")
+"
+    done
+    RS_NOTES=$notes awk -v s="$sec" "$_section_awk"'
+      BEGIN { n = split(ENVIRON["RS_NOTES"], a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") note[a[i]] = 1 }
+      { line = $0; sub(/\r$/, "", line); h = heading_index(line); if (h) { on = (h == s); next } }
+      on && line ~ /[^ \t]/ { last = line }
+      END { print ((last in note) ? "yes" : "no") }' "$f"
     ;;
   statuses)
     [ $# -eq 0 ] || usage

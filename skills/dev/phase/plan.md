@@ -6,7 +6,7 @@
 
 目的：方針を具体的なブランチ・確かめ方・commit 計画に落とす。
 
-0. **`Mode` が `small` なら**（`bash <scripts>/run-state.sh get <ticket-id> Mode`）、Research・Approach もまだ承認されていない。Plan のゲートで 3 つをまとめて示し、どれへの意見でも、そのセクションをその場で直して同じゲートを出し直す（巻き戻しにしない）。それ以外で **Approach を自動で通過していたら**（`## Approach` の末尾が、`> ` に続く `<scripts>/messages.yml` の `gate_auto_pass` の行。どの言語でもよい）、Plan を始める前に採用案を 1〜2 行示す（方針を確かめる最初の機会）。方針を変える意見が来たら：
+0. **`Mode` が `small` なら**（`bash <scripts>/run-state.sh get <ticket-id> Mode`）、Research・Approach もまだ承認されていない。Plan のゲートで 3 つをまとめて示し、どれへの意見でも、そのセクションをその場で直して同じゲートを出し直す（巻き戻しにしない）。それ以外で **Approach を自動で通過していたら**（`bash <scripts>/run-state.sh passed <ticket-id> approach` が `yes`）、Plan を始める前に採用案を 1〜2 行示す（方針を確かめる最初の機会）。方針を変える意見が来たら：
    - `## Plan` が空 → Approach のゲートへのフィードバックとして扱う（巻き戻しにしない）。`bash <scripts>/run-state.sh set <ticket-id> Status approach:in-progress` にし、`## Approach` を書き直して自動通過の行を消し、Approach のゲートで止まる（`gates` に無くても止まる）。
    - `## Plan` に書いた後（Plan のゲートを含む）→ `rewind.md` を Read し、Approach に戻る。
 1. **Base**（分岐元かつ PR の向き先）：`bash <scripts>/branch.sh base <ticket-id> [<ユーザーがこの Plan で指定したブランチ>]` の `base:`。終了コード 3（origin に無い）か 1（設定にも origin の既定にも無い）なら、どれにするか尋ねる。
