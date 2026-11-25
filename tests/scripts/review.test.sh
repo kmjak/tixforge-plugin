@@ -74,7 +74,7 @@ rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
 eq 3 $? "add: a * item after a - item is refused, not merged"
 printf -- '- **R1 [未実装]** a\n  - Kind: missing\n  - Severity: high\n  - Severity: low\n  - Confidence: high\n' > "$tmp/bad"
 has "two Severity lines" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: one Severity per finding"
-for bad_rep in '### Missing handler\nKind: missing\nSeverity: high\nConfidence: high' '### Missing handler\n**Kind:** missing\n**Severity:** high' '**Kind**: missing' 'Kind：missing' '| Kind | Severity |\n|---|---|\n| missing | high |' 'Round 1 の R1 がまだ直っていない。src/login.ts:40 は変わっていない。' 'No findings. Round 1 R1 is fixed.' '指摘なし。ただし 重大度：高' '**未実装** 受け入れ条件 2 の処理が無い\n- Severity: high'; do
+for bad_rep in '### Missing handler\nKind: missing\nSeverity: high\nConfidence: high' '### Missing handler\n**Kind:** missing\n**Severity:** high' '**Kind**: missing' 'Kind：missing' '| Kind | Severity |\n|---|---|\n| missing | high |' 'Round 1 の R1 がまだ直っていない。src/login.ts:40 は変わっていない。' 'No findings. Round 1 R1 is fixed.' '指摘なし。ただし 重大度：高' '```markdown\n- **R1 [未実装]** a\n  - Kind: missing\n```' '~~~\n- **Q1 [バグ]** a\n~~~' '- [未実装] 受け入れ条件 #2 が無い' '**[未実装]** 受け入れ条件 #2 が無い' '**未実装** 受け入れ条件 2 の処理が無い\n- Severity: high'; do
   printf -- "$bad_rep\n" > "$tmp/bad"
   rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
   eq 3 $? "add: a finding written without an item is refused [$bad_rep]"

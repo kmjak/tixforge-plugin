@@ -21,7 +21,7 @@
    - `tixforge:reviewer` にだけ：`## Implementation Log` の手動確認の行（全て。無ければ「無し」）。済んでいない `Manual re-check:` は「#N：Review の後にやり直す予定」と添える
 
    **`## Research`・`## Implementation Log` の判断・経緯・検証の行は渡さない**（実装者の意図に引きずられず、合意と成果物だけで判定させるため）。`.tixforge/` 配下のパスは渡さない。
-6. **結果を記録する**：各 reviewer の報告を、そのまま一時ファイル（共通規約の一時ファイルの決まりで）に書き、`bash <scripts>/review.sh add <ticket-id> <N> reviewer|quality <ファイル>` で取り込む（指摘なしもそのまま）。手順 2 からここに戻ったとき（中断の後）は、取り込み済みの報告をもう一度 `add` しない（exit 4）。`review.sh list` で `Auto-fix` が空（`-`）の指摘だけを `judge` する。終了コード 3（報告が形式に合わない）なら、出力に並ぶ問題を示してその reviewer を起動し直し、形式どおりに報告させる。直すのが `Kind:`・`Severity:`・`Confidence:`・`Refers:` の行の欠けや綴りだけなら、その行だけを足し・直して取り込んでよい（本文は変えない）。
+6. **結果を記録する**：各 reviewer の報告を、そのまま一時ファイル（共通規約の一時ファイルの決まりで）に書き、`bash <scripts>/review.sh add <ticket-id> <N> reviewer|quality <ファイル>` で取り込む（指摘なしもそのまま）。手順 2 からここに戻ったとき（中断の後）は、取り込み済みの報告をもう一度 `add` しない（exit 4）。`review.sh list` で `Auto-fix` が空（`-`）の指摘だけを `judge` する。終了コード 3（報告が形式に合わない）なら、出力に並ぶ問題を示してその reviewer を起動し直し、形式どおりに報告させる。直すのが `Kind:`・`Severity:`・`Confidence:`・`Refers:` の行の欠けや綴りだけなら、その行だけを足し・直して取り込んでよい（本文は変えない）。報告全体が 1 つのコードブロックで囲まれていたら、外側の囲みだけを外して取り込んでよい。
    - **指摘を削除・統合・言い換え・並べ替えしない。** 誤検知と思っても消さず、推奨でそう述べる。
    - 指摘ごとに、**推奨**（`fix`・`accept`・`replan`・`reapproach`）を決め、個人の言語で書いたメモを一時ファイルにして `bash <scripts>/review.sh judge <ticket-id> <N> <id> <推奨> <yes|no> <メモ>` を実行する。出力が自動修正（`○` は聞かずに直す、`×` は聞かずに直さない、`△` は最後に尋ねる。`△` はチャットでは「検討」）。`○`・`×` には `Decision` も付く。
      - `yes|no`：直し方が合意（チケット・`## Approach`・`## Plan`）の中で 1 つに決まり、受け入れ条件・Approach・対応表を変えないなら `yes`。ここだけが Claude の判断で、ほかの条件（`Kind`・`Severity`・`Confidence`・Round）はスクリプトが当てはめる。
