@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.7.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.6.0...tixforge--v3.7.0) (2026-11-25)
+
+
+### Features
+
+* give reviewer findings fixed English keys ([#100](https://github.com/kmjak/tixforge-plugin/issues/100)) ([1ddafe9](https://github.com/kmjak/tixforge-plugin/commit/1ddafe941cfbe5413af7685dade23e74f6d30e10))
+* keep the checks table and manual check results as data ([#103](https://github.com/kmjak/tixforge-plugin/issues/103)) ([fdd966f](https://github.com/kmjak/tixforge-plugin/commit/fdd966fdb3d72ce961ac82264743935ff726adaf))
+* keep the Review as data written only through review.sh ([#101](https://github.com/kmjak/tixforge-plugin/issues/101)) ([143b896](https://github.com/kmjak/tixforge-plugin/commit/143b89607b232a06caa1d7e7ff2160b608e67102))
+* run a small ticket through one gate at Plan ([#104](https://github.com/kmjak/tixforge-plugin/issues/104)) ([9aff172](https://github.com/kmjak/tixforge-plugin/commit/9aff172426e1fb466c25f0f022b29dc3e106bc2c))
+
+
+### Bug Fixes
+
+* judge an automatic pass by script, close without $(cat), keep temp files in .tixforge/tmp ([#105](https://github.com/kmjak/tixforge-plugin/issues/105)) ([cdb6dfb](https://github.com/kmjak/tixforge-plugin/commit/cdb6dfbdf9c83fe2839a27c921b92fdc6d373f46))
+
 ## [3.6.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.5.0...tixforge--v3.6.0) (2026-11-25)
 
 
