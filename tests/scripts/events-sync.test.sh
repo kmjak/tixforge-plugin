@@ -57,12 +57,14 @@ s.serve_forever()
 EOF
   python3 -I "$tmp/server.py" "$srv" &
   srv_pid=$!
+  # Python can take long to start when the test files run in parallel.
   i=0
-  while [ ! -f "$srv/port" ] && [ $i -lt 50 ]; do
+  while [ ! -f "$srv/port" ] && [ $i -lt 300 ]; do
     sleep 0.1
     i=$((i + 1))
   done
-  port=$(cat "$srv/port")
+  port=$(cat "$srv/port" 2> /dev/null)
+  [ -n "$port" ] || ng "the test endpoint did not start in 30 s"
   es="$tmp/es"
   git init -q -b main "$es"
   cd "$es" || exit 1
@@ -281,9 +283,18 @@ EOF
   st set GT-000001 Status plan:in-progress > /dev/null
   eq 0 $? "set succeeds with the endpoint down"
   [ $(($(date +%s) - t0)) -le 1 ] && ok || ng "set does not wait for the sender"
+  # The sender that set started may not hold its lock yet when settle looks:
+  # a flush that meets it (exit 4) tries again.
   settle 0
-  esh flush > /dev/null 2>&1
-  eq 1 $? "flush fails with the endpoint down"
+  i=0
+  while :; do
+    esh flush > /dev/null 2>&1
+    rc=$?
+    [ "$rc" -eq 4 ] && [ $i -lt 50 ] || break
+    sleep 0.2
+    i=$((i + 1))
+  done
+  eq 1 "$rc" "flush fails with the endpoint down"
   eq "$n" "$(cat "$esev.sent")" "nothing marked sent"
   has "応答なし" "$(esh status)" "status says there was no answer"
   # The token is written nowhere.

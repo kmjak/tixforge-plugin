@@ -76,6 +76,7 @@
 | `run-state.sh` | 状態ファイルの作成（`init`）、ヘッダの読み書き（`get` / `set`。`Status` を検査し、`Updated` も更新）、巻き戻し（`rewind`）・キャンセル（`cancel`）・手放す（`release`）、前の形式からの更新（`migrate`）、Review をどこから進めるか（`review-next`）、ゲートの自動通過（`pass`）。状態を変えるものはどれもイベントログを書くので、手で同じことをしない |
 | `branch.sh` | Plan の Base（ユーザー・チケットの `## Base`・設定・origin の既定の順）とブランチ名（空いている名前）の決定 |
 | `verify.sh` | 検証コマンドの実行と `Verification @ <hash>: …` の行の出力（`--reuse`：今の commit で全て通った結果があれば、実行せずにその行） |
+| `review.sh` | Review のデータ（`review.tsv`）の読み書きと `## Review` の描き直し：ラウンド・報告の取り込み・推奨と自動修正（○×△ の表）・決定・修正済み・一覧 |
 | `review-input.sh` | Review の agent が読む入力（差分・commit 一覧・チケット・Approach・Plan・フロントエンドの設計と、共通の規則をつけた `index.md`）の書き出し |
 | `pr-status.sh` | PR の状況（レビュー・CI・コンフリクト）の判定 |
 | `pr-resume.sh` | PR フェーズをどこから再開するか（PR の有無・push していない commit・検証のコメント）の判定 |

@@ -1,6 +1,6 @@
 # Fixed messages written into state.md, per language (this person's
-# language: user_lang). The scripts write them, except gate_auto_pass, which
-# dev writes (skills/dev/run.md) and review-input.sh finds again. What goes
+# language: user_lang). The scripts write them (gate_auto_pass: run-state.sh
+# pass, which review-input.sh finds again; review_*: review.sh). What goes
 # to GitHub is in templates/github/tixforge/messages.yml, which init
 # copies for the Actions. A language that is not listed falls back to en.
 # One message per line.
@@ -8,7 +8,15 @@ ja:
   verify_no_commands: "検証コマンドなし"
   rewind_note: "巻き戻し（{time}）：{reason}"
   gate_auto_pass: "ゲート自動通過（gates に無く、止まる条件なし）"
+  review_section_reviewer: "合意とのズレ（tixforge:reviewer）"
+  review_section_quality: "品質（tixforge:quality-reviewer）"
+  review_section_added: "実装者による追加"
+  review_none: "指摘なし"
 en:
   verify_no_commands: "no verification commands"
   rewind_note: "Rewound ({time}): {reason}"
   gate_auto_pass: "Gate passed automatically (not in gates, nothing to stop for)"
+  review_section_reviewer: "Agreement (tixforge:reviewer)"
+  review_section_quality: "Quality (tixforge:quality-reviewer)"
+  review_section_added: "Added by the implementer"
+  review_none: "No findings"

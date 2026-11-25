@@ -14,6 +14,7 @@ tixforge のスクリプトの一覧（人向け。Claude は読まない）。�
 | `ticket-id.sh` | チケット id の取り出し・正規化・実在の確認・issue 番号への変換 | ticket・dev の手順 | なし（GitHub は読むだけ） |
 | `run-state.sh` | state.md の作成・ヘッダの読み書き・巻き戻し・キャンセル・手放す・前の形式からの更新・Review をどこから進めるかの判定 | dev の手順・ticket の cancel・project の update | `.tixforge/<id>/`・`.tixforge/events.jsonl` |
 | `verify.sh` | 検証コマンドを実行し、結果を 1 行で出す | dev の手順 | `.git/tixforge/verify/`（ログ） |
+| `review.sh` | Review をデータとして持ち、`## Review` を描き直す | dev の Review・Implement | `.tixforge/<id>/review.tsv`・`review/` |
 | `review-input.sh` | Review の agent が読む入力（差分・チケット・Approach・Plan・共通の規則の `index.md`）を書き出す | dev の Review | `.git/tixforge/review/` |
 | `pr-template.sh` | リポジトリの既定の PR テンプレートを探す | dev の PR・project の init | なし |
 | `branch.sh` | Plan の Base とブランチ名を決める | dev の Plan | なし（git を読むだけ） |

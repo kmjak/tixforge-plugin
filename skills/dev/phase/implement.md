@@ -15,10 +15,10 @@
 4. 計画どおりに進められないと分かったら（ある commit を大きく変える、方針が誤っていた等）、止まって提起する。戻るなら `rewind.md` を Read する（きっかけは `implement`）。
 5. 計画した commit を終えたら、**検証**・**手動確認**・**context の確認**（下記）を行う。通ったら `## Implementation Log` を更新し、ゲート（`implement`）へ。要約に検証と手動確認の結果を含める。
 
-**Review からの差し戻し**（「修正」と決まった指摘がある）：直すのは、全ラウンドの `Decision: fix`・`Decision: fix (auto)` で `Fixed @` の無い指摘だけ（3.0 までの形式は `<plugin>/skills/dev/phase/review.md` の手順 2 の下の扱い。未読なら Read する）。それ以外に手を広げない。指摘は `Round N <番号>`（例：`Round 1 Q2`）で指す。
-- 1 つ直したら、その指摘の下に `Fixed @ <短い commit hash>` を足す。commit の要らない修正は `Fixed @ <HEAD の短い hash> (no commit)`。修正の commit は `## Implementation Log` にも「Review の修正：Round 1 Q2」（個人の言語）と記録する。
+**Review からの差し戻し**（「修正」と決まった指摘がある）：直すのは、全ラウンドの `fix`・`fix (auto)` と決まり、`Fixed @` の無い指摘だけ（`bash <scripts>/review.sh list <ticket-id>` の `Decision` と `Fixed` の列。本文は最後の列のファイル）。それ以外に手を広げない。指摘は `Round N <番号>`（例：`Round 1 Q2`）で指す。`## Review` は手で Edit しない。
+- 1 つ直したら `bash <scripts>/review.sh fixed <ticket-id> <N> <id> <短い commit hash>` を実行する。commit の要らない修正は、HEAD の短い hash に `--no-commit` を付ける。修正の commit は `## Implementation Log` にも「Review の修正：Round 1 Q2」（個人の言語）と記録する。
 - 中断から戻ったら、最新ラウンドの `Verification @` の後の commit を `git log` で確かめ、直したのに `Fixed @` の無い指摘に補ってから続ける。
-- `○` の指摘を直せないと分かったら（合意の外に出る・1 つに決まらない・誤検知）、直さずに `Auto-fix:` を `△` にして `Decision:` の行を消し、理由を 1 行足す。
+- `○` の指摘を直せないと分かったら（合意の外に出る・1 つに決まらない・誤検知）、直さずに `bash <scripts>/review.sh demote <ticket-id> <N> <id> "<理由>"` を実行する（`△` に戻り、決定が消える）。
 - 修正後に検証と、影響する手動確認のうち Claude が行うものをやり直す。影響する `ユーザー` の手動確認は、自動修正なら止まらずに `## Implementation Log` に `Manual re-check: #N` と書き、Review の手順 9 でまとめて行う（後に `#N` の手動確認の行を書けば済み。今の対応表で `#N` が `ユーザー` でなければ不要）。ユーザーが選んだ修正なら、ここで行う。
 - Implement のゲートを挟まずに `Status: review:in-progress` にして Review の手順 2 へ。
 

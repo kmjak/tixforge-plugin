@@ -40,7 +40,7 @@
 run の単一の真実。
 
 - **ヘッダ表**（`Status`・`Branch`・`Base`・`Updated`・`Format`）は `bash <scripts>/run-state.sh set <ticket-id> <Status|Branch|Base> <値>` だけで変える。手で編集しない。
-- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## Review`・`## PR`）は各フェーズが Edit で書く。見出しは英語のまま。
+- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## PR`）は各フェーズが Edit で書く。見出しは英語のまま。`## Review` は `review.sh` がデータ（`review.tsv`）から書くので、Edit しない。
 - セクションを書いたら、続けて `Status` を更新する。
 - 次のフェーズへ進むときは、作業の前に `Status` を `<次のphase>:in-progress` にする。
 - 戻る前の古い内容は `history/` にある（`rewind.md`）。参考にしてよいが、承認済みとして扱わない。

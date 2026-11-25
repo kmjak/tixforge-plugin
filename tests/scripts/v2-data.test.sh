@@ -44,13 +44,13 @@ EOF
 f2=.tixforge/GT-000102/state.md
 mkdir -p .tixforge/GT-000102
 cp "$tmp/v2-state.md" "$f2"
-eq "$(printf 'format 2 -> 3\n- remove the placeholder comments (3)\n- add the Format row')" \
+eq "$(printf 'format 2 -> 4\n- remove the placeholder comments (3)\n- add the Format row')" \
   "$(st migrate --check GT-000102)" "migrate --check lists the changes"
 cmp -s "$tmp/v2-state.md" "$f2" && ok || ng "--check does not write"
 eq implement:in-progress "$(st get GT-000102)" "a v2 file is read as it is"
-eq "format 2 -> 3: $f2" "$(st migrate GT-000102)" "migrate"
-eq 3 "$(st get GT-000102 Format)" "migrate writes the Format"
-has "| Format  | 3" "$(grep -A1 '^| Updated' "$f2" | sed -n 2p)" "the Format row ends the header table"
+eq "format 2 -> 4: $f2" "$(st migrate GT-000102)" "migrate"
+eq 4 "$(st get GT-000102 Format)" "migrate writes the Format"
+has "| Format  | 4" "$(grep -A1 '^| Updated' "$f2" | sed -n 2p)" "the Format row ends the header table"
 eq 0 "$(grep -c '<!--' "$f2")" "migrate removes the placeholders"
 eq "$(grep -v '^<!-- Phase' "$tmp/v2-state.md")" "$(grep -v '^| Format ' "$f2")" \
   "migrate changes nothing else (sections, Status, Updated)"
@@ -61,10 +61,10 @@ eq "Research|Approach|Plan|Implementation Log|Review|PR" \
 # A table of a section's own with a Format row is not the header's.
 cp "$tmp/v2-state.md" "$f2"
 printf '| Format | 説明 |\n|---|---|\n| Format | JSON |\n' >> "$f2"
-eq "format 2 -> 3" "$(st migrate --check GT-000102 | sed -n 1p)" "a Format row in a section is not the format"
+eq "format 2 -> 4" "$(st migrate --check GT-000102 | sed -n 1p)" "a Format row in a section is not the format"
 # All sections written: no placeholders to remove, so no line for them.
 grep -v '^<!-- Phase' "$tmp/v2-state.md" > "$f2"
-eq "$(printf 'format 2 -> 3\n- add the Format row')" "$(st migrate --check GT-000102)" \
+eq "$(printf 'format 2 -> 4\n- add the Format row')" "$(st migrate --check GT-000102)" \
   "migrate --check: no line for zero placeholders"
 # A done or canceled run goes no further: --check asks for nothing.
 for s in done canceled; do
@@ -82,7 +82,7 @@ done
 st migrate GT-000102 > /dev/null
 has "<!-- my note -->" "$(cat "$f2")" "a comment of the user's is kept"
 eq 1 "$(grep -c '^<!-- Phase 2' "$f2")" "a fenced placeholder is kept"
-sed 's/^| Format  | 3 /| Format  | 9 /' "$f2" > "$tmp/f9" && cat "$tmp/f9" > "$f2"
+sed 's/^| Format  | 4 /| Format  | 9 /' "$f2" > "$tmp/f9" && cat "$tmp/f9" > "$f2"
 st migrate --check GT-000102 2> /dev/null
 eq 5 $? "a newer format: update the plugin"
 sed 's/^| Format  | 9 /| Format  | x /' "$f2" > "$tmp/f9" && cat "$tmp/f9" > "$f2"
