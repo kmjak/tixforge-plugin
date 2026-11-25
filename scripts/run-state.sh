@@ -780,7 +780,7 @@ case $cmd in
     done
     RS_NOTES=$notes awk -v s="$sec" "$_section_awk"'
       BEGIN { n = split(ENVIRON["RS_NOTES"], a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") note[a[i]] = 1 }
-      { line = $0; sub(/\r$/, "", line); h = heading_index(line); if (h) { on = (h == s); next } }
+      { line = $0; sub(/[ \t\r]+$/, "", line); h = heading_index(line); if (h) { on = (h == s); next } }
       on && line ~ /[^ \t]/ { last = line }
       END { print ((last in note) ? "yes" : "no") }' "$f"
     ;;

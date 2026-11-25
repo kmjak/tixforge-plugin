@@ -2,7 +2,7 @@
 
 - 操作したら、スクリプトが出力した一行をユーザーに伝える。
 - ラベルが無いというエラーなら、`/tixforge:project init` の再実行（`issue-label.sh setup`）でラベルを作れることを伝える。
-- 閉じるときのコメント（完了・キャンセルの issue と PR に共通）は一時ファイルに書き、`gh issue comment <番号> --body-file <一時ファイル>`（PR は `gh pr comment <PR> --body-file <一時ファイル>`）で先に投稿してから、コメントを付けずに閉じる（改行と記号をそのまま渡し、`$(...)` の確認画面を出さないため。キャンセルの理由はユーザーの文なので、コマンドに直接書かない）。その印（`<!-- tixforge:closed -->`・`<!-- tixforge:canceled -->`）のコメントが既にあれば、投稿し直さずに閉じるだけにする（閉じる前に中断した後）。
+- 閉じるときのコメント（完了・キャンセルの issue と PR に共通）は一時ファイルに書き、`gh issue comment <番号> --body-file <一時ファイル>`（PR は `gh pr comment <PR> --body-file <一時ファイル>`）で先に投稿してから、コメントを付けずに閉じる（改行と記号をそのまま渡し、`$(...)` の確認画面を出さないため。キャンセルの理由はユーザーの文なので、コマンドに直接書かない）。その印（`<!-- tixforge:closed -->`・`<!-- tixforge:canceled -->`）で始まるコメントが既にあれば（`gh issue view <番号> --json comments --jq '.comments[].body'`、PR は `gh pr view <PR> --json comments --jq '.comments[].body'` で見る）、投稿し直さずに閉じるだけにする（閉じる前に中断した後）。
 
 ## 完了（PR がマージされたとき）
 
