@@ -198,9 +198,18 @@ for f in agents/reviewer.md agents/quality-reviewer.md; do
   kinds=$(sed -n '/^## ラベル/,/^## /p' "$f" | grep -cE '^- \*\*\[[^]]+\]\*\*（`[a-z-]+`）')
   [ "$labels" -gt 0 ] && [ "$labels" = "$kinds" ] && ok || ng "$f: every label names its Kind ($kinds of $labels)"
   fmt=$(sed -n '/^## 報告の形式/,$p' "$f")
-  for k in '  - Severity: high | medium | low' '  - Confidence: high | medium | low' '  - Kind: unfixed' '  - Refers: Round <N> '; do
-    case $fmt in *"$k"*) ok ;; *) ng "$f: the report format has [$k]" ;; esac
-  done
+  # Every item of the format has the keys; an unfixed one has Refers too.
+  bad=$(printf '%s\n' "$fmt" | awk '
+    function check() { if (id == "") return
+      if (!k) print id ": no Kind"; if (!s) print id ": no Severity"; if (!c) print id ": no Confidence"
+      if (u && !r) print id ": unfixed without Refers" }
+    /^- \*\*/ { check(); id = $2; k = s = c = r = u = 0; next }
+    /^  - Kind: / { k = 1; if ($3 == "unfixed") u = 1 }
+    /^  - Severity: (<high \| medium \| low のどれか>|<元の指摘の Severity>)$/ { s = 1 }
+    /^  - Confidence: <high \| medium \| low のどれか>$/ { c = 1 }
+    /^  - Refers: Round <N> <番号>$/ { r = 1 }
+    END { check() }')
+  [ -z "$bad" ] && ok || ng "$f: report format: $bad"
   for w in $(printf '%s\n' "$fmt" | sed -n 's/^  - Kind: //p'); do
     sed -n '/^## ラベル/,/^## /p' "$f" | grep -qF "（\`$w\`）" && ok || ng "$f: Kind $w is a label's word"
   done

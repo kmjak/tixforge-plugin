@@ -38,13 +38,13 @@ model: inherit
   - 場所：<ファイル:行>
   - 起きること：<どんな入力・状態で、何が起きるか>
   - Kind: bug
-  - Severity: high | medium | low
-  - Confidence: high | medium | low
+  - Severity: <high | medium | low のどれか>
+  - Confidence: <high | medium | low のどれか>
 - **Q2 [未修正]** <Round N の Q1 がまだ直っていない理由>
   - 場所：<ファイル:行>
   - 起きること：<元の指摘の問題が、今もどう起きるか>
   - Kind: unfixed
-  - Refers: Round <N> Q1
+  - Refers: Round <N> <番号>
   - Severity: <元の指摘の Severity>
-  - Confidence: high | medium | low
+  - Confidence: <high | medium | low のどれか>
 ```

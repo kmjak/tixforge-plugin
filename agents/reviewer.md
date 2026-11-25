@@ -56,19 +56,19 @@ model: inherit
   - 合意側：<ticket.md／approach.md／plan.md／frontend.md のどの記述か（引用か節名）>
   - 実装側：<ファイル:行、または「該当する変更なし」>
   - Kind: missing
-  - Severity: high | medium | low
-  - Confidence: high | medium | low
+  - Severity: <high | medium | low のどれか>
+  - Confidence: <high | medium | low のどれか>
 - **R2 [未決]** <決定の記録が無い未決事項>
   - 合意側：<ticket.md の未決事項のどの項目か>
   - 実装側：<ファイル:行、または「該当する変更なし」>
   - Kind: undecided
-  - Severity: high | medium | low
-  - Confidence: high | medium | low
+  - Severity: <high | medium | low のどれか>
+  - Confidence: <high | medium | low のどれか>
 - **R3 [未修正]** <Round N の R1 がまだ直っていない理由>
   - 合意側：<元の指摘と同じ>
   - 実装側：<ファイル:行>
   - Kind: unfixed
-  - Refers: Round <N> R1
+  - Refers: Round <N> <番号>
   - Severity: <元の指摘の Severity>
-  - Confidence: high | medium | low
+  - Confidence: <high | medium | low のどれか>
 ```
