@@ -21,6 +21,7 @@
 #   run-state.sh categories <rewind|cancel>  every valid --category, one per line
 #   run-state.sh triggers                    every valid --trigger, one per line
 #   run-state.sh migrate [--check] <id>      bring state.md to the current format
+#   run-state.sh review-next <id>            where Review goes on from (phase/review.md step 2)
 #
 # The Format row of the header is the version of the file's layout (none:
 # 2, what v2 wrote). init writes the current one; migrate moves an older
@@ -55,6 +56,26 @@
 # PR, or by a rewind from Review), the rounds of ## Review are logged too,
 # one review_round event each (review_rounds), so the counts never depend on
 # Claude writing an event.
+#
+# review-next reads ## Review and the Implementation Log and prints where
+# Review goes on from, the first that holds of phase/review.md step 2:
+#
+#   step: <3|6|7|9|10|implement|rewind>
+#   round: <latest round, or none>
+#   drop: Round <n>          the latest round is cut short: remove it first
+#   recheck: <#N ...>        Manual re-check items with no later check line
+#   legacy: Round <n>, ...   rounds with a finding that has no Auto-fix line
+#   why: <one line>
+#
+# "unfixed" is a finding decided fix / fix (auto) without "Fixed @". A round
+# is cut short when it has fewer than two "#### " reviewer sections or one
+# of them is empty. A finding without an Auto-fix line is step 6 in the
+# latest round; it may also be 3.0's format (a decision line in the person's
+# language), which the script cannot read, so its rounds are listed in
+# legacy and Claude applies step 2's note on 3.0 to them. A Manual re-check #N is
+# done by a later Log line "<word> @ <hash>: ... #N ..." (the manual check
+# record, in the person's language); whether #N is still the user's to check
+# is in the Plan's table, which Claude reads in step 9. Read only.
 #
 # Every change of Status, init, rewind, cancel and release append an event to
 # .tixforge/events.jsonl (lib.sh event; the README lists them). A log that
@@ -192,6 +213,128 @@ log_review() {
   done << EOF
 $(review_rounds "$1")
 EOF
+}
+
+# review_facts <state.md>: the facts review-next decides on, one per line:
+#   R <round> <verification hash or -> <cut short 0|1>
+#   F <round> <auto_fix: fix|accept|ask|-> <decision or -> <fixed hash or ->
+#   M <N> <done 0|1>
+review_facts() {
+  LC_ALL=C awk "$_section_awk"'
+    function close_finding() {
+      if (!open_f) return
+      printf "F %s %s %s %s\n", round, (af == "" ? "-" : af), (dec == "" ? "-" : dec), (fx == "" ? "-" : fx)
+      open_f = 0; af = ""; dec = ""; fx = ""
+    }
+    function close_sec() { if (sec_open && !sec_body) short = 1; sec_open = 0; sec_body = 0 }
+    function close_round() {
+      close_finding(); close_sec()
+      if (round != "") printf "R %s %s %d\n", round, (vh == "" ? "-" : vh), (short || nsec < 2)
+      round = ""; vh = ""; nsec = 0; short = 0
+    }
+    {
+      line = $0; sub(/\r$/, "", line)
+      h = heading_index(line)
+      if (h) { if (inrev) close_round(); inrev = (h == 5); inlog = (h == 4); next }
+      if (inlog && _fence == "") {
+        if (line ~ /Manual re-check:/) {
+          t = line; sub(/.*Manual re-check:[ \t]*/, "", t)
+          while (match(t, /#[0-9]+/)) { n = substr(t, RSTART + 1, RLENGTH - 1); mr[n] = 1; done[n] = 0; t = substr(t, RSTART + RLENGTH) }
+        } else if (line !~ /(Verification|PR comment|PR head) @/ && line ~ /@ [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*[^:]*:/) {
+          for (n in mr) if (!done[n] && match(line, "#" n "([^0-9]|$)")) done[n] = 1
+        }
+        next
+      }
+      if (!inrev || _fence != "" || line ~ /^ ? ? ?(```|~~~)/) next
+      if (line ~ /^### Round [0-9]+[ \t]*$/) {
+        close_round(); round = line; sub(/^### Round /, "", round); sub(/[ \t]+$/, "", round); next
+      }
+      if (round == "") next
+      if (vh == "" && line ~ /^Verification @ /) { t = line; sub(/^Verification @ /, "", t); sub(/[+: ].*$/, "", t); vh = t; next }
+      if (line ~ /^#### /) { close_finding(); close_sec(); nsec++; sec_open = 1; next }
+      if (sec_open && line ~ /[^ \t]/) sec_body = 1
+      if (line ~ /^- /) { close_finding(); open_f = 1; next }
+      if (!open_f) next
+      if (line ~ /^[ \t]*- Auto-fix:/) {
+        if (index(line, "○")) af = "fix"; else if (index(line, "×")) af = "accept"; else if (index(line, "△")) af = "ask"
+      } else if (line ~ /^[ \t]*- Decision:/) {
+        t = line; sub(/^[ \t]*- Decision:[ \t]*/, "", t)
+        if (t ~ /^fix \(auto\)/) dec = "fix(auto)"; else if (t ~ /^accept \(auto\)/) dec = "accept(auto)"
+        else if (t ~ /^fix/) dec = "fix"; else if (t ~ /^accept/) dec = "accept"
+        else if (t ~ /^replan/) dec = "replan"; else if (t ~ /^reapproach/) dec = "reapproach"
+      } else if (line ~ /^[ \t]*- Fixed @ /) { t = line; sub(/^[ \t]*- Fixed @ /, "", t); sub(/[ \t].*$/, "", t); fx = t }
+    }
+    END { if (inrev) close_round(); for (n in mr) printf "M %s %d\n", n, done[n] }' "$1"
+}
+
+# review_next <state.md>: phase/review.md step 2 (see the header).
+review_next() {
+  local facts last="" vh="" short=0 r a d f n dn recheck="" legacy
+  facts=$(review_facts "$1")
+  while read -r r a d f; do
+    [ "$r" = R ] || continue
+    last=$a vh=$d short=$f
+  done << EOF
+$facts
+EOF
+  while read -r r n dn _; do
+    [ "$r" = M ] && [ "$dn" = 0 ] && recheck="$recheck #$n"
+  done << EOF
+$facts
+EOF
+  recheck=$(printf '%s' "$recheck" | tr ' ' '\n' | grep . | sort -t'#' -k2 -n | paste -sd' ' -)
+  legacy=$(printf '%s\n' "$facts" | awk '$1 == "F" && $3 == "-" && !s[$2]++ { printf "%sRound %s", (n++ ? ", " : ""), $2 }')
+  # say <step> <why>
+  say() {
+    printf 'step: %s\nround: %s\n' "$1" "${last:-none}"
+    [ "$1" = 3 ] && [ "$short" = 1 ] && printf 'drop: Round %s\n' "$last"
+    [ -n "$recheck" ] && printf 'recheck: %s\n' "$recheck"
+    [ -n "$legacy" ] && printf 'legacy: %s\n' "$legacy"
+    printf 'why: %s\n' "$2"
+  }
+  # has <pattern> <round|any>: a finding line "F <round> <af> <dec> <fixed>" matches.
+  has() { printf '%s\n' "$facts" | awk -v p="$1" -v r="$2" '$1 == "F" && (r == "any" || $2 == r) && ($3 " " $4 " " $5) ~ p { f = 1 } END { exit !f }'; }
+  if [ -z "$last" ]; then
+    say 3 "no round yet"
+    return
+  fi
+  if [ "$short" = 1 ]; then
+    say 3 "Round $last is cut short (a reviewer section is missing or empty)"
+    return
+  fi
+  if has '^- -' "$last"; then
+    say 6 "Round $last has a finding with neither Auto-fix nor Decision"
+    return
+  fi
+  if has '^(fix|accept) - ' "$last"; then
+    say 7 "Round $last has a finding marked ○ or × without a Decision"
+    return
+  fi
+  if has ' (reapproach|replan) ' any; then
+    say rewind "a finding is decided replan or reapproach"
+    return
+  fi
+  if has '^fix fix([(]auto[)])? -$' "$last"; then
+    say implement "Round $last has a ○ finding decided fix and not fixed"
+    return
+  fi
+  if [ "$vh" != - ] && ! git -C "$top" rev-parse -q --verify "$vh^{commit}" > /dev/null 2>&1; then
+    say 3 "Round $last's Verification ($vh) is no commit here: verify again"
+    return
+  fi
+  if [ "$vh" != - ] && [ -n "$(git -C "$top" rev-list "$vh..HEAD" 2> /dev/null | head -1)" ]; then
+    say 3 "HEAD is ahead of Round $last's Verification ($vh)"
+    return
+  fi
+  if has '^ask - ' any || [ -n "$recheck" ]; then
+    say 9 "a △ finding has no Decision, or a Manual re-check is open"
+    return
+  fi
+  if has ' fix([(]auto[)])? -$' any; then
+    say implement "a finding decided fix is not fixed"
+    return
+  fi
+  say 10 "every finding is decided and nothing is left to fix"
 }
 
 # one_of <value> <words>: exit 0 when the value is one of the words.
@@ -589,6 +732,15 @@ case $cmd in
   triggers)
     [ $# -eq 0 ] || usage
     for v in $TRIGGERS; do printf '%s\n' "$v"; done
+    ;;
+  review-next)
+    [ $# -eq 1 ] || usage
+    f=$(sfile "$1")
+    [ -f "$f" ] || {
+      echo "no run: $1" >&2
+      exit 1
+    }
+    review_next "$f"
     ;;
   statuses)
     [ $# -eq 0 ] || usage
