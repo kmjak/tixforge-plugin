@@ -224,13 +224,11 @@ parse() {
     }
     fence != "" { if (open) last = NR; next }
     # A report without items is "no findings" unless a line names a finding:
-    # an R<n> / Q<n> token (a previous round, "Round 1 R1", does not count),
-    # "**R1 [", or a key of a finding (Kind / Severity / Confidence, also
-    # bold, with a full-width colon, or as a table column).
-    # Also a line with the keys of a finding, which only a finding has. A
-    # previous round id ("Round 1 R1 is fixed") does not count.
-    { t = $0; gsub(/[Rr]ound [0-9]+ ?(の|of)? ?[A-Z][0-9]+/, "", t) }
-    t ~ /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9A-Za-z]|$)|(^|[^A-Za-z0-9])(Kind|Severity|Confidence)\**[ \t]*(:|：|\|)/ { named++ }
+    # an R<n> / Q<n> token (also a previous round: a finding left unfixed is
+    # written that way), "**R1 [", or a key of a finding (Kind / Severity /
+    # Confidence, also bold, with a full-width colon, or as a table column;
+    # 重大度 / 確度). A wrong refusal only means asking the reviewer again.
+    /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9A-Za-z]|$)|(^|[^A-Za-z0-9])(Kind|Severity|Confidence)\**[ \t]*(:|：|\|)|重大度|確度/ { named++ }
     /^- / && !/^- \*\*[A-Z][0-9]+ \[[^]]*\]\*\*/ && $0 !~ /\*\*/ { if (open) last = NR; next }
     /^- / {
       close_item()

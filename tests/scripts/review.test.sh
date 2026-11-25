@@ -74,12 +74,12 @@ rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
 eq 3 $? "add: a * item after a - item is refused, not merged"
 printf -- '- **R1 [未実装]** a\n  - Kind: missing\n  - Severity: high\n  - Severity: low\n  - Confidence: high\n' > "$tmp/bad"
 has "two Severity lines" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: one Severity per finding"
-for bad_rep in '### Missing handler\nKind: missing\nSeverity: high\nConfidence: high' '### Missing handler\n**Kind:** missing\n**Severity:** high' '**Kind**: missing' 'Kind：missing' '| Kind | Severity |\n|---|---|\n| missing | high |' '**未実装** 受け入れ条件 2 の処理が無い\n- Severity: high'; do
+for bad_rep in '### Missing handler\nKind: missing\nSeverity: high\nConfidence: high' '### Missing handler\n**Kind:** missing\n**Severity:** high' '**Kind**: missing' 'Kind：missing' '| Kind | Severity |\n|---|---|\n| missing | high |' 'Round 1 の R1 がまだ直っていない。src/login.ts:40 は変わっていない。' 'No findings. Round 1 R1 is fixed.' '指摘なし。ただし 重大度：高' '**未実装** 受け入れ条件 2 の処理が無い\n- Severity: high'; do
   printf -- "$bad_rep\n" > "$tmp/bad"
   rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
   eq 3 $? "add: a finding written without an item is refused [$bad_rep]"
 done
-for ok_rep in '## 報告\n\n指摘なし' '指摘なし\n\n（チケットと突き合わせた）' 'No findings.\n\nChecked all acceptance criteria.' '- 指摘なし' 'No findings. Round 1 R1 is fixed.' '指摘なし。Round 1 R1 は修正済み。' '指摘なし。Round 1 の R1 は修正済み。' 'No findings; round 2 Q1 is fixed.' 'No findings. Severity is low overall.'; do
+for ok_rep in '## 報告\n\n指摘なし' '指摘なし\n\n（チケットと突き合わせた）' 'No findings.\n\nChecked all acceptance criteria.' '- 指摘なし' 'No findings. Severity is low overall.'; do
   rv round GT-000920 "Verification @ $h1: test pass" > /dev/null
   printf -- "$ok_rep\n" > "$tmp/okrep"
   n=$(
