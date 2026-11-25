@@ -142,6 +142,33 @@ for f in skills/*/*.md skills/dev/phase/*.md; do
   [ -z "$bad" ] && ok || ng "$bad"
 done
 
+# --- allowed tools ---------------------------------------------------------
+# Every script call in a skill's procedures (its own files and references/,
+# which any skill may be told to read) is allowed by the skill's
+# allowed-tools: "X.sh)" for no arguments, "X.sh <the same words>)" or
+# "X.sh *)" otherwise. A missing one asks for permission at every call, and a
+# non-interactive run is refused; the tests of the scripts do not notice.
+section="allowed tools"
+for skill in skills/*/; do
+  name=$(basename "$skill")
+  allowed=$(sed -n 's/^allowed-tools: //p' "$skill/SKILL.md")
+  grep -rhoE 'bash <scripts>/[a-z-]+\.sh[^`]*' "$skill" references | sed 's|bash <scripts>/||; s/[[:space:]]*$//' | sort -u \
+    | while IFS= read -r call; do
+      sc=${call%%.sh*}.sh
+      args=${call#"$sc"}
+      args=${args# }
+      found=""
+      case $allowed in *"scripts/$sc *)"*) found=1 ;; esac
+      [ -z "$args" ] && case $allowed in *"scripts/$sc)"*) found=1 ;; esac
+      case $args in *'<'* | '') ;; *) case $allowed in *"scripts/$sc $args)"*) found=1 ;; esac ;; esac
+      [ -n "$found" ] && echo ok || echo "ng skills/$name: allowed-tools does not allow: bash <scripts>/$call"
+    done
+done > "${TMPDIR:-/tmp}/tf-allowed.$$" 2>&1
+while IFS= read -r l; do
+  case $l in ok) ok ;; *) ng "${l#ng }" ;; esac
+done < "${TMPDIR:-/tmp}/tf-allowed.$$"
+rm -f "${TMPDIR:-/tmp}/tf-allowed.$$"
+
 # --- review rules ------------------------------------------------------------
 # The agents name the sections of references/review.md they follow.
 section="review rules"
