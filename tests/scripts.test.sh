@@ -1829,6 +1829,7 @@ eq 1 $? "name: no such run"
 git branch -q -D GT-000910-add-x
 git remote remove origin
 rm -rf .tixforge/GT-000910 "$tmp/borigin.git"
+
 # --- pr-resume.sh ----------------------------------------------------------
 # Where a run in the PR phase goes on from: Status, the PRs of the branch
 # ($GH_DIR/prs.json), the PR's comments ($GH_DIR/pr-view.json), an origin
@@ -1836,6 +1837,7 @@ rm -rf .tixforge/GT-000910 "$tmp/borigin.git"
 section="pr-resume.sh"
 prr() { bash "$scripts/pr-resume.sh" "$@"; }
 nxt() { prr GT-000909 | sed -n 's/^next: //p'; }
+back=$(git symbolic-ref --short HEAD)
 git init -q --bare "$tmp/origin.git"
 git remote add origin "$tmp/origin.git"
 git switch -q -c GT-000909-x
@@ -1911,6 +1913,7 @@ prr GT-999999 > /dev/null 2>&1
 eq 1 $? "no such run"
 git switch -q "$back"
 git branch -q -D GT-000909-x
+git remote remove origin
 rm -rf .tixforge/GT-000909 "$tmp/origin.git" "$GH_DIR/prs.json" "$GH_DIR/pr-view.json"
 
 # --- tixforge-issue-sync.yml ----------------------------------------------
