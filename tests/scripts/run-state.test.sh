@@ -452,4 +452,26 @@ eq 0 "$(jq -r '.id' "$evf" | grep -cvE '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[8
 eq "" "$(jq -r '.id' "$evf" | sort | uniq -d)" "no two events share an id"
 rm -rf .tixforge/GT-000909
 
+# Mode: normal without the row; set adds it before Updated; an event per
+# change; a rewind sets a small run back to normal.
+section="run-state.sh Mode"
+st init GT-000940 > /dev/null
+f40=.tixforge/GT-000940/state.md
+eq normal "$(st get GT-000940 Mode)" "Mode: normal without the row"
+n=$(wc -l < "$evf")
+eq small "$(st set GT-000940 Mode small)" "set Mode small"
+has "$(printf '| Mode    | small                              |\n| Updated |')" "$(cat "$f40")" "the row goes before Updated"
+eq $((n + 1)) "$(wc -l < "$evf" | tr -d ' ')" "one event"
+eq '{"type":"mode","from":"normal","to":"small"}' "$(tail -1 "$evf" | jq -c '{type, from, to}')" "a mode event"
+st set GT-000940 Mode small > /dev/null
+eq $((n + 1)) "$(wc -l < "$evf" | tr -d ' ')" "no event when it does not change"
+eq 1 "$(grep -c '^| Mode ' "$f40")" "one row"
+st set GT-000940 Mode tiny > /dev/null 2>&1
+eq 2 $? "Mode is normal or small"
+st set GT-000940 Status plan:awaiting-approval > /dev/null
+st rewind GT-000940 approach > /dev/null
+eq normal "$(st get GT-000940 Mode)" "a rewind sets a small run back to normal"
+eq '{"type":"mode","to":"normal"}' "$(grep '"mode"' "$evf" | tail -1 | jq -c '{type, to}')" "and logs it"
+rm -rf .tixforge/GT-000940
+
 done_file

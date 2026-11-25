@@ -73,7 +73,7 @@
 | スクリプト | 用途 |
 |------------|------|
 | `ticket-id.sh` | id の取り出し・正規化・実在の確認・issue 番号への変換（上記） |
-| `run-state.sh` | 状態ファイルの作成（`init`）、ヘッダの読み書き（`get` / `set`。`Status` を検査し、`Updated` も更新）、巻き戻し（`rewind`）・キャンセル（`cancel`）・手放す（`release`）、前の形式からの更新（`migrate`）、Review をどこから進めるか（`review-next`）、ゲートの自動通過（`pass`）。状態を変えるものはどれもイベントログを書くので、手で同じことをしない |
+| `run-state.sh` | 状態ファイルの作成（`init`）、ヘッダの読み書き（`get` / `set`。`Status`・`Branch`・`Base`・`Mode`（`normal`・`small`）。`Status` を検査し、`Updated` も更新）、巻き戻し（`rewind`）・キャンセル（`cancel`）・手放す（`release`）、前の形式からの更新（`migrate`）、Review をどこから進めるか（`review-next`）、ゲートの自動通過（`pass`）。状態を変えるものはどれもイベントログを書くので、手で同じことをしない |
 | `branch.sh` | Plan の Base（ユーザー・チケットの `## Base`・設定・origin の既定の順）とブランチ名（空いている名前）の決定 |
 | `verify.sh` | 検証コマンドの実行と `Verification @ <hash>: …` の行の出力（`--reuse`：今の commit で全て通った結果があれば、実行せずにその行） |
 | `review.sh` | Review のデータ（`review.tsv`）の読み書きと `## Review` の描き直し：ラウンド・報告の取り込み・推奨と自動修正（○×△ の表）・決定・修正済み・一覧 |

@@ -7,7 +7,7 @@
 #
 #   run-state.sh init <id>                   create state.md (Status research:in-progress)
 #   run-state.sh get <id> [field]            print a header field (default Status)
-#   run-state.sh set <id> <field> <value>    set Status / Branch / Base; also sets Updated
+#   run-state.sh set <id> <field> <value>    set Status / Branch / Base / Mode; also sets Updated
 #   run-state.sh statuses                    every valid Status, one per line
 #   run-state.sh list                        "<id>\t<Status>\t<Branch>" for every run
 #   run-state.sh rewind <id> <phase> [--keep-log] [--reason <text>]
@@ -74,6 +74,11 @@
 # done by a later Log line "<word> @ <hash>: ... #N ..." (the manual check
 # record, in the person's language); whether #N is still the user's to check
 # is in the Plan's table, which Claude reads in step 9. Read only.
+# Mode is normal (the six phases, each gate as gates says) or small
+# (Research, Approach and Plan pass to one gate at Plan; skills/dev/run.md).
+# A file without the row is normal; set adds it. A change of Mode is a
+# "mode" event, and a rewind sets it back to normal.
+#
 # pass is the automatic pass of a gate that is not in gates (skills/dev/run.md):
 # it ends the phase's section with "> <gate_auto_pass>" (scripts/messages.yml,
 # in this person's language) and sets Status to the next phase's
@@ -235,6 +240,23 @@ EOF
   say 10 "every finding is decided and nothing is left to fix"
 }
 
+# mode_of <state.md>: the Mode (normal without the row).
+mode_of() {
+  local m
+  m=$(field "$1" Mode)
+  printf '%s\n' "${m:-normal}"
+}
+# add_row <state.md> <field> <value>: a header row before Updated.
+add_row() {
+  local tmp
+  tmp=$(mktemp) || exit 1
+  awk -F'|' -v k="$2" -v v="$3" '
+    { key = $2; gsub(/^[ \t]+|[ \t]+$/, "", key) }
+    !done && key == "Updated" { printf "| %-7s | %-34s |\n", k, v; done = 1 }
+    { print }' "$1" > "$tmp" && cat "$tmp" > "$1"
+  rm -f "$tmp"
+}
+
 # one_of <value> <words>: exit 0 when the value is one of the words.
 one_of() {
   local v
@@ -373,7 +395,7 @@ case $cmd in
       echo "no run: $1" >&2
       exit 1
     }
-    field "$f" "${2:-Status}"
+    if [ "${2:-}" = Mode ]; then mode_of "$f"; else field "$f" "${2:-Status}"; fi
     ;;
   set)
     [ $# -eq 3 ] || usage
@@ -388,11 +410,25 @@ case $cmd in
         exit 2
       } ;;
       Branch | Base) ;;
+      Mode) case $3 in normal | small) ;; *)
+        echo "invalid Mode: $3 (normal, small)" >&2
+        exit 2
+        ;;
+      esac ;;
       *)
-        echo "field not settable: $2 (Status, Branch, Base)" >&2
+        echo "field not settable: $2 (Status, Branch, Base, Mode)" >&2
         exit 2
         ;;
     esac
+    if [ "$2" = Mode ]; then
+      before=$(mode_of "$f")
+      [ -n "$(field "$f" Mode)" ] || add_row "$f" Mode normal
+      put "$f" Mode "$3"
+      put "$f" Updated "$(tf_now)"
+      [ "$before" != "$3" ] && event "$top" "$1" mode from "$(json_str "$before")" to "$(json_str "$3")"
+      field "$f" Mode
+      exit 0
+    fi
     [ "$2" = Status ] && before=$(field "$f" Status)
     [ "$2" = Status ] && [ "$before" = review:in-progress ] && [ "$3" != "$before" ] && log_review "$f" "$1"
     put "$f" "$2" "$3"
@@ -534,6 +570,11 @@ case $cmd in
     fi
     put "$f" Status "$phase:in-progress"
     put "$f" Updated "$now"
+    # A small run that goes back has not held together: the normal gates again.
+    if [ "$(mode_of "$f")" = small ]; then
+      put "$f" Mode normal
+      event "$top" "$id" mode from '"small"' to '"normal"'
+    fi
     event "$top" "$id" rewind from "$(json_str "$before")" to "$(json_str "$phase:in-progress")" \
       category "$(jtext "$category")" trigger "$(jtext "$trigger")" reason "$(jtext "$reason")" \
       history "$(json_str "${hist#$top/}")" keep_log "$(if [ -n "$keep" ]; then echo true; else echo false; fi)"
