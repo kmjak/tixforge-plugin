@@ -216,7 +216,7 @@ parse() {
     # Counted before fences: a report pasted inside a fence (as the format
     # is shown) has its findings there. A label line ("- [未実装] ...",
     # "**[未実装]**") names one too.
-    /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9A-Za-z]|$)|(^|[^A-Za-z0-9])(Kind|Severity|Confidence)\**[ \t]*(:|：|\|)|重大度|確度|^[ \t]*([*+-]|[0-9]+[.)])? *(\*\*)?\[[^]]+\]/ { named++ }
+    /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9A-Za-z]|$)|(^|[^A-Za-z0-9])([Kk]ind|[Ss]everity|[Cc]onfidence)\**[ \t]*(:|：|\|)|重大度|確度|^[ \t]*([*+-]|[0-9]+[.)])? *(\*\*)?(\[[^]]+\]|【|［)/ { named++ }
     # A fence opens with ``` or ~~~ and closes with the same character, at
     # least as long, and nothing after it (as CommonMark, as lib.sh reads).
     match($0, /^ ? ? ?(```+|~~~+)/) {
