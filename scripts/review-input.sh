@@ -81,7 +81,7 @@ state=$(state_file "$id" "$top")
 }
 # The notes the run leaves in a section, per language: "> " and the
 # rewind note up to {time} (run-state.sh writes it under the heading), and
-# "> " and the auto-passed gate line (run.md has it written at the end).
+# "> " and the auto-passed gate line (run-state.sh pass writes it at the end).
 notes_rewind="" notes_pass=""
 for l in $(sed -n 's/^\([a-z][a-z_-]*\):$/\1/p' "$(cd "$(dirname "$0")" && pwd)/messages.yml"); do
   r=$(msg rewind_note "$l")

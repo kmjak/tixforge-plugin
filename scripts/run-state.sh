@@ -770,16 +770,23 @@ case $cmd in
       echo "Status is $cur, not $2:in-progress" >&2
       exit 2
     }
-    note="> $(msg gate_auto_pass "$(user_lang "$top")")"
-    # The note goes after the section's last line that is not blank.
-    awk "$_section_awk"'
-      function flush() { if (on) { printf "%s", body; if (body != "") print ""; print note; print ""; on = 0; body = ""; blanks = "" } }
+    # The note goes after the section's last line that is not blank. Text
+    # goes in through ENVIRON (-v and operands would read its backslashes).
+    tmp=$(mktemp) || exit 1
+    TF_NOTE="> $(msg gate_auto_pass "$(user_lang "$top")")" awk "$_section_awk"'
+      function flush() { if (on) { printf "%s", body; if (body != "") print ""; print ENVIRON["TF_NOTE"]; print ""; on = 0; body = ""; blanks = ""; found = 1 } }
       { h = heading_index($0) }
       h { flush(); print; if (h == s) { on = 1 }; next }
       on && /^[ \t\r]*$/ { blanks = blanks $0 "\n"; next }
       on { body = body blanks $0 "\n"; blanks = ""; next }
       { print }
-      END { flush() }' s="$sec" note="$note" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+      END { flush(); exit !found }' s="$sec" "$f" > "$tmp" || {
+      rm -f "$tmp"
+      echo "no section for $2 in ${f#"$top"/}" >&2
+      exit 2
+    }
+    cat "$tmp" > "$f"
+    rm -f "$tmp"
     bash "$0" set "$1" Status "$nxt:in-progress"
     ;;
   statuses)

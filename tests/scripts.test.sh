@@ -674,6 +674,12 @@ eq pr:in-progress "$(st pass GT-000911 review)" "pass: review goes to the PR"
 has "> ゲート自動通過" "$(awk '$0 == "## Review" { on = 1; next } on && /^## / { exit } on' "$f11")" "pass: review's note"
 st pass GT-999999 research > /dev/null 2>&1
 eq 1 $? "pass: no such run"
+st init GT-000912 > /dev/null
+grep -v '^## Research' .tixforge/GT-000912/state.md > "$tmp/f12" && cat "$tmp/f12" > .tixforge/GT-000912/state.md
+st pass GT-000912 research > /dev/null 2>&1
+eq 2 $? "pass: no section heading, no pass"
+eq research:in-progress "$(st get GT-000912)" "pass: and Status stays"
+rm -rf .tixforge/GT-000912
 rm -rf .tixforge/GT-000911
 # The words the skills ask for are the ones run-state accepts: rewind.md and
 # cancel.md list each as "- `<word>`：<meaning>" under the step that asks.
