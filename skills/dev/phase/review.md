@@ -20,7 +20,7 @@
    10. どれにも当たらない → 手順 10
 
    **3.0 までの形式の指摘**（`Auto-fix:`・`Decision:` が無く、個人の言語の「決定」の行がある）は、その決定を `Decision:` に読み替える（修正 → `fix`、受け入れ → `accept`、計画の見直し → `replan`、方針の見直し → `reapproach`）。「修正」は直したものとして扱う。ただし最新ラウンドで、その `Verification @` の後に commit が無ければ未修正（3.0 は直した後に次のラウンドを起こした）なので、Implement が直して `Fixed @` を足す。手順 5 の「前のラウンドの後に直した指摘」には、最新ラウンドの 3.0 の「修正」も入れる。
-3. **検証**：`bash <scripts>/verify.sh --reuse` を実行する（今の commit で全て通った結果があれば、実行せずにその行を出す）。1 行目が Log の最新の `Verification @` と違えば Log に書き写す。失敗があれば `Status: implement:in-progress` に戻し、`implement.md` の「検証」で扱う。
+3. **検証**：`bash <scripts>/verify.sh --reuse` を実行する（今の commit で全て通った結果があれば、実行せずにその行を出す）。1 行目が Log の最新の `Verification @` と違えば Log に書き写す。失敗か `+dirty` があれば `Status: implement:in-progress` に戻し、`implement.md` の「検証」で扱う。
 4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>`。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付ける（前のラウンドからの `delta.patch` も出る）。`.git/tixforge/review/<ticket-id>/` に差分・チケット・`## Approach`・`## Plan`・`frontend.md`（あれば）と `index.md` が書き出され、`index.md` のパスが出力される。このセッションで読む必要はない。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」からやり直す。4（state.md が無い、または `## Approach`・`## Plan` が空）なら、原因を伝えて止まる（書き直すなら `rewind.md` で戻る）。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し。ラウンドごとに新しく起動）。渡すのは次だけ：
    - 両方に：`index.md` のあるディレクトリのパス、報告の言語（個人の言語）、その agent の `Decision: accept`（自動を含む）の指摘と理由、その agent の `Decision:` の無い `△` の指摘（同じ指摘を繰り返させないため）、前のラウンドの後に直した指摘（`Fixed @` の commit が前のラウンドの `Verification @` より後）：その agent の指摘は全文、他方と実装者の追加の指摘は「何をどう直すか」の 1 行（自分の指摘が直ったかを確かめさせ、他の修正を「合意外の変更」と言わせないため。合意の引用は他方に渡さない）。指摘は `Round N <番号>` で示す
