@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.6.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.5.0...tixforge--v3.6.0) (2026-11-25)
+
+
+### Features
+
+* decide where Review goes on from with run-state.sh review-next ([#90](https://github.com/kmjak/tixforge-plugin/issues/90)) ([a0fcd35](https://github.com/kmjak/tixforge-plugin/commit/a0fcd35ed76ec5030aa6a5544280868928813a86))
+* decide where the PR phase resumes with pr-resume.sh ([#91](https://github.com/kmjak/tixforge-plugin/issues/91)) ([2c30bde](https://github.com/kmjak/tixforge-plugin/commit/2c30bde9fce5ffdc57d3097fd36ca670d352fb0c))
+* pass a gate automatically with run-state.sh pass ([#94](https://github.com/kmjak/tixforge-plugin/issues/94)) ([c220827](https://github.com/kmjak/tixforge-plugin/commit/c2208272116c2b9d161765d187aafcd85bada840))
+* pick the Base and the branch name with branch.sh ([#92](https://github.com/kmjak/tixforge-plugin/issues/92)) ([000e2a6](https://github.com/kmjak/tixforge-plugin/commit/000e2a6fcf38d58ddabe3f96112e5d864030fbba))
+* reuse a fresh verification with verify.sh --reuse ([#93](https://github.com/kmjak/tixforge-plugin/issues/93)) ([9b5bca5](https://github.com/kmjak/tixforge-plugin/commit/9b5bca5c48fbc1f69c6aeed5e8ce7fd942a3e649))
+
+
+### Bug Fixes
+
+* allow ticket-id.sh in project and test each skill's allowed-tools ([#95](https://github.com/kmjak/tixforge-plugin/issues/95)) ([2d914fb](https://github.com/kmjak/tixforge-plugin/commit/2d914fb5539447460146640d90213fe5225cde35))
+* move the event log spec and the v2 migration out of the README ([#98](https://github.com/kmjak/tixforge-plugin/issues/98)) ([996c30f](https://github.com/kmjak/tixforge-plugin/commit/996c30f1cd5d94a81b645400f9591dcee3c15f6e))
+* post how each check was done and what it showed as a PR comment ([#83](https://github.com/kmjak/tixforge-plugin/issues/83)) ([bf81e8a](https://github.com/kmjak/tixforge-plugin/commit/bf81e8abfff437e74382a1e5bc56c0fd44944827))
+* read only the current phase's steps in /tixforge:dev ([#87](https://github.com/kmjak/tixforge-plugin/issues/87)) ([901bd1e](https://github.com/kmjak/tixforge-plugin/commit/901bd1ee525ade70db46cdb08ba6e5a17af4e4a0))
+* read only the current phase's steps in /tixforge:project init ([#97](https://github.com/kmjak/tixforge-plugin/issues/97)) ([873f6dd](https://github.com/kmjak/tixforge-plugin/commit/873f6ddb0532aee6627b7633fdc6272c3ec91320))
+* read only the PR steps of the current step in /tixforge:dev ([#88](https://github.com/kmjak/tixforge-plugin/issues/88)) ([fe7dc3f](https://github.com/kmjak/tixforge-plugin/commit/fe7dc3f980d682025691492887db5100ca27ebb3))
+* small slips seen in a live /tixforge:dev run ([#96](https://github.com/kmjak/tixforge-plugin/issues/96)) ([b39cc19](https://github.com/kmjak/tixforge-plugin/commit/b39cc196edbc610610266290c0a81e549b3f925c))
+* trim the PR steps and finish a PR creation cut short ([#89](https://github.com/kmjak/tixforge-plugin/issues/89)) ([a0aa85f](https://github.com/kmjak/tixforge-plugin/commit/a0aa85fed0958008404298157af80bb8dbe3c4be))
+* trim the wording of dev's run.md without changing its steps ([#84](https://github.com/kmjak/tixforge-plugin/issues/84)) ([f7d2bc9](https://github.com/kmjak/tixforge-plugin/commit/f7d2bc933d9fabbc3fe2211684558c41a46f38a1))
+* trim the wording of the common rules without changing them ([#86](https://github.com/kmjak/tixforge-plugin/issues/86)) ([b41b951](https://github.com/kmjak/tixforge-plugin/commit/b41b951f837db6915473412b645ce674bef33fa6))
+
 ## [3.5.0](https://github.com/kmjak/tixforge-plugin/compare/tixforge--v3.4.0...tixforge--v3.5.0) (2026-11-23)
 
 
