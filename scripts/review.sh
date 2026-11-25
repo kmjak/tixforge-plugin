@@ -223,12 +223,14 @@ parse() {
       next
     }
     fence != "" { if (open) last = NR; next }
-    # A line that names a finding (R1 / Q2 with a label, or "R1:") but is not
-    # a top-level "- **R1 [...]**" item: refused, never taken as text.
+    # A report without items is "no findings" unless a line names a finding:
+    # an R<n> / Q<n> token (a previous round, "Round 1 R1", does not count),
+    # "**R1 [", or a key of a finding (Kind / Severity / Confidence, also
+    # bold, with a full-width colon, or as a table column).
     # Also a line with the keys of a finding, which only a finding has. A
     # previous round id ("Round 1 R1 is fixed") does not count.
-    { t = $0; gsub(/Round [0-9]+ [A-Z][0-9]+/, "", t) }
-    t ~ /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9A-Za-z]|$)|(^|[ \t-])(Kind|Severity|Confidence):/ { named++ }
+    { t = $0; gsub(/[Rr]ound [0-9]+ ?(の|of)? ?[A-Z][0-9]+/, "", t) }
+    t ~ /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9A-Za-z]|$)|(^|[^A-Za-z0-9])(Kind|Severity|Confidence)\**[ \t]*(:|：|\|)/ { named++ }
     /^- / && !/^- \*\*[A-Z][0-9]+ \[[^]]*\]\*\*/ && $0 !~ /\*\*/ { if (open) last = NR; next }
     /^- / {
       close_item()
