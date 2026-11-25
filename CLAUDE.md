@@ -45,6 +45,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
 - 手順ファイルが別の手順ファイルを参照するのは、手続きを任せるときだけにし、呼ぶ側と呼ばれる側を書く。一部の手順だけを使うなら、その手順の番号を書く（例：`references/ticket-changed.md` が `rewind.md` の手順 2・3・5・7 を使う）。番号で参照されている手順の番号を変えたら、参照している側も直す（`grep -rn '<ファイル名>' skills references` で探す。テストでは守っていない）。2 つのスキルから呼ばれる手続きは `references/` に置く。他のスキルの手順ファイルを丸ごと読ませると、要らない手順が文脈に混ざるため。
 - パネル（`hooks/panel.tsx` の mod）のデータは `scripts/panel-data.sh` で作り、mod は描画とボタンだけにする。mod は CI で確かめられない（`claude plugin test` は claude CLI のある手元の `make check` だけで回る）ため。
 - イベントログ（`.tixforge/events.jsonl`）は、state.md を書き換えるスクリプトの中で `lib.sh` の `event` で書き、手順ファイルから Claude に書かせない。キーの意味を変える・消すときは `lib.sh` の `EVENTS_SCHEMA` を上げ、`docs/events.md` を直す（キーや種類を足すだけなら上げない）。GUI などの外のツールが読む約束で、Claude の書き方で揺れると読めないため。書き込みや送信（`events-sync.sh`）の失敗で本来の操作を止めず、終了コードと出力も変えない。送信のトークン（`TIXFORGE_EVENTS_TOKEN`）は環境変数だけから読み、ファイル・出力・コマンドラインに出さない。
+- Review はデータ（`.tixforge/<id>/review.tsv` と `review/`）として持ち、`review.sh` のコマンドだけで書く。`## Review` はそこから描き直す表示で、手順は Claude に Edit させない。字下げ 1 つの崩れで再開の判定やイベントログが壊れないため。Claude が判断するのは推奨と「合意の中で直し方が 1 つに決まるか」だけで、○×△ の表はスクリプトが当てはめる。
 - state.md の形を変えたら、`run-state.sh` の `STATE_FORMAT` を上げ、`migrate` に前の形式から移す段を足す。plugin を更新しても、利用者の手元の state.md は書き換わらないため。
 
 ### テストで守るもの

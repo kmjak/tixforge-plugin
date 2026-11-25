@@ -58,22 +58,19 @@
 # one review_round event each (review_rounds), so the counts never depend on
 # Claude writing an event.
 #
-# review-next reads ## Review and the Implementation Log and prints where
+# review-next reads the Review data (review.sh) and the Implementation Log
+# and prints where
 # Review goes on from, the first that holds of phase/review.md step 2:
 #
 #   step: <3|6|7|9|10|implement|rewind>
 #   round: <latest round, or none>
 #   drop: Round <n>          the latest round is cut short: remove it first
 #   recheck: <#N ...>        Manual re-check items with no later check line
-#   legacy: Round <n>, ...   rounds with a finding that has no Auto-fix line
 #   why: <one line>
 #
 # "unfixed" is a finding decided fix / fix (auto) without "Fixed @". A round
-# is cut short when it has fewer than two "#### " reviewer sections or one
-# of them is empty. A finding without an Auto-fix line is step 6 in the
-# latest round; it may also be 3.0's format (a decision line in the person's
-# language), which the script cannot read, so its rounds are listed in
-# legacy and Claude applies step 2's note on 3.0 to them. A Manual re-check #N is
+# is cut short when a reviewer's report was not taken in (review.sh add). A
+# finding not judged yet (review.sh judge) is step 6. A Manual re-check #N is
 # done by a later Log line "<word> @ <hash>: ... #N ..." (the manual check
 # record, in the person's language); whether #N is still the user's to check
 # is in the Plan's table, which Claude reads in step 9. Read only.
@@ -135,89 +132,27 @@ put() {
   rm -f "$tmp"
 }
 
-STATE_FORMAT=3
+STATE_FORMAT=4
 
 # The words of --category and --trigger; the skill that asks lists each with
 # its meaning (rewind.md, cancel.md), and the tests keep the lists the same.
 REWIND_CATEGORIES="misread constraint infeasible spec_change other"
 CANCEL_CATEGORIES="priority duplicate spec_change infeasible other"
 TRIGGERS="human review implement pr ticket"
-# review_rounds <state.md>: one line per "### Round <n>" of ## Review,
-# "<n>\t<findings>\t<unparsed>". findings is a JSON array, one object per
-# finding in the order written (a finding is a top-level "- " item of a
-# round): id and label from "- **R1 [kind]**" (label as written, in the
-# review's language; both "" for an item the implementer added), auto_fix
-# (fix / accept / ask for ○ / × / △), decision (fix, fix (auto), accept,
-# accept (auto), replan, reapproach; null before one is written) and fixed
-# (the hash of "Fixed @", or null). Every finding has an Auto-fix line
-# (skills/dev/phase/review.md); an item without one is not in findings but counted in unparsed,
-# so a slip in the format shows. Lines in a fence are skipped. The symbols are
-# matched as strings (index), never in a bracket expression: in the C locale
-# [○×△] would match single bytes.
-review_rounds() {
-  LC_ALL=C awk "$_section_awk"'
-    function esc(t,   o, i, c) {
-      o = ""
-      for (i = 1; i <= length(t); i++) {
-        c = substr(t, i, 1)
-        if (c == "\\" || c == "\"") o = o "\\" c; else o = o c
-      }
-      return "\"" o "\""
-    }
-    function str(t) { return t == "" ? "null" : esc(t) }
-    function close_finding() {
-      if (!open_f) return
-      if (af == "") unparsed++
-      else items = items (items == "" ? "" : ",") "{\"id\":" esc(fid) ",\"label\":" esc(lab) ",\"auto_fix\":" esc(af) ",\"decision\":" str(dec) ",\"fixed\":" str(fx) "}"
-      open_f = 0; fid = ""; lab = ""; af = ""; dec = ""; fx = ""
-    }
-    function close_round() {
-      close_finding()
-      if (round != "") printf "%s\t[%s]\t%d\n", round, items, unparsed
-      round = ""; items = ""; unparsed = 0
-    }
-    {
-      line = $0; sub(/\r$/, "", line)
-      h = heading_index(line)
-      if (h) { if (inrev) close_round(); inrev = (h == 5); next }
-      if (!inrev || _fence != "" || line ~ /^ ? ? ?(```|~~~)/) next
-      if (line ~ /^### Round [0-9]+[ \t]*$/) {
-        close_round(); round = line; sub(/^### Round /, "", round); sub(/[ \t]+$/, "", round); next
-      }
-      if (round == "") next
-      if (line ~ /^- /) {
-        close_finding(); open_f = 1
-        if (line ~ /^- \*\*[A-Z][0-9]+ \[/ && index(line, "]")) {
-          t = substr(line, 5)
-          fid = substr(t, 1, index(t, " ") - 1)
-          t = substr(t, index(t, "[") + 1); lab = substr(t, 1, index(t, "]") - 1)
-        }
-        next
-      }
-      if (line ~ /^[ \t]*- Auto-fix:/) {
-        if (!open_f) next
-        if (index(line, "○")) af = "fix"; else if (index(line, "×")) af = "accept"; else if (index(line, "△")) af = "ask"
-        next
-      }
-      if (open_f && line ~ /^[ \t]*- Decision:/) {
-        t = line; sub(/^[ \t]*- Decision:[ \t]*/, "", t)
-        if (t ~ /^fix \(auto\)/) dec = "fix (auto)"; else if (t ~ /^accept \(auto\)/) dec = "accept (auto)"
-        else if (t ~ /^fix/) dec = "fix"; else if (t ~ /^accept/) dec = "accept"
-        else if (t ~ /^replan/) dec = "replan"; else if (t ~ /^reapproach/) dec = "reapproach"
-        next
-      }
-      if (open_f && line ~ /^[ \t]*- Fixed @ /) { t = line; sub(/^[ \t]*- Fixed @ /, "", t); sub(/[ \t].*$/, "", t); fx = t }
-    }
-    END { if (inrev) close_round() }' "$1"
-}
-# log_review <state.md> <id>: a review_round event per round.
+# The Review is data (review.sh: .tixforge/<id>/review.tsv); these read it.
+# run_id <state.md>: the run's id (its folder).
+run_id() { basename "$(dirname "$1")"; }
+
+# log_review <state.md> <id>: a review_round event per round: findings
+# (id and label, "" for the implementer's; auto_fix fix / accept / ask;
+# decision; fixed hash) and unparsed, the findings not judged yet.
 log_review() {
   local n items unparsed
   while IFS="$(printf '\t')" read -r n items unparsed; do
     [ -n "$n" ] || continue
     event "$top" "$2" review_round round "$n" findings "$items" unparsed "$unparsed"
   done << EOF
-$(review_rounds "$1")
+$(bash "$(dirname "$0")/review.sh" _rounds "$2")
 EOF
 }
 
@@ -225,57 +160,31 @@ EOF
 #   R <round> <verification hash or -> <cut short 0|1>
 #   F <round> <auto_fix: fix|accept|ask|-> <decision or -> <fixed hash or ->
 #   M <N> <done 0|1>
+# R and F from the data (review.sh _facts); M from the Implementation Log: a
+# "Manual re-check: #N" is done by a later line "<word> @ <hash>: ... #N"
+# (the manual check record, in the person's language; an ASCII or full-width
+# colon).
 review_facts() {
+  bash "$(dirname "$0")/review.sh" _facts "$(run_id "$1")"
   LC_ALL=C awk "$_section_awk"'
-    function close_finding() {
-      if (!open_f) return
-      printf "F %s %s %s %s\n", round, (af == "" ? "-" : af), (dec == "" ? "-" : dec), (fx == "" ? "-" : fx)
-      open_f = 0; af = ""; dec = ""; fx = ""
-    }
-    function close_sec() { if (sec_open && !sec_body) short = 1; sec_open = 0; sec_body = 0 }
-    function close_round() {
-      close_finding(); close_sec()
-      if (round != "") printf "R %s %s %d\n", round, (vh == "" ? "-" : vh), (short || nsec < 2)
-      round = ""; vh = ""; nsec = 0; short = 0
-    }
     {
       line = $0; sub(/\r$/, "", line)
       h = heading_index(line)
-      if (h) { if (inrev) close_round(); inrev = (h == 5); inlog = (h == 4); next }
-      if (inlog && _fence == "") {
-        if (line ~ /Manual re-check:/) {
-          t = line; sub(/.*Manual re-check:[ \t]*/, "", t)
-          while (match(t, /#[0-9]+/)) { n = substr(t, RSTART + 1, RLENGTH - 1); mr[n] = 1; done[n] = 0; t = substr(t, RSTART + RLENGTH) }
-        } else if (line !~ /(Verification|PR comment|PR head) @/ && line ~ /@ [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*[^:]*(:|：)/) {
-          for (n in mr) if (!done[n] && match(line, "#" n "([^0-9]|$)")) done[n] = 1
-        }
-        next
+      if (h) { inlog = (h == 4); next }
+      if (!inlog || _fence != "") next
+      if (line ~ /Manual re-check:/) {
+        t = line; sub(/.*Manual re-check:[ \t]*/, "", t)
+        while (match(t, /#[0-9]+/)) { n = substr(t, RSTART + 1, RLENGTH - 1); mr[n] = 1; done[n] = 0; t = substr(t, RSTART + RLENGTH) }
+      } else if (line !~ /(Verification|PR comment|PR head) @/ && line ~ /@ [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*[^:]*(:|：)/) {
+        for (n in mr) if (!done[n] && match(line, "#" n "([^0-9]|$)")) done[n] = 1
       }
-      if (!inrev || _fence != "" || line ~ /^ ? ? ?(```|~~~)/) next
-      if (line ~ /^### Round [0-9]+[ \t]*$/) {
-        close_round(); round = line; sub(/^### Round /, "", round); sub(/[ \t]+$/, "", round); next
-      }
-      if (round == "") next
-      if (vh == "" && line ~ /^Verification @ /) { t = line; sub(/^Verification @ /, "", t); sub(/[+: ].*$/, "", t); vh = t; next }
-      if (line ~ /^#### /) { close_finding(); close_sec(); nsec++; sec_open = 1; next }
-      if (sec_open && line ~ /[^ \t]/) sec_body = 1
-      if (line ~ /^- /) { close_finding(); open_f = 1; next }
-      if (!open_f) next
-      if (line ~ /^[ \t]*- Auto-fix:/) {
-        if (index(line, "○")) af = "fix"; else if (index(line, "×")) af = "accept"; else if (index(line, "△")) af = "ask"
-      } else if (line ~ /^[ \t]*- Decision:/) {
-        t = line; sub(/^[ \t]*- Decision:[ \t]*/, "", t)
-        if (t ~ /^fix \(auto\)/) dec = "fix(auto)"; else if (t ~ /^accept \(auto\)/) dec = "accept(auto)"
-        else if (t ~ /^fix/) dec = "fix"; else if (t ~ /^accept/) dec = "accept"
-        else if (t ~ /^replan/) dec = "replan"; else if (t ~ /^reapproach/) dec = "reapproach"
-      } else if (line ~ /^[ \t]*- Fixed @ /) { t = line; sub(/^[ \t]*- Fixed @ /, "", t); sub(/[ \t].*$/, "", t); fx = t }
     }
-    END { if (inrev) close_round(); for (n in mr) printf "M %s %d\n", n, done[n] }' "$1"
+    END { for (n in mr) printf "M %s %d\n", n, done[n] }' "$1"
 }
 
 # review_next <state.md>: phase/review.md step 2 (see the header).
 review_next() {
-  local facts last="" vh="" short=0 r a d f n dn recheck="" legacy
+  local facts last="" vh="" short=0 r a d f n dn recheck=""
   facts=$(review_facts "$1")
   while read -r r a d f; do
     [ "$r" = R ] || continue
@@ -289,13 +198,11 @@ EOF
 $facts
 EOF
   recheck=$(printf '%s' "$recheck" | tr ' ' '\n' | grep . | sort -t'#' -k2 -n | paste -sd' ' -)
-  legacy=$(printf '%s\n' "$facts" | awk '$1 == "F" && $3 == "-" && !s[$2]++ { printf "%sRound %s", (n++ ? ", " : ""), $2 }')
   # say <step> <why>
   say() {
     printf 'step: %s\nround: %s\n' "$1" "${last:-none}"
     [ "$1" = 3 ] && [ "$short" = 1 ] && printf 'drop: Round %s\n' "$last"
     [ -n "$recheck" ] && printf 'recheck: %s\n' "$recheck"
-    [ -n "$legacy" ] && printf 'legacy: %s\n' "$legacy"
     printf 'why: %s\n' "$2"
   }
   # has <pattern> <round|any>: a finding line "F <round> <af> <dec> <fixed>" matches.
@@ -627,6 +534,13 @@ case $cmd in
     }
     cat "$tmp" > "$f"
     rm -f "$tmp"
+    # The Review data moves with ## Review (every rewind moves it).
+    rd=$(dirname "$f")
+    if [ -e "$rd/review.tsv" ] || [ -d "$rd/review" ]; then
+      mkdir -p "${hist%.md}-review"
+      [ -e "$rd/review.tsv" ] && mv "$rd/review.tsv" "${hist%.md}-review/"
+      [ -d "$rd/review" ] && mv "$rd/review" "${hist%.md}-review/"
+    fi
     put "$f" Status "$phase:in-progress"
     put "$f" Updated "$now"
     event "$top" "$id" rewind from "$(json_str "$before")" to "$(json_str "$phase:in-progress")" \
@@ -654,22 +568,33 @@ case $cmd in
       exit 5
     }
     [ "$from" -eq "$STATE_FORMAT" ] && exit 0
-    # Format 2 -> 3 is the only step so far.
+    # The steps: 2 -> 3 (v2: placeholders out, a Format row in), 3 -> 4 (##
+    # Review written by hand -> the Review data, review.sh _import).
+    rounds=$(awk "$_section_awk"'{ h = heading_index($0); if (h) { on = (h == 5); next } } on && _fence == "" && /^### Round [0-9]+[ \t\r]*$/ { n++ } END { print n + 0 }' "$f")
     if [ -n "$check" ]; then
       case $(field "$f" Status) in done | canceled) exit 0 ;; esac
       printf 'format %s -> %s\n' "$from" "$STATE_FORMAT"
-      n=$(v2_step "$f" count)
-      [ "$n" -gt 0 ] && printf -- '- remove the placeholder comments (%s)\n' "$n"
-      printf -- '- add the Format row\n'
+      if [ "$from" -lt 3 ]; then
+        n=$(v2_step "$f" count)
+        [ "$n" -gt 0 ] && printf -- '- remove the placeholder comments (%s)\n' "$n"
+        printf -- '- add the Format row\n'
+      fi
+      [ "$rounds" -gt 0 ] && printf -- '- keep ## Review as data (%s rounds; the text stays as it reads)\n' "$rounds"
       exit 0
     fi
-    tmp=$(mktemp) || exit 1
-    v2_step "$f" write > "$tmp" || {
+    if [ "$from" -lt 3 ]; then
+      tmp=$(mktemp) || exit 1
+      v2_step "$f" write > "$tmp" || {
+        rm -f "$tmp"
+        exit 1
+      }
+      cat "$tmp" > "$f"
       rm -f "$tmp"
-      exit 1
-    }
-    cat "$tmp" > "$f"
-    rm -f "$tmp"
+    fi
+    if [ "$rounds" -gt 0 ]; then
+      bash "$(dirname "$0")/review.sh" _import "$1" > /dev/null || exit 1
+    fi
+    put "$f" Format "$STATE_FORMAT"
     printf 'format %s -> %s: %s\n' "$from" "$STATE_FORMAT" "${f#$top/}"
     ;;
   cancel)
@@ -720,8 +645,8 @@ case $cmd in
     f=$(open_run "$id") || exit $?
     before=$(field "$f" Status)
     d=$(dirname "$f")
-    rm -rf "$d/history"
-    rm -f "$f" "$d/snapshot.md" "$d/.snapshot.md.hash"
+    rm -rf "$d/history" "$d/review"
+    rm -f "$f" "$d/snapshot.md" "$d/.snapshot.md.hash" "$d/review.tsv"
     rmdir "$d" 2> /dev/null || true
     event "$top" "$id" released from "$(json_str "$before")" reason "$(jtext "$reason")"
     printf 'released: %s\n' "$id"

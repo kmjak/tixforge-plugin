@@ -20,7 +20,7 @@ eq 2 $? "not a ticket id"
 st init LT-000001 2> /dev/null
 eq 2 $? "no new run for a local ticket (v2)"
 eq research:in-progress "$(st get GT-000901)" "initial Status"
-eq 3 "$(st get GT-000901 Format)" "init writes the current Format"
+eq 4 "$(st get GT-000901 Format)" "init writes the current Format"
 eq "Research|Approach|Plan|Implementation Log|Review|PR" \
   "$(sed -n 's/^## //p' .tixforge/GT-000901/state.md | paste -sd'|' -)" "init writes the six sections in order"
 eq 0 "$(grep -c '<!--' .tixforge/GT-000901/state.md)" "the sections start empty"
@@ -266,12 +266,13 @@ Verification @ c3d4e5f: test pass
 指摘なし
 EOF
 awk -v r="$tmp/review.md" '$0 == "## Review" { while ((getline l < r) > 0) print l; next } { print }' "$f5" > "$tmp/s5" && cat "$tmp/s5" > "$f5"
+bash "$scripts/review.sh" _import GT-000905 > /dev/null # as migrate does (format 3 -> 4)
 st set GT-000905 Status review:in-progress > /dev/null
 n=$(wc -l < "$evf")
 st set GT-000905 Status implement:in-progress > /dev/null
 eq $((n + 3)) "$(wc -l < "$evf" | tr -d " ")" "leaving review:in-progress logs each round, then the status"
 eq '{"round":1,"findings":[{"id":"R1","label":"未実装","auto_fix":"fix","decision":"fix (auto)","fixed":"b2c3d4e"},{"id":"R2","label":"合意外の変更","auto_fix":"ask","decision":null,"fixed":null},{"id":"Q1","label":"バグ","auto_fix":"accept","decision":"accept (auto)","fixed":null},{"id":"","label":"","auto_fix":"ask","decision":"reapproach","fixed":null}],"unparsed":1}' \
-  "$(grep '"review_round"' "$evf" | tail -2 | head -1 | jq -c '{round, findings, unparsed}')" "round 1: findings from the fixed keys, fences skipped, an item without Auto-fix is unparsed"
+  "$(grep '"review_round"' "$evf" | tail -2 | head -1 | jq -c '{round, findings, unparsed}')" "round 1: findings from the data (imported), fences skipped, a finding not judged is unparsed"
 eq '{"round":2,"findings":[],"unparsed":0}' "$(grep '"review_round"' "$evf" | tail -1 | jq -c '{round, findings, unparsed}')" "a round without findings"
 n=$(wc -l < "$evf")
 st set GT-000905 Status review:in-progress > /dev/null
@@ -280,6 +281,8 @@ eq $((n + 1)) "$(wc -l < "$evf" | tr -d " ")" "entering Review logs no rounds"
 sed -e 's/未実装/missing/' -e 's/$/\r/' "$tmp/review.md" > "$tmp/review-en.md"
 awk '$0 == "## Review" { skip = 1; print; next } skip && /^## / { skip = 0 } !skip' "$f5" > "$tmp/s5"
 awk -v r="$tmp/review-en.md" '$0 == "## Review" { while ((getline l < r) > 0) print l; next } { print }' "$tmp/s5" > "$f5"
+rm -rf .tixforge/GT-000905/review.tsv .tixforge/GT-000905/review
+bash "$scripts/review.sh" _import GT-000905 > /dev/null # as migrate does (format 3 -> 4)
 st rewind GT-000905 plan --category misread --trigger review > /dev/null
 eq '"missing"' "$(grep '"review_round"' "$evf" | tail -2 | head -1 | jq -c '.findings[0].label')" "a rewind from Review logs the rounds first (CRLF read)"
 eq rewind "$(tail -1 "$evf" | jq -r .type)" "then the rewind"
@@ -307,6 +310,8 @@ rn() {
     $0 == "## Review" { print; while ((getline x < r) > 0) print x; skip = 1; next }
     /^## / { skip = 0 }
     !skip' "$tmp/rn-orig" > "$f7"
+  rm -rf .tixforge/GT-000907/review.tsv .tixforge/GT-000907/review
+  bash "$scripts/review.sh" _import GT-000907 > /dev/null
   st review-next GT-000907
 }
 # round <n> <hash> <reviewer's findings> [<quality findings>]
@@ -329,7 +334,6 @@ out=$(rn "" "$(printf '### Round 1\nVerification @ %s: test pass\n\n#### 合意�
 has "drop: Round 1" "$out" "review-next: one reviewer section is cut short"
 out=$(rn "" "$(round 1 "$v1" "$(fnd R1)")")
 eq 6 "$(step "$out")" "review-next: a finding with neither Auto-fix nor Decision -> 6"
-has "legacy: Round 1" "$out" "review-next: and its round is listed as legacy (3.0 may have decided it)"
 out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ○)")")
 eq 7 "$(step "$out")" "review-next: ○ without a Decision -> 7"
 out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ×)")")
