@@ -68,7 +68,22 @@ printf -- '  - **R1 [未実装]** a\n    - Kind: missing\n' > "$tmp/bad"
 rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
 eq 3 $? "add: an indented item is refused"
 printf 'いくつか気になる点があります。\nまず R1 は…\n' > "$tmp/bad"
-has "more than a no-findings line" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: prose without items is not no findings"
+has "a finding is named" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: prose that names a finding is not no findings"
+printf -- '- **R1 [未実装]** a\n  - Kind: missing\n  - Severity: high\n  - Confidence: high\n* **R2 [未決]** b\n  - Kind: undecided\n  - Severity: low\n  - Confidence: low\n' > "$tmp/bad"
+rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
+eq 3 $? "add: a * item after a - item is refused, not merged"
+printf -- '- **R1 [未実装]** a\n  - Kind: missing\n  - Severity: high\n  - Severity: low\n  - Confidence: high\n' > "$tmp/bad"
+has "two Severity lines" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: one Severity per finding"
+for ok_rep in '## 報告\n\n指摘なし' '指摘なし\n\n（チケットと突き合わせた）' 'No findings.\n\nChecked all acceptance criteria.' '- 指摘なし'; do
+  rv round GT-000920 "Verification @ $h1: test pass" > /dev/null
+  printf -- "$ok_rep\n" > "$tmp/okrep"
+  n=$(
+    last_n=$(awk -F'\t' '$1 == "round" { n = $2 } END { print n }' "$d/review.tsv")
+    echo "$last_n"
+  )
+  eq "Round $n reviewer: 0 findings" "$(rv add GT-000920 "$n" reviewer "$tmp/okrep" 2>&1)" "add: no findings written with a line more [$ok_rep]"
+  rv drop GT-000920 "$n" > /dev/null
+done
 # An unclosed fence would swallow the rest of state.md when rendered.
 printf -- '- **R1 [未実装]** a\n  ```js\n  x()\n  - Kind: missing\n  - Severity: high\n  - Confidence: high\n' > "$tmp/bad"
 has "not closed" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: an unclosed fence is refused"
@@ -88,6 +103,9 @@ note 修正 "条件 2 を満たさない"
 eq "Auto-fix: ○" "$(rv judge GT-000920 1 R1 fix yes "$tmp/note")" "judge: fix, one way inside the agreement, Round 1 -> ○"
 eq "Auto-fix: △" "$(rv judge GT-000920 1 R1 fix no "$tmp/note")" "judge: fix, not one way -> △"
 eq "Auto-fix: ○" "$(rv judge GT-000920 1 R1 fix yes "$tmp/note")" "judge: judged again"
+printf -- '- 推奨：修正\n```js\nx()\n' > "$tmp/badnote"
+rv judge GT-000920 1 R1 fix yes "$tmp/badnote" > /dev/null 2>&1
+eq 3 $? "judge: a note with an unclosed fence is refused"
 note 受け入れ "x.js が少し変わる"
 eq "Auto-fix: ×" "$(rv judge GT-000920 1 R2 accept yes "$tmp/note")" "judge: accept, low Severity -> ×"
 has "$(printf -- '  - 推奨：修正\n  - 受け入れた場合：条件 2 を満たさない\n  - Auto-fix: ○\n  - Decision: fix (auto)')" "$(review)" "render: note, Auto-fix, Decision under the item"

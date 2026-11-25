@@ -223,7 +223,10 @@ parse() {
       next
     }
     fence != "" { if (open) last = NR; next }
-    /[^ \t]/ { text++ }
+    # A line that names a finding (R1 / Q2 with a label, or "R1:") but is not
+    # a top-level "- **R1 [...]**" item: refused, never taken as text.
+    /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9]|$)/ { named++ }
+    /^- / && !/^- \*\*[A-Z][0-9]+ \[[^]]*\]\*\*/ && $0 !~ /\*\*/ { if (open) last = NR; next }
     /^- / {
       close_item()
       if (match($0, /^- \*\*[A-Z][0-9]+ \[[^]]*\]\*\*/)) {
@@ -234,9 +237,11 @@ parse() {
       } else print "error: line " NR ": a top-level item that is not - **" pre "<n> [label]** ..."
       next
     }
-    # A finding written another way (*, 1., indented) would be lost silently.
-    !open && /^[ \t]*([*+-]|[0-9]+[.)]) +\*\*/ { print "error: line " NR ": a finding must be a top-level - **" pre "<n> [label]** item" }
+    # A finding written another way (*, 1., indented) would be lost silently
+    # or merged into the item above. Column 0 is never a sub-bullet.
+    /^([*+]|[0-9]+[.)]) +\*\*/ || (!open && /^[ \t]+([*+-]|[0-9]+[.)]) +\*\*/) { print "error: line " NR ": a finding must be a top-level - **" pre "<n> [label]** item"; next }
     open && /[^ \t]/ { last = NR }
+    open && /^[ \t]+- (Kind|Severity|Confidence|Refers):/ { k = $0; sub(/^[ \t]+- /, "", k); sub(/:.*/, "", k); if (dup[fid, k]++) print "error: " fid ": two " k " lines" }
     open && /^[ \t]+- Kind:/ { kind = $0; sub(/^[ \t]+- Kind:[ \t]*/, "", kind); sub(/[ \t]+$/, "", kind) }
     open && /^[ \t]+- Severity:/ { sev = $0; sub(/^[ \t]+- Severity:[ \t]*/, "", sev); sub(/[ \t]+$/, "", sev) }
     open && /^[ \t]+- Confidence:/ { conf = $0; sub(/^[ \t]+- Confidence:[ \t]*/, "", conf); sub(/[ \t]+$/, "", conf) }
@@ -244,8 +249,8 @@ parse() {
     END {
       close_item()
       if (fence != "") print "error: line " fline ": a code fence that is not closed"
-      # No finding: only a short "no findings" line, in any language.
-      if (!items && text > 1) print "error: no - **" pre "<n> [label]** item, but more than a no-findings line"
+      # No finding: fine unless a line names one (it was written another way).
+      if (!items && named) print "error: a finding is named, but there is no - **" pre "<n> [label]** item"
     }' "$1"
 }
 
@@ -276,6 +281,17 @@ take() {
     label=$(printf '%s' "$label" | sed 's/\\/\\\\/g')
     printf 'finding\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t-\t-\t-\t-\t-\n' "$2" "$id" "$3" "$label" "$kind" "$sev" "$conf" "$refers" >> "$t"
   done
+}
+
+# fences_closed <file>: exit 0 when every code fence of the file closes.
+fences_closed() {
+  LC_ALL=C awk '{ sub(/\r$/, "") }
+    match($0, /^ ? ? ?(```+|~~~+)/) {
+      m = substr($0, RSTART, RLENGTH); sub(/^ +/, "", m)
+      if (f == "") f = m
+      else if (substr(m, 1, 1) == substr(f, 1, 1) && length(m) >= length(f) && substr($0, RSTART + RLENGTH) ~ /^[ \t]*$/) f = ""
+    }
+    END { exit f != "" }' "$1"
 }
 
 # check_round <tsv> <round>: exit 4 unless the round exists.
@@ -348,6 +364,10 @@ case $cmd in
     one_of "$4" "$RECOMMENDS" || usage
     case $5 in yes | no) ;; *) usage ;; esac
     [ -f "$6" ] || usage
+    fences_closed "$6" || {
+      echo "the note has a code fence that is not closed" >&2
+      exit 3
+    }
     case $(finding_field "$t" "$2" "$3" 12) in fix | accept | replan | reapproach)
       echo "Round $2 $3 is already decided by the user" >&2
       exit 4
