@@ -246,7 +246,7 @@ review_facts() {
         if (line ~ /Manual re-check:/) {
           t = line; sub(/.*Manual re-check:[ \t]*/, "", t)
           while (match(t, /#[0-9]+/)) { n = substr(t, RSTART + 1, RLENGTH - 1); mr[n] = 1; done[n] = 0; t = substr(t, RSTART + RLENGTH) }
-        } else if (line !~ /(Verification|PR comment|PR head) @/ && line ~ /@ [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*[^:]*:/) {
+        } else if (line !~ /(Verification|PR comment|PR head) @/ && line ~ /@ [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*[^:]*(:|：)/) {
           for (n in mr) if (!done[n] && match(line, "#" n "([^0-9]|$)")) done[n] = 1
         }
         next
