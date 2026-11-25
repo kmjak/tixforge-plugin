@@ -181,6 +181,13 @@ while IFS= read -r l; do
 done < "${TMPDIR:-/tmp}/tf-allowed.$$"
 rm -f "${TMPDIR:-/tmp}/tf-allowed.$$"
 
+# --- small mode -------------------------------------------------------------
+# The procedures set the Mode with run-state.sh, never by hand.
+section="small mode"
+grep -q 'run-state.sh set <ticket-id> Mode small' skills/dev/phase/research.md && ok || ng "research.md sets Mode small with run-state.sh"
+grep -q 'run-state.sh set <ticket-id> Mode normal' skills/dev/phase/approach.md && ok || ng "approach.md sets Mode normal with run-state.sh"
+grep -q 'run-state.sh get <ticket-id> Mode' skills/dev/phase/plan.md && ok || ng "plan.md reads the Mode with run-state.sh"
+
 # --- review rules ------------------------------------------------------------
 # The agents name the sections of references/review.md they follow.
 section="review rules"

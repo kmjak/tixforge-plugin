@@ -472,6 +472,10 @@ st set GT-000940 Status plan:awaiting-approval > /dev/null
 st rewind GT-000940 approach > /dev/null
 eq normal "$(st get GT-000940 Mode)" "a rewind sets a small run back to normal"
 eq '{"type":"mode","to":"normal"}' "$(grep '"mode"' "$evf" | tail -1 | jq -c '{type, to}')" "and logs it"
+n=$(grep -c '"mode"' "$evf")
+st set GT-000940 Status plan:awaiting-approval > /dev/null
+st rewind GT-000940 approach > /dev/null
+eq "$n" "$(grep -c '"mode"' "$evf")" "a normal run that goes back logs no mode"
 rm -rf .tixforge/GT-000940
 
 done_file

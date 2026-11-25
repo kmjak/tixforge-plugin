@@ -12,4 +12,4 @@
      - **`frontend.md` はあるがパッケージの節が無い** → 「今決める」（`references/frontend-design.md` を Read して決め、以後「節がある」と同じ）か「近くの既存のコードに合わせる」かを尋ねる。
      - **`frontend.md` が無い** → 止まらずに近くの既存のコードに合わせ、`/tixforge:project update` で設計を決められると 1 行伝える（今決めたいと言われたら「今決める」）。
 2. Research で「どう作るかの決定」とした未決事項を「未決事項の解決」の表にする（`| 未決事項 | 決定 | 理由 |`）。無ければ書かない。
-3. `## Approach` に書き、ゲート（`approach`）へ。要約では方針を示す。`Mode` が `small`（`bash <scripts>/run-state.sh get <ticket-id> Mode`）なら、採用案と理由を 2〜3 行で書き（手順 2 の表は要るときだけ）、Approach の止まる条件に当たらなければ `gates` に関係なく `run-state.sh pass <ticket-id> approach` で Plan へ進む（当たれば `Mode normal` にして通常どおりゲートへ）。
+3. `## Approach` に書き、ゲート（`approach`）へ。要約では方針を示す。`Mode` が `small`（`bash <scripts>/run-state.sh get <ticket-id> Mode`）なら、採用案と理由を 2〜3 行で書き（手順 2 の表は要るときだけ）、Approach の止まる条件に当たらなければ `gates` に関係なく `run-state.sh pass <ticket-id> approach` で Plan へ進む（当たれば `bash <scripts>/run-state.sh set <ticket-id> Mode normal` にして、Research の要点も添えて通常どおりゲートへ）。
