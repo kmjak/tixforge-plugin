@@ -74,7 +74,12 @@ rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
 eq 3 $? "add: a * item after a - item is refused, not merged"
 printf -- '- **R1 [未実装]** a\n  - Kind: missing\n  - Severity: high\n  - Severity: low\n  - Confidence: high\n' > "$tmp/bad"
 has "two Severity lines" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: one Severity per finding"
-for ok_rep in '## 報告\n\n指摘なし' '指摘なし\n\n（チケットと突き合わせた）' 'No findings.\n\nChecked all acceptance criteria.' '- 指摘なし'; do
+for bad_rep in '### Missing handler\nKind: missing\nSeverity: high\nConfidence: high' '**未実装** 受け入れ条件 2 の処理が無い\n- Severity: high'; do
+  printf -- "$bad_rep\n" > "$tmp/bad"
+  rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
+  eq 3 $? "add: a finding written without an item is refused [$bad_rep]"
+done
+for ok_rep in '## 報告\n\n指摘なし' '指摘なし\n\n（チケットと突き合わせた）' 'No findings.\n\nChecked all acceptance criteria.' '- 指摘なし' 'No findings. Round 1 R1 is fixed.' '指摘なし。Round 1 R1 は修正済み。'; do
   rv round GT-000920 "Verification @ $h1: test pass" > /dev/null
   printf -- "$ok_rep\n" > "$tmp/okrep"
   n=$(
@@ -106,6 +111,9 @@ eq "Auto-fix: ○" "$(rv judge GT-000920 1 R1 fix yes "$tmp/note")" "judge: judg
 printf -- '- 推奨：修正\n```js\nx()\n' > "$tmp/badnote"
 rv judge GT-000920 1 R1 fix yes "$tmp/badnote" > /dev/null 2>&1
 eq 3 $? "judge: a note with an unclosed fence is refused"
+printf -- 'see:\n```\nx\n   ```\n' > "$tmp/badnote"
+rv judge GT-000920 1 R1 fix yes "$tmp/badnote" > /dev/null 2>&1
+eq 3 $? "judge: a fence that closes only before it is indented under the finding is refused"
 note 受け入れ "x.js が少し変わる"
 eq "Auto-fix: ×" "$(rv judge GT-000920 1 R2 accept yes "$tmp/note")" "judge: accept, low Severity -> ×"
 has "$(printf -- '  - 推奨：修正\n  - 受け入れた場合：条件 2 を満たさない\n  - Auto-fix: ○\n  - Decision: fix (auto)')" "$(review)" "render: note, Auto-fix, Decision under the item"

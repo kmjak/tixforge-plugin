@@ -225,7 +225,10 @@ parse() {
     fence != "" { if (open) last = NR; next }
     # A line that names a finding (R1 / Q2 with a label, or "R1:") but is not
     # a top-level "- **R1 [...]**" item: refused, never taken as text.
-    /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9]|$)/ { named++ }
+    # Also a line with the keys of a finding, which only a finding has. A
+    # previous round id ("Round 1 R1 is fixed") does not count.
+    { t = $0; gsub(/Round [0-9]+ [A-Z][0-9]+/, "", t) }
+    t ~ /\*\*[A-Z][0-9]+ \[|(^|[^A-Za-z0-9])[RQ][0-9]+([^0-9A-Za-z]|$)|(^|[ \t-])(Kind|Severity|Confidence):/ { named++ }
     /^- / && !/^- \*\*[A-Z][0-9]+ \[[^]]*\]\*\*/ && $0 !~ /\*\*/ { if (open) last = NR; next }
     /^- / {
       close_item()
@@ -283,9 +286,10 @@ take() {
   done
 }
 
-# fences_closed <file>: exit 0 when every code fence of the file closes.
+# fences_closed <file>: exit 0 when every code fence of the file closes, as
+# the note is rendered (two spaces in, under the finding).
 fences_closed() {
-  LC_ALL=C awk '{ sub(/\r$/, "") }
+  LC_ALL=C awk '{ sub(/\r$/, ""); $0 = "  " $0 }
     match($0, /^ ? ? ?(```+|~~~+)/) {
       m = substr($0, RSTART, RLENGTH); sub(/^ +/, "", m)
       if (f == "") f = m
