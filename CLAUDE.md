@@ -13,7 +13,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
 ```
 
 - CI（`.github/workflows/test.yml`）は、lint と 4 つのテストを回し、テストは gawk・mawk・macOS（bash 3.2 と BWK awk）のそれぞれで動かす。ブランチルールで必須にするのは `result` だけ。
-- `scripts.test.sh` には jq が要る。`json-get.test.sh` は jq があれば、`json_get` を jq の結果とも突き合わせる。
+- スクリプトのテストは `tests/scripts/<名前>.test.sh` に 1 スクリプト 1 ファイルで書き、共通の準備（一時リポジトリ・gh のスタブ・よく使う run）は `tests/scripts/lib.sh` に置く。各ファイルは単独で動く（前のファイルの状態に頼らない）。`tests/scripts.test.sh` が並列にまとめて回し、`bash tests/scripts.test.sh run-state` のように名前で絞れる。jq が要る。`json-get.test.sh` は jq があれば、`json_get` を jq の結果とも突き合わせる。
 
 ## 構成
 
@@ -52,24 +52,24 @@ make fmt                                  # shfmt で整形（設定は .editorc
 | ルール | 守るもの |
 |---|---|
 | macOS の bash 3.2 と BWK awk、Linux の gawk・mawk のどれでも動かす。連想配列・`mapfile`・`${var,,}`、gawk だけの関数は使わない | `make test-bash32`・CI の gawk・mawk・macOS の行列 |
-| guard と wait-hook（hook）は jq に頼らない。`lib.sh` の `json_get` で読む | `tests/guard.test.sh`・`tests/scripts.test.sh` の wait-hook.sh の節（jq の無い PATH で動かす）・`tests/json-get.test.sh` |
-| スクリプトの中で、`$var` の直後に全角文字を続けない（`${var}` と書く） | `tests/scripts.test.sh` の「all scripts」 |
+| guard と wait-hook（hook）は jq に頼らない。`lib.sh` の `json_get` で読む | `tests/guard.test.sh`・`tests/scripts/wait-hook.test.sh`（jq の無い PATH で動かす）・`tests/json-get.test.sh` |
+| スクリプトの中で、`$var` の直後に全角文字を続けない（`${var}` と書く） | `tests/scripts/all-scripts.test.sh` |
 | `skills/`・`references/`・`agents/` でファイルの名前を変えたら、参照している側も直す | `tests/plugin.test.sh` |
-| issue フォームの見出しは、チケットのテンプレート（`templates/docs/ticket.md`、`## Base` を除く）の見出しと同じ順で揃える | `tests/scripts.test.sh` の「ticket template」 |
+| issue フォームの見出しは、チケットのテンプレート（`templates/docs/ticket.md`、`## Base` を除く）の見出しと同じ順で揃える | `tests/scripts/ticket-template.test.sh` |
 | `references/config.md` の見本のキーと表のキーを揃える | `tests/plugin.test.sh` の「config sample」 |
 | `hooks/hooks.json` の guard の matcher は、guard が判定するツールだけで起動する | `tests/plugin.test.sh` の「guard matcher」 |
 | スキルの手順（そのスキルの手順ファイルと `references/`）が `bash <scripts>/X.sh` で呼ぶスクリプトは、SKILL.md の `allowed-tools` に入れる（引数を渡すなら ` *` か同じ引数で） | `tests/plugin.test.sh` の「allowed tools」 |
 | Review の agent は `references/review.md` の節の名前（受け取るもの・進め方・守ること・報告の規則）で共通の規則を指す | `tests/plugin.test.sh` の「review rules」 |
-| パネルが出すチケットの状態（`panel-data.sh` の `PANEL_STATES`）は、`label_defs` の open な状態と同じにする | `tests/scripts.test.sh` の panel-data.sh の節 |
+| パネルが出すチケットの状態（`panel-data.sh` の `PANEL_STATES`）は、`label_defs` の open な状態と同じにする | `tests/scripts/panel-data.test.sh` |
 | パネルの mod（`hooks/panel.tsx`）に型エラーを残さない | `make validate`（claude CLI があるときだけ） |
 | `skills/` の手順ファイル（SKILL.md・dev の `run.md` と Phase 6 の `pr.md`・`pr/`・project の `init.md` を除く）は `## Phase 1 — ` から順に番号を振ったフェーズに分け、各見出しの次の段落に `目的：` を書き、手順の番号を通しにする。dev の `skills/dev/phase/` は 1 ファイル 1 フェーズで、`run.md` の「フェーズの手順」の順に Phase 1〜5、手順はフェーズごとに 1 から（`0.` で始めてよい）。project の `skills/project/init/` は `init.md` の表の順に Phase 1〜5 を 1 ファイルずつ、手順はファイルをまたいで通し | `tests/plugin.test.sh` の「phases」 |
-| 巻き戻し・キャンセルの分類（`run-state.sh categories`）は、尋ねる手順（`rewind.md`・`cancel.md`）の一覧と同じにし、きっかけ（`run-state.sh triggers`）は全て `rewind.md` に書く | `tests/scripts.test.sh` の「run-state.sh events」 |
+| 巻き戻し・キャンセルの分類（`run-state.sh categories`）は、尋ねる手順（`rewind.md`・`cancel.md`）の一覧と同じにし、きっかけ（`run-state.sh triggers`）は全て `rewind.md` に書く | `tests/scripts/run-state.test.sh` の「run-state.sh events」 |
 | スクリプトは `make fmt` で整形する。手で整えない | `make lint` の `shfmt -d` |
 | PR のタイトルは Conventional Commits の形にする（下の「commit と PR」） | CI の `pr-title` |
-| ラベルの一覧と色は `issue-label.sh` の `label_defs` だけに書き、説明は `templates/github/tixforge/messages.yml` の `label_<名前>` に各言語で書く。Actions の雛形が使うラベル名は `label_defs` にあるものだけにする | `tests/scripts.test.sh` の issue-label.sh の節 |
-| `scripts/messages.yml` と `templates/github/tixforge/messages.yml` に同じキーを書かない（`msg` はキーを先に見つけた方から引く） | `tests/scripts.test.sh` の「lib.sh cfg」 |
-| dev・ticket の手順は、チケットへの操作を共通規約の「チケットの操作」の名前で呼び、状態は `issue-sync.sh check` の `status:` の言葉で扱う。issue の具体（`gh issue`・ラベル名・`closed_as`・`Closes`・issue の目印）は `references/github/` にだけ書く（`issue-sync.sh check` の呼び出しはよい） | `tests/plugin.test.sh` の「tracker operations」・`tests/scripts.test.sh` の issue-sync.sh の節 |
-| v2 が残した state.md を `migrate` で移せる（テストの中の v2 の state.md は直さない）。v2 が英語のコメントで閉じた issue を読める。v2 の GT の `ticket.md` と `.issue-hash` を、`pull` が `snapshot.md` に移す。v2 の `LT-`・`tracker: local`・`host: none` は「移行が要る」と示し、`LT-` の id は移行を案内するエラーにする | `tests/scripts.test.sh` の「v2 data」・issue-sync.sh・project-status.sh・ticket-id.sh の節 |
+| ラベルの一覧と色は `issue-label.sh` の `label_defs` だけに書き、説明は `templates/github/tixforge/messages.yml` の `label_<名前>` に各言語で書く。Actions の雛形が使うラベル名は `label_defs` にあるものだけにする | `tests/scripts/issue-label.test.sh` |
+| `scripts/messages.yml` と `templates/github/tixforge/messages.yml` に同じキーを書かない（`msg` はキーを先に見つけた方から引く） | `tests/scripts/lib.test.sh` の「lib.sh cfg」 |
+| dev・ticket の手順は、チケットへの操作を共通規約の「チケットの操作」の名前で呼び、状態は `issue-sync.sh check` の `status:` の言葉で扱う。issue の具体（`gh issue`・ラベル名・`closed_as`・`Closes`・issue の目印）は `references/github/` にだけ書く（`issue-sync.sh check` の呼び出しはよい） | `tests/plugin.test.sh` の「tracker operations」・`tests/scripts/issue-sync.test.sh` |
+| v2 が残した state.md を `migrate` で移せる（テストの中の v2 の state.md は直さない）。v2 が英語のコメントで閉じた issue を読める。v2 の GT の `ticket.md` と `.issue-hash` を、`pull` が `snapshot.md` に移す。v2 の `LT-`・`tracker: local`・`host: none` は「移行が要る」と示し、`LT-` の id は移行を案内するエラーにする | `tests/scripts/` の `v2-data`・`issue-sync`・`project-status`・`ticket-id` |
 
 ## commit と PR
 
