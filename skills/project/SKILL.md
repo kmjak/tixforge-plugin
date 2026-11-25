@@ -29,6 +29,7 @@ allowed-tools: Read, Glob, Grep, Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/project
 
 | 参照ファイル | 読むとき |
 |--------------|----------|
+| `${CLAUDE_SKILL_DIR}/init/<フェーズ>.md` | init のそのフェーズに入るとき（`init.md` の「フェーズの手順」が指示する） |
 | `${CLAUDE_PLUGIN_ROOT}/references/github/<名前>.md` | 手順が指示したファイルだけ |
 | `${CLAUDE_PLUGIN_ROOT}/references/config.md` | config.yml・config.local.yml を書く・キーを説明するとき、キーが無いとき（手順と共通規約が指示する） |
 | `${CLAUDE_PLUGIN_ROOT}/references/frontend-design.md` | フロントエンドの設計を決めるとき（init・update の手順が指示する） |

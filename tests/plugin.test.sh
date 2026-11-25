@@ -121,8 +121,19 @@ for n in $order; do
   [ "$got" = "$i" ] && ok || ng "phase/$n.md has only ## Phase $i (got: $got)"
 done
 [ "$(ls skills/dev/phase | sed 's/\.md$//' | sort | paste -sd' ' -)" = "$(printf '%s\n' $order | sort | paste -sd' ' -)" ] && ok || ng "every file in skills/dev/phase is in run.md"
-for f in skills/*/*.md skills/dev/phase/*.md; do
-  case $f in */SKILL.md | skills/dev/pr.md | skills/dev/run.md) continue ;; esac
+# project's init.md routes too: its phases are skills/project/init/*.md in
+# the order of its table, Phase 1 to 5, steps numbered on across the files.
+iorder=$(awk -F'`' '/^\| Phase [0-9]+ — .*`<plugin>\/skills\/project\/init\// { n = split($(NF - 1), p, "/"); print p[n] }' skills/project/init.md | paste -sd' ' -)
+[ "$iorder" = "check.md config.md create.md link.md commit.md" ] && ok || ng "init.md lists its phase files in order (got: $iorder)"
+[ "$(ls skills/project/init | sort | paste -sd' ' -)" = "$(printf '%s\n' $iorder | sort | paste -sd' ' -)" ] && ok || ng "every file in skills/project/init is in init.md"
+ifiles=$(for n in $iorder; do printf 'skills/project/init/%s ' "$n"; done)
+# shellcheck disable=SC2086
+got=$(cat $ifiles | sed -n 's/^## Phase \([0-9]*\) — .*/\1/p' | paste -sd' ' -)
+[ "$got" = "1 2 3 4 5" ] && ok || ng "init's files hold Phase 1 to 5, one each (got: $got)"
+# shellcheck disable=SC2086
+cat $ifiles > "${TMPDIR:-/tmp}/tf-init.$$.md"
+for f in skills/*/*.md skills/dev/phase/*.md "${TMPDIR:-/tmp}/tf-init.$$.md"; do
+  case $f in */SKILL.md | skills/dev/pr.md | skills/dev/run.md | skills/project/init.md) continue ;; esac
   dev=0
   case $f in skills/dev/phase/*) dev=1 ;; esac
   if [ $dev -eq 0 ]; then
@@ -141,6 +152,7 @@ for f in skills/*/*.md skills/dev/phase/*.md; do
   ' "$f")
   [ -z "$bad" ] && ok || ng "$bad"
 done
+rm -f "${TMPDIR:-/tmp}/tf-init.$$.md"
 
 # --- review rules ------------------------------------------------------------
 # The agents name the sections of references/review.md they follow.
