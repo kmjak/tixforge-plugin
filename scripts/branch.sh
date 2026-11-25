@@ -78,9 +78,14 @@ case ${1:-} in
     }
     want="$id-$slug"
     cur=$(field "$f" Branch)
-    case $cur in "$want" | "$want"-[0-9]*)
-      printf 'name: %s\n' "$cur"
-      exit 0
+    # The run's own Branch: the name, or the name with -<digits>.
+    rest=${cur#"$want"}
+    case $rest in "" | -[0-9]*)
+      case ${rest#-} in *[!0-9]*) ;; *)
+        printf 'name: %s\n' "$cur"
+        exit 0
+        ;;
+      esac
       ;;
     esac
     n=1 name=$want

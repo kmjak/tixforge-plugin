@@ -1780,6 +1780,8 @@ git push -q origin "$back:GT-000910-add-x-2" 2> /dev/null
 eq "name: GT-000910-add-x-3" "$(br name GT-000910 add-x)" "name: -2 on origin too: -3"
 st set GT-000910 Branch GT-000910-add-x-2 > /dev/null
 eq "name: GT-000910-add-x-2" "$(br name GT-000910 add-x)" "name: the run's own Branch is kept"
+st set GT-000910 Branch GT-000910-add-x-2fa > /dev/null
+eq "name: GT-000910-add-x-3" "$(br name GT-000910 add-x)" "name: a Branch that only starts with the name is not the run's"
 for s in Add_X 'a b' ''; do
   br name GT-000910 "$s" > /dev/null 2>&1
   eq 2 $? "name: slug [$s] refused"

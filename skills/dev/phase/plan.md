@@ -9,7 +9,7 @@
 0. **Approach を自動で通過していたら**（`## Approach` の末尾が、`> ` に続く `<scripts>/messages.yml` の `gate_auto_pass` の行。どの言語でもよい）、Plan を始める前に採用案を 1〜2 行示す（方針を確かめる最初の機会）。方針を変える意見が来たら：
    - `## Plan` が空 → Approach のゲートへのフィードバックとして扱う（巻き戻しにしない）。`bash <scripts>/run-state.sh set <ticket-id> Status approach:in-progress` にし、`## Approach` を書き直して自動通過の行を消し、Approach のゲートで止まる（`gates` に無くても止まる）。
    - `## Plan` に書いた後（Plan のゲートを含む）→ `rewind.md` を Read し、Approach に戻る。
-1. **Base**（分岐元かつ PR の向き先）：`bash <scripts>/branch.sh base <ticket-id> [<ユーザーがこの Plan で指定したブランチ>]` の `base:`。終了コード 3（origin に無い）なら、どれにするか尋ねる。
+1. **Base**（分岐元かつ PR の向き先）：`bash <scripts>/branch.sh base <ticket-id> [<ユーザーがこの Plan で指定したブランチ>]` の `base:`。終了コード 3（origin に無い）か 1（設定にも origin の既定にも無い）なら、どれにするか尋ねる。
 2. **ブランチ**：slug（英小文字・数字・ハイフンだけ。ドキュメント言語によらず英語）を決め、`bash <scripts>/branch.sh name <ticket-id> <slug>` の `name:` にする（ローカルにもリモートにも無い名前、またはこの run の `Branch`）。
 3. **受け入れ条件 → 確かめ方の対応表**：受け入れ条件の**全項目**に 1 行ずつ、何で・誰が確かめるかを決める。
    ```markdown
