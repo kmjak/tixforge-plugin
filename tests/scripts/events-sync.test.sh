@@ -57,12 +57,14 @@ s.serve_forever()
 EOF
   python3 -I "$tmp/server.py" "$srv" &
   srv_pid=$!
+  # Python can take long to start when the test files run in parallel.
   i=0
-  while [ ! -f "$srv/port" ] && [ $i -lt 50 ]; do
+  while [ ! -f "$srv/port" ] && [ $i -lt 300 ]; do
     sleep 0.1
     i=$((i + 1))
   done
-  port=$(cat "$srv/port")
+  port=$(cat "$srv/port" 2> /dev/null)
+  [ -n "$port" ] || ng "the test endpoint did not start in 30 s"
   es="$tmp/es"
   git init -q -b main "$es"
   cd "$es" || exit 1
