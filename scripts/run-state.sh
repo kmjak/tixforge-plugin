@@ -84,7 +84,7 @@
 # always stop, so they have no pass. Prints the new Status.
 #
 # Every change of Status, init, rewind, cancel and release append an event to
-# .tixforge/events.jsonl (lib.sh event; the README lists them). A log that
+# .tixforge/events.jsonl (lib.sh event; docs/events.md lists them). A log that
 # cannot be written stops nothing.
 #
 # Exit: 0 ok, 1 no such run, 2 usage or invalid value (a phase after the
