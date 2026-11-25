@@ -190,6 +190,33 @@ done
 for f in agents/reviewer.md agents/quality-reviewer.md; do
   grep -q '共通の規則（受け取るもの・進め方・守ること・報告の規則）' "$f" && ok || ng "$f names the sections of references/review.md"
 done
+# The read keys of a finding are fixed English words: every label names its
+# Kind, the report format writes Kind, Severity and Confidence with them,
+# and Refers for [未修正].
+for f in agents/reviewer.md agents/quality-reviewer.md; do
+  labels=$(sed -n '/^## ラベル/,/^## /p' "$f" | grep -c '^- \*\*\[')
+  kinds=$(sed -n '/^## ラベル/,/^## /p' "$f" | grep -cE '^- \*\*\[[^]]+\]\*\*（`[a-z-]+`）')
+  [ "$labels" -gt 0 ] && [ "$labels" = "$kinds" ] && ok || ng "$f: every label names its Kind ($kinds of $labels)"
+  fmt=$(sed -n '/^## 報告の形式/,$p' "$f")
+  # Every item of the format has the keys; an unfixed one has Refers too.
+  bad=$(printf '%s\n' "$fmt" | awk '
+    function check() { if (id == "") return
+      if (!k) print id ": no Kind"; if (!s) print id ": no Severity"; if (!c) print id ": no Confidence"
+      if (u && !r) print id ": unfixed without Refers" }
+    /^- \*\*/ { check(); id = $2; k = s = c = r = u = 0; next }
+    /^  - Kind: / { k = 1; if ($3 == "unfixed") u = 1 }
+    /^  - Severity: (<high \| medium \| low のどれか>|<元の指摘の Severity>)$/ { s = 1 }
+    /^  - Confidence: <high \| medium \| low のどれか>$/ { c = 1 }
+    /^  - Refers: Round <N> <番号>$/ { r = 1 }
+    END { check() }')
+  [ -z "$bad" ] && ok || ng "$f: report format: $bad"
+  for w in $(printf '%s\n' "$fmt" | sed -n 's/^  - Kind: //p'); do
+    sed -n '/^## ラベル/,/^## /p' "$f" | grep -qF "（\`$w\`）" && ok || ng "$f: Kind $w is a label's word"
+  done
+done
+for k in Kind Refers Severity Confidence; do
+  grep -qF "\`$k:\`" references/review.md && ok || ng "references/review.md keeps $k: in English"
+done
 
 echo "plugin: $pass passed, $fail failed"
 [ $fail -eq 0 ]
