@@ -13,7 +13,13 @@
 # output goes to a log file (listed for failures), so only the failures need
 # to be read.
 #
-#   verify.sh
+#   verify.sh [--reuse]
+#
+# --reuse prints the line of the last run instead of running again when it
+# stands for this tree: the tree is clean, HEAD is the commit it verified,
+# the commands are the same, and everything passed (or `commands: {}`).
+# Otherwise it runs as usual. Only such passing, clean runs are kept, in
+# <git dir>/tixforge/verify/last.
 #
 # Exit: 0 all passed (or `commands: {}`), 1 something failed,
 #       3 `commands` is missing from the config (an older /tixforge:project init).
@@ -23,6 +29,16 @@ set -uo pipefail
 
 top=$(tf_top)
 conf=$(tf_config "$top")
+
+reuse=""
+case ${1:-} in
+  --reuse) reuse=1 ;;
+  "") ;;
+  *)
+    echo "usage: verify.sh [--reuse]" >&2
+    exit 2
+    ;;
+esac
 
 if ! cfg_has commands "$conf"; then
   echo ".tixforge/config.yml に commands がありません（/tixforge:project init の再実行で追加できます）" >&2
@@ -42,6 +58,19 @@ before=$(tree_state)
 
 logdir="$(git -C "$top" rev-parse --absolute-git-dir 2> /dev/null || echo "$top")/tixforge/verify"
 mkdir -p "$logdir"
+
+# What a kept result stands for: the commit, the commands and the language
+# of the no-commands line.
+stamp="$(git -C "$top" rev-parse HEAD 2> /dev/null) $({
+  cfg_map commands "$conf"
+  user_lang "$top"
+} | cksum | tr -d ' \t')"
+if [ -n "$reuse" ] && [ -f "$logdir/last" ] && [ "${hash%+dirty}" = "$hash" ] \
+  && [ "$(sed -n 1p "$logdir/last")" = "$stamp" ]; then
+  sed -n 2p "$logdir/last"
+  exit 0
+fi
+rm -f "$logdir/last"
 
 tab=$(printf '\t')
 results=""
@@ -63,7 +92,9 @@ $(cfg_map commands "$conf")
 EOF
 
 if [ $ran -eq 0 ]; then
-  echo "Verification @ $hash: $(msg verify_no_commands "$(user_lang "$top")")"
+  line="Verification @ $hash: $(msg verify_no_commands "$(user_lang "$top")")"
+  echo "$line"
+  [ "${hash%+dirty}" = "$hash" ] && printf '%s\n%s\n' "$stamp" "$line" > "$logdir/last"
   exit 0
 fi
 changed=""
@@ -76,6 +107,9 @@ if [ -n "$changed" ]; then
   echo "検証コマンドが作業ツリーを変えました（commit と違う内容を検証したことになります）:"
   printf '%s\n' "$changed"
 fi
-[ -z "$failed" ] && exit 0
+if [ -z "$failed" ]; then
+  [ "${hash%+dirty}" = "$hash" ] && printf '%s\n%s\n' "$stamp" "Verification @ $hash: $results" > "$logdir/last"
+  exit 0
+fi
 printf '%s' "$failed"
 exit 1
