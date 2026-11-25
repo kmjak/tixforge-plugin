@@ -39,7 +39,7 @@
 
 run の単一の真実。
 
-- **ヘッダ表**（`Status`・`Branch`・`Base`・`Updated`・`Format`）は `bash <scripts>/run-state.sh set <ticket-id> <Status|Branch|Base> <値>` だけで変える。手で編集しない。
+- **ヘッダ表**（`Status`・`Branch`・`Base`・`Mode`・`Updated`・`Format`）は `bash <scripts>/run-state.sh set <ticket-id> <Status|Branch|Base|Mode> <値>` だけで変える。手で編集しない。
 - **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## PR`）は各フェーズが Edit で書く。見出しは英語のまま。`## Review` は `review.sh` がデータ（`review.tsv`）から書くので、Edit しない。`## Plan` の対応表と `## Implementation Log` の手動確認（`<!-- tixforge:checks -->`・`<!-- tixforge:manual -->` の間）も `checks.sh` が書くので、その間は Edit しない。スクリプトが state.md を書いた後に Edit するときは、先に Read し直す。
 - セクションを書いたら、続けて `Status` を更新する。
 - 次のフェーズへ進むときは、作業の前に `Status` を `<次のphase>:in-progress` にする。
@@ -60,6 +60,7 @@ run の単一の真実。
 - **`gates` にあるフェーズ**：セクションを書く → `Status` を `<phase>:awaiting-approval` → 短い要約を出して**止まる**。「続けて」等で次へ。
 - **`gates` に無いフェーズ**：止まる条件が無ければ**自動で通過**する：セクションを書いたら `bash <scripts>/run-state.sh pass <ticket-id> <phase>`（セクションの末尾に自動通過の行を書き、`Status` を次のフェーズの `in-progress` にする）を実行し、一行伝えて続ける（要約は次に止まるゲートでまとめる）。止まる条件があれば、`gates` にあるときと同じく止まる。
 - **`pr` は常に止まる**。
+- **小さいチケット**（`Mode` が `small`。Research の手順 6 でユーザーが選ぶ）：Research と Approach は `gates` に関係なく自動で通過し、Plan のゲートで 3 つをまとめて確かめる。Plan のゲートへの意見は、どのセクションへのものでもその場で直して同じゲートを出し直す（巻き戻しにしない。まだ承認していないため）。直した結果、小さいチケットの条件（Research の手順 6）を満たさなくなったら、`bash <scripts>/run-state.sh set <ticket-id> Mode normal` にし、`gates` どおりに進め直す。止まる条件に当たったときも `normal` に戻して止まり、そのゲートの要約では Research の要点も示す（Research はまだ承認されていない）。巻き戻すと `normal` に戻る（巻き戻した先のゲートでも、Research の要点を示す）。
 
 | フェーズ | `gates` に無くても止まる条件 |
 |----------|------------------------------|

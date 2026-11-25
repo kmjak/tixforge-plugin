@@ -13,6 +13,7 @@ run の過程を、ほかのツール（tixforge の GUI など）が読める�
 | `rewind` | 前のフェーズに戻した | `from`（戻す前の `Status`）・`to`・`category`・`trigger`・`reason`・`history`（古い記録のファイル）・`keep_log` |
 | `canceled` | `/tixforge:ticket cancel` でやめた | `from`・`category`・`reason` |
 | `released` | チケットを手放した（run を消した） | `from`・`reason` |
+| `mode` | run の進め方が変わった：`small`（小さいチケット：Research・Approach・Plan を Plan のゲート 1 回で確かめる）か `normal`（巻き戻すと戻る） | `from`・`to` |
 | `wait_start`・`wait_end` | 人を待ち始めた・人が答えた（hook が書く）。`turn`：Claude のターンが終わってから次の入力まで。`question`：AskUserQuestion の質問から答えまで | `cause`（`turn`・`question`）・`session` |
 | `review_round` | `review:in-progress` から出た（指摘を直しに行く・ゲート・PR・巻き戻し）。Review のラウンドごとに 1 行 | `round`・`findings`・`unparsed` |
 

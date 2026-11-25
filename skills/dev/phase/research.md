@@ -18,4 +18,10 @@
    - **どう作るかの決定** → Approach の「未決事項の解決」の表に書く。`snapshot.md` の項目は「Approach で決定」の 1 行に置き換える。
    - **対象外に回す** → `snapshot.md` の「対象外」に移す。
    - `snapshot.md` を変えたら、そのたびに `references/github/sync.md` を Read し、「書き戻す」（`<ファイル>` は `snapshot.md`）。次に取ってきたときに上書きされないため。
-6. `## Research` に書き、ゲート（`research`）へ。要約では未解決の疑問と未決事項を強調する。
+6. `## Research` に書く。**小さいチケットか**を確かめる：次を全て満たせば、AskUserQuestion で「小さいチケットとしてまとめて進める（Research・Approach・Plan を Plan のゲート 1 回で確かめる）」か「通常どおり」かを尋ねる（推奨はまとめる）。
+   - 決定の無い未決事項・未解決の疑問・範囲を左右する未確認の仮定が無い（Research の止まる条件に当たらない）
+   - 触る場所が 1 か所（1 つのモジュール・画面・スクリプトとそのテスト）
+   - commit が 2 つまでで済む見込み
+   - 画面の設計を決める必要が無い（`frontend.md` の節が無い・規則から外れる、に当たらない）
+
+   まとめるなら `bash <scripts>/run-state.sh set <ticket-id> Mode small` を実行し、`gates` に関係なく `bash <scripts>/run-state.sh pass <ticket-id> research` で Approach へ進む。それ以外はゲート（`research`）へ。要約では未解決の疑問と未決事項を強調する。
