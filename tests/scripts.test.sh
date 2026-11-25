@@ -638,6 +638,8 @@ has "recheck: #2" "$out" "review-next: lists it"
 out=$(rn "$(printf -- '- Manual re-check: #2 #12\n- Verification @ %s: test pass #2\n- 手動確認 @ %s: #2 ok（ユーザー）' "$v2" "$v2")" "$(round 1 "$v2" "$(fnd R1 × 'accept (auto)')")")
 has "recheck: #12" "$out" "review-next: #12 is still open"
 case "$out" in *"#2 "* | *"#2"$'\n'*) ng "review-next: #2 was checked after (a Verification line does not count)" ;; *) ok ;; esac
+out=$(rn "$(printf -- '- Manual re-check: #3\n- 手動確認 @ %s：#3 ok（ユーザー）' "$v2")" "$(round 1 "$v2" "$(fnd R1 × 'accept (auto)')")")
+case "$out" in *recheck:*) ng "review-next: a check line with a full-width colon closes the re-check" ;; *) ok ;; esac
 out=$(rn "$(printf -- '- Manual re-check: #2\n- 手動確認 @ %s: #2 ok（ユーザー）' "$v2")" "$(round 1 "$v2" "$(fnd R1 △ 'fix')")
 $(round 2 "$v2" "$(fnd R2 × 'accept (auto)')")")
 eq implement "$(step "$out")" "review-next: a fix decided in step 9 in an earlier round -> implement"
