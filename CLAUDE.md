@@ -58,6 +58,7 @@ make fmt                                  # shfmt で整形（設定は .editorc
 | issue フォームの見出しは、チケットのテンプレート（`templates/docs/ticket.md`、`## Base` を除く）の見出しと同じ順で揃える | `tests/scripts.test.sh` の「ticket template」 |
 | `references/config.md` の見本のキーと表のキーを揃える | `tests/plugin.test.sh` の「config sample」 |
 | `hooks/hooks.json` の guard の matcher は、guard が判定するツールだけで起動する | `tests/plugin.test.sh` の「guard matcher」 |
+| スキルの手順（そのスキルの手順ファイルと `references/`）が `bash <scripts>/X.sh` で呼ぶスクリプトは、SKILL.md の `allowed-tools` に入れる（引数を渡すなら ` *` か同じ引数で） | `tests/plugin.test.sh` の「allowed tools」 |
 | Review の agent は `references/review.md` の節の名前（受け取るもの・進め方・守ること・報告の規則）で共通の規則を指す | `tests/plugin.test.sh` の「review rules」 |
 | パネルが出すチケットの状態（`panel-data.sh` の `PANEL_STATES`）は、`label_defs` の open な状態と同じにする | `tests/scripts.test.sh` の panel-data.sh の節 |
 | パネルの mod（`hooks/panel.tsx`）に型エラーを残さない | `make validate`（claude CLI があるときだけ） |
