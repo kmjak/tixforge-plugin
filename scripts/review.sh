@@ -123,7 +123,7 @@ set_fields() {
   shift 3
   tmp=$(mktemp) || exit 1
   a=""
-  for kv in "$@"; do a="$a${a:+$tab}$kv"; done
+  for kv in "$@"; do a="$a${a:+$tab}$(printf '%s' "$kv" | tr '\t\n\r' '   ')"; done
   SF_SET=$a LC_ALL=C awk -F'\t' -v OFS='\t' -v r="$r" -v id="$id" "$_tsv_awk"'
     BEGIN { n = split(ENVIRON["SF_SET"], kv, "\t"); for (i = 1; i <= n; i++) { p = index(kv[i], "="); want[substr(kv[i], 1, p - 1) + 0] = esc(substr(kv[i], p + 1)) } }
     $1 == "finding" && $2 == r && $3 == id { for (k in want) $k = want[k] }
@@ -185,7 +185,8 @@ render() {
         else if (x[1] == "finding") { nf++; fr[nf] = x[2]; fid[nf] = x[3]; fb[nf] = x[4]; af[nf] = x[11]; dec[nf] = x[12]; rsn[nf] = x[13]; fx[nf] = x[14] }
       }
     }
-    { h = heading_index($0) }
+    # ## Review ends at "## PR" even if its old text left a fence open.
+    { h = heading_index($0); if (on && $0 ~ /^## PR[ \t\r]*$/) { h = 6; _fence = "" } }
     h && on { printf "%s", body(); printf "%s", notes; on = 0 }
     h == 5 { print; print ""; on = 1; notes = ""; next }
     on { if ($0 ~ /^> /) notes = notes $0 "\n"; next }
@@ -205,29 +206,47 @@ parse() {
       else if (index(kinds, " " kind " ") == 0) print "error: " fid ": Kind " kind " is not one of" kinds
       if (index(levels, " " sev " ") == 0) print "error: " fid ": Severity must be high, medium or low"
       if (index(levels, " " conf " ") == 0) print "error: " fid ": Confidence must be high, medium or low"
-      if (kind == "unfixed" && refers == "") print "error: " fid ": an unfixed finding needs Refers: Round N <id>"
+      if (kind == "unfixed" && refers !~ /^Round [0-9]+ [A-Z][0-9]+$/) print "error: " fid ": an unfixed finding needs Refers: Round N <id>"
       if (seen[fid]++) print "error: " fid ": the same id twice"
       printf "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\n", fid, label, kind, sev, conf, (refers == "" ? "-" : refers), start, last
+      items++
       open = 0
     }
     { sub(/\r$/, "") }
-    /^ ? ? ?(```|~~~)/ { fence = !fence }
-    !fence && /^- / {
+    # A fence opens with ``` or ~~~ and closes with the same character, at
+    # least as long, and nothing after it (as CommonMark, as lib.sh reads).
+    match($0, /^ ? ? ?(```+|~~~+)/) {
+      m = substr($0, RSTART, RLENGTH); sub(/^ +/, "", m)
+      if (fence == "") { fence = m; fline = NR }
+      else if (substr(m, 1, 1) == substr(fence, 1, 1) && length(m) >= length(fence) && substr($0, RSTART + RLENGTH) ~ /^[ \t]*$/) fence = ""
+      if (open) last = NR
+      next
+    }
+    fence != "" { if (open) last = NR; next }
+    /[^ \t]/ { text++ }
+    /^- / {
       close_item()
       if (match($0, /^- \*\*[A-Z][0-9]+ \[[^]]*\]\*\*/)) {
         t = substr($0, 5); fid = substr(t, 1, index(t, " ") - 1)
-        t = substr(t, index(t, "[") + 1); label = substr(t, 1, index(t, "]") - 1)
+        t = substr(t, index(t, "[") + 1); label = substr(t, 1, index(t, "]") - 1); gsub(/\t/, " ", label)
         if (substr(fid, 1, 1) != pre) print "error: " fid ": ids of this report start with " pre
         open = 1; start = NR; last = NR; kind = ""; sev = ""; conf = ""; refers = ""
       } else print "error: line " NR ": a top-level item that is not - **" pre "<n> [label]** ..."
       next
     }
+    # A finding written another way (*, 1., indented) would be lost silently.
+    !open && /^[ \t]*([*+-]|[0-9]+[.)]) +\*\*/ { print "error: line " NR ": a finding must be a top-level - **" pre "<n> [label]** item" }
     open && /[^ \t]/ { last = NR }
     open && /^[ \t]+- Kind:/ { kind = $0; sub(/^[ \t]+- Kind:[ \t]*/, "", kind); sub(/[ \t]+$/, "", kind) }
     open && /^[ \t]+- Severity:/ { sev = $0; sub(/^[ \t]+- Severity:[ \t]*/, "", sev); sub(/[ \t]+$/, "", sev) }
     open && /^[ \t]+- Confidence:/ { conf = $0; sub(/^[ \t]+- Confidence:[ \t]*/, "", conf); sub(/[ \t]+$/, "", conf) }
     open && /^[ \t]+- Refers:/ { refers = $0; sub(/^[ \t]+- Refers:[ \t]*/, "", refers); sub(/[ \t]+$/, "", refers) }
-    END { close_item() }' "$1"
+    END {
+      close_item()
+      if (fence != "") print "error: line " fline ": a code fence that is not closed"
+      # No finding: only a short "no findings" line, in any language.
+      if (!items && text > 1) print "error: no - **" pre "<n> [label]** item, but more than a no-findings line"
+    }' "$1"
 }
 
 # take <id> <round> <by> <file> <prefix> <kinds>: add the parsed items.
@@ -254,6 +273,7 @@ take() {
     [ -n "$id" ] || continue
     sed -n "${start},${end}p" "$4" | tr -d '\r' > "$d/review/$2-$id.md"
     : > "$d/review/$2-$id.note.md"
+    label=$(printf '%s' "$label" | sed 's/\\/\\\\/g')
     printf 'finding\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t-\t-\t-\t-\t-\n' "$2" "$id" "$3" "$label" "$kind" "$sev" "$conf" "$refers" >> "$t"
   done
 }
@@ -336,7 +356,8 @@ case $cmd in
     kind=$(finding_field "$t" "$2" "$3" 6)
     sev=$(finding_field "$t" "$2" "$3" 7)
     conf=$(finding_field "$t" "$2" "$3" 8)
-    if [ "$kind" = unfixed ]; then
+    if [ "$kind" = unfixed ] || [ "$sev" = - ] || [ "$conf" = - ]; then
+      # unfixed, or moved from a version without Severity / Confidence: ask.
       af=ask
     elif [ "$4" = fix ] && [ "$5" = yes ] && [ "$conf" != low ] && [ "$2" -le 2 ]; then
       af=fix
@@ -524,10 +545,11 @@ case $cmd in
     LC_ALL=C awk -F'\t' "$_tsv_awk"'
       function js(s,   o, i, c) { o = ""; for (i = 1; i <= length(s); i++) { c = substr(s, i, 1); if (c == "\\" || c == "\"") o = o "\\" c; else o = o c } return "\"" o "\"" }
       function jn(s) { return s == "-" ? "null" : js(s) }
+      function fh(v) { v = substr(v, 1, index(v " ", " ") - 1); return v ~ /^[0-9a-f]+$/ ? v : "-" }
       $1 == "round" { rn[++nr] = $2 }
       $1 == "finding" {
         if ($11 == "-") { un[$2]++; next }
-        it[$2] = it[$2] (it[$2] == "" ? "" : ",") "{\"id\":" js($4 == "implementer" ? "" : $3) ",\"label\":" js($4 == "implementer" ? "" : unesc($5)) ",\"auto_fix\":" js($11) ",\"decision\":" jn($12) ",\"fixed\":" jn($14 == "-" ? "-" : substr($14, 1, index($14 " ", " ") - 1)) "}"
+        it[$2] = it[$2] (it[$2] == "" ? "" : ",") "{\"id\":" js($4 == "implementer" ? "" : $3) ",\"label\":" js($4 == "implementer" ? "" : unesc($5)) ",\"auto_fix\":" js($11) ",\"decision\":" jn($12) ",\"fixed\":" jn(fh($14)) "}"
       }
       END { for (k = 1; k <= nr; k++) printf "%s\t[%s]\t%d\n", rn[k], it[rn[k]], un[rn[k]] + 0 }' "$t"
     ;;

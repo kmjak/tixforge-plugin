@@ -579,7 +579,7 @@ case $cmd in
         [ "$n" -gt 0 ] && printf -- '- remove the placeholder comments (%s)\n' "$n"
         printf -- '- add the Format row\n'
       fi
-      [ "$rounds" -gt 0 ] && printf -- '- keep ## Review as data (%s rounds; the text stays as it reads)\n' "$rounds"
+      [ "$rounds" -gt 0 ] && printf -- '- keep ## Review as data (%s rounds; the old text is kept in history/)\n' "$rounds"
       exit 0
     fi
     if [ "$from" -lt 3 ]; then
@@ -592,6 +592,13 @@ case $cmd in
       rm -f "$tmp"
     fi
     if [ "$rounds" -gt 0 ]; then
+      # The hand-written text as it was (text outside the findings is not data).
+      hd="$(dirname "$f")/history"
+      mkdir -p "$hd"
+      {
+        printf '# ## Review before format 4 (%s)\n\n' "$(tf_now)"
+        awk "$_section_awk"'{ h = heading_index($0); if (h) on = (h == 5) } on' "$f"
+      } > "$hd/$(date '+%Y%m%d-%H%M%S')-format4.md"
       bash "$(dirname "$0")/review.sh" _import "$1" > /dev/null || exit 1
     fi
     put "$f" Format "$STATE_FORMAT"

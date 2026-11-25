@@ -57,7 +57,26 @@ printf -- '- **Q1 [未修正]** a\n  - Kind: unfixed\n  - Severity: low\n  - Con
 has "needs Refers" "$(rv add GT-000920 2 quality "$tmp/bad" 2>&1)" "add: unfixed needs Refers"
 printf -- '- **R1 [バグ]** a\n  - Kind: bug\n  - Severity: low\n  - Confidence: low\n' > "$tmp/bad"
 has "start with Q" "$(rv add GT-000920 2 quality "$tmp/bad" 2>&1)" "add: the quality reviewer's ids are Q"
+# Findings written another way are refused, not taken as "no findings".
+printf -- '* **R1 [未実装]** a\n  - Kind: missing\n  - Severity: high\n  - Confidence: high\n' > "$tmp/bad"
+rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
+eq 3 $? "add: a * item is refused"
+printf -- '1. **R1 [未実装]** a\n' > "$tmp/bad"
+rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
+eq 3 $? "add: a numbered item is refused"
+printf -- '  - **R1 [未実装]** a\n    - Kind: missing\n' > "$tmp/bad"
+rv add GT-000920 2 reviewer "$tmp/bad" > /dev/null 2>&1
+eq 3 $? "add: an indented item is refused"
+printf 'いくつか気になる点があります。\nまず R1 は…\n' > "$tmp/bad"
+has "more than a no-findings line" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: prose without items is not no findings"
+# An unclosed fence would swallow the rest of state.md when rendered.
+printf -- '- **R1 [未実装]** a\n  ```js\n  x()\n  - Kind: missing\n  - Severity: high\n  - Confidence: high\n' > "$tmp/bad"
+has "not closed" "$(rv add GT-000920 2 reviewer "$tmp/bad" 2>&1)" "add: an unclosed fence is refused"
+# A longer fence holds a shorter one: the item after it is its own.
+printf -- '- **R1 [未実装]** a\n  ````md\n  ```\n  ````\n  - Kind: missing\n  - Severity: high\n  - Confidence: high\n- **R2 [未決]** b\n  - Kind: undecided\n  - Severity: low\n  - Confidence: low\n' > "$tmp/fence"
 eq 0 "$(awk -F'\t' '$1 == "finding" && $2 == 2' "$d/review.tsv" | wc -l | tr -d ' ')" "nothing was written for the refused reports"
+eq "Round 2 reviewer: 2 findings" "$(rv add GT-000920 2 reviewer "$tmp/fence")" "add: a fence inside a longer fence"
+grep -q '^## PR' "$f" && ok || ng "render: ## PR stays after a fenced finding"
 rv drop GT-000920 1 > /dev/null 2>&1
 eq 4 $? "drop: only the latest round"
 rv drop GT-000920 2 > /dev/null
@@ -109,6 +128,9 @@ rv decide GT-000920 2 Q2 fix
 rv decide GT-000920 2 Q3 fix
 rv decide GT-000920 3 Q1 accept
 has "  - Decision: accept 今回は直さない" "$(review)" "decide: the reason on the Decision line"
+rv decide GT-000920 3 Q1 accept "$(printf 'a\tb \\ c')"
+has 'Decision: accept a b \ c' "$(review)" "decide: a tab and a backslash in the reason keep the row"
+eq 3 "$(awk -F'\t' '$1 == "finding" && $2 == 2' "$d/review.tsv" | wc -l | tr -d ' ')" "and every finding of round 2 is still there"
 eq "step: implement" "$(st review-next GT-000920 | sed -n 1p)" "review-next: fixes to make -> implement"
 rv judge GT-000920 2 Q1 fix yes "$tmp/note" > /dev/null 2>&1
 eq 4 $? "judge: not over the user's Decision"
@@ -242,6 +264,10 @@ eq "fix|fix (auto)|$m1" "$(fld 2 Q1 11)|$(fld 2 Q1 12)|$(fld 2 Q1 14)" "3.1 keys
 eq "implementer|ask" "$(fld 2 I1 4)|$(fld 2 I1 11)" "an item without an id is the implementer's"
 has "  - 重大度：高" "$(cat .tixforge/GT-000921/review/1-R1.md)" "the other lines stay in the body"
 eq "step: 9" "$(st review-next GT-000921 | sed -n 1p)" "review-next after migrate (the open △ before the 3.0 fix)"
+ls .tixforge/GT-000921/history/*-format4.md > /dev/null 2>&1 && ok || ng "migrate: the old ## Review text goes to history"
+grep -q '  - 重大度：高' .tixforge/GT-000921/history/*-format4.md && ok || ng "migrate: kept as written"
+note 受け入れ "x"
+eq "Auto-fix: △" "$(rv judge GT-000921 2 I1 accept yes "$tmp/note")" "judge: a moved finding without Severity is asked"
 rm -rf .tixforge/GT-000921
 
 done_file
