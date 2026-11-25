@@ -39,6 +39,21 @@ grep -v '^<!-- /tixforge:checks -->$' "$f" > "$tmp/f" && cat "$tmp/f" > "$f"
 ck render GT-000930
 has "https://github.com/o/r/pull/9" "$(cat "$f")" "render: a lost closing mark deletes nothing after the section"
 eq 1 "$(grep -c '^<!-- /tixforge:checks -->$' "$f")" "render: and the mark is back"
+# Text after a block whose closing mark was lost stays.
+printf -- '- Commits: X\n' > "$tmp/after"
+awk -v a="$tmp/after" '{ print } $0 == "<!-- /tixforge:checks -->" { while ((getline l < a) > 0) print l }' "$f" > "$tmp/f" && cat "$tmp/f" > "$f"
+grep -v '^<!-- /tixforge:checks -->$' "$f" > "$tmp/f" && cat "$tmp/f" > "$f"
+ck render GT-000930
+has "- Commits: X" "$(sec Plan)" "render: text after a lost closing mark stays"
+# A mark inside a code fence is text.
+printf 'see:\n```\n<!-- tixforge:manual -->\n```\nafter the fence\n' > "$tmp/fenced"
+awk -v a="$tmp/fenced" '{ print } $0 == "## Research" { while ((getline l < a) > 0) print l }' "$f" > "$tmp/f" && cat "$tmp/f" > "$f"
+ck render GT-000930
+has "$(printf '```\n<!-- tixforge:manual -->\n```\nafter the fence')" "$(sec Research)" "render: a fenced mark stays as it is"
+grep -q '^## PR' "$f" && ok || ng "render: the sections after a fenced mark are found"
+awk '$0 == "## Research" { print; skip = 1; next } /^## / { skip = 0 } !skip' "$f" > "$tmp/f" && cat "$tmp/f" > "$f"
+ck render GT-000930
+grep -v '^- Commits: X$' "$f" | awk '/^<!-- tixforge:checks -->$/ { n++ } n > 1 && /^\| 1 / { next } { print }' > "$tmp/f" && cat "$tmp/f" > "$f"
 
 # Refused tables write nothing.
 printf '| 1 | a | b | 自動 |\n| 3 | c | d | auto |\n' > "$tmp/bad"
@@ -49,6 +64,8 @@ printf '| 1 | a | 自動 |\n' > "$tmp/bad"
 has "4 columns" "$(ck put GT-000930 "$tmp/bad" 2>&1)" "put: four columns"
 printf '| 1 | a | b | auto |\n| 2. | c | d | auto |\n' > "$tmp/bad"
 has "is a number" "$(ck put GT-000930 "$tmp/bad" 2>&1)" "put: a # like 2. is refused, not dropped"
+printf '| 1 | a | b | auto |\n| #2 | c | d | auto |\n' > "$tmp/bad"
+has "has no number" "$(ck put GT-000930 "$tmp/bad" 2>&1)" "put: a row without a number after the first is refused"
 printf 'no table\n' > "$tmp/bad"
 ck put GT-000930 "$tmp/bad" > /dev/null 2>&1
 eq 3 $? "put: no rows"
@@ -133,6 +150,10 @@ cat > "$tmp/old" << EOF
 | 9 | an example | x | 自動 |
 \`\`\`
 
+| key | value |
+|---|---|
+| Base | main |
+
 | # | 受け入れ条件 | 確かめ方 | 種別 |
 |---|---|---|---|
 | 1 | a | t | 自動 |
@@ -167,7 +188,8 @@ eq "5 user ok $h1 user 0" "$(ck show GT-000931 | sed -n 5p | cut -f1-6 | tr '\t'
 eq "6 ng" "$(ck show GT-000931 | sed -n 6p | cut -f1,3 | tr '\t' ' ')" "a later failed is ng"
 eq 6 "$(ck show GT-000931 | wc -l | tr -d ' ')" "only the first table outside fences is the checks table"
 has "| 9 | an example | x | 自動 |" "$(cat "$f31")" "the fenced example stays"
-has "| 1 | x |" "$(cat "$f31")" "the second table stays"
+has "| 1 | x |" "$(cat "$f31")" "the commit table stays"
+has "| Base | main |" "$(cat "$f31")" "a table before the checks table stays, and is not taken"
 eq 1 "$(grep -c '^| 1 | a | t | 自動 |' "$f31")" "the table appears once, rendered"
 st init GT-000933 > /dev/null
 f33=.tixforge/GT-000933/state.md

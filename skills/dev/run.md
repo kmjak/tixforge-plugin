@@ -8,7 +8,7 @@
 
 **状態ファイルの形式**（最初に行う）：`.tixforge/<ticket-id>/state.md` があれば `bash <scripts>/run-state.sh migrate --check <ticket-id>` を実行する。何か出たら、変わる内容を示し、AskUserQuestion で選ばせる。今の形式でないまま先に進めない。
 
-- **更新する**（説明：書いた本文と `Status` はそのまま）— `bash <scripts>/run-state.sh migrate <ticket-id>`。出力に `put the checks table again` があれば、`## Plan` に残った対応表を `phase/plan.md` の手順 3 の形に直して `checks.sh put` してから続ける（未読なら Read する）
+- **更新する**（説明：書いた本文と `Status` はそのまま）— `bash <scripts>/run-state.sh migrate <ticket-id>`。出力に `put the checks table again` があれば、`## Plan` に残った対応表を `phase/plan.md` の手順 3 の形に直して `checks.sh put` してから続ける（未読なら Read する）。`put` の後、残った手書きの表は消し、Log に文で残っている手動確認の結果は `checks.sh record` で残し直す
 - **run を消して最初から** — `state.md` と `history/` を削除し、新規として進める。チケット・ブランチ・commit は消さない。
 - **中断する** — 何も変えずに止まる。
 

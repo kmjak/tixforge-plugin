@@ -122,25 +122,40 @@ render() {
       }
     }
     function put_block(which) { if (which == "checks") printf "%s", table(); else printf "%s", records(); done[which] = 1 }
+    function opening(l) { return l == "<!-- tixforge:checks -->" || l == "<!-- tixforge:manual -->" }
+    function closing(l) { return l == "<!-- /tixforge:checks -->" || l == "<!-- /tixforge:manual -->" }
+    # Two passes over the file. The first notes, for each opening mark
+    # outside fences, whether its closing mark follows before the next
+    # section: only then is the old block between them replaced. A lost
+    # closing mark keeps the text after the opening one (only the
+    # opening line gives way to the block). Marks inside fences are text.
+    FNR == 1 && NR != FNR { second = 1; _fence = ""; open_at = 0 }
+    !second {
+      line = $0; sub(/\r$/, "", line)
+      if (heading_index($0)) { open_at = 0; next }
+      if (_fence != "") next
+      if (opening(line)) open_at = FNR
+      else if (closing(line) && open_at) { closed[open_at] = 1; open_at = 0 }
+      next
+    }
     {
       line = $0; sub(/\r$/, "", line)
       h = heading_index($0)
       if (h) {
-        # A block whose closing mark was lost ends at the next section.
         skip = 0
         if (cur == 3 && !done["checks"]) { put_block("checks"); print "" }
         if (cur == 4 && !done["manual"] && records() != "") { put_block("manual"); print "" }
         cur = h; print; next
       }
-      if (line == "<!-- tixforge:checks -->") { skip = 1; put_block("checks"); next }
-      if (line == "<!-- tixforge:manual -->") { skip = 1; put_block("manual"); next }
-      if (skip) { if (line == "<!-- /tixforge:checks -->" || line == "<!-- /tixforge:manual -->") skip = 0; next }
+      if (skip) { if (_fence == "" && closing(line)) skip = 0; next }
+      if (_fence == "" && line == "<!-- tixforge:checks -->") { skip = (FNR in closed); put_block("checks"); next }
+      if (_fence == "" && line == "<!-- tixforge:manual -->") { skip = (FNR in closed); put_block("manual"); next }
       print
     }
     END {
       if (cur == 3 && !done["checks"]) put_block("checks")
       if (cur == 4 && !done["manual"] && records() != "") put_block("manual")
-    }' "$f" > "$tmp" && cat "$tmp" > "$f"
+    }' "$f" "$f" > "$tmp" && cat "$tmp" > "$f"
   rm -f "$tmp"
 }
 
@@ -181,7 +196,7 @@ parse_table() {
       for (i = 1; i <= c; i++) { gsub(/\001/, "|", f[i]); f[i] = trim(f[i]) }
       if (f[1] ~ /^:?-+:?$/) next
       if (f[1] ~ /^[0-9]/ && f[1] !~ /^[0-9]+$/) { print "error: row " f[1] ": the # column is a number"; next }
-      if (f[1] !~ /^[0-9]+$/) { header++; next }
+      if (f[1] !~ /^[0-9]+$/) { if (rows) print "error: a row after row " rows " has no number in the # column (" f[1] ")"; else header++; next }
       rows++
       if (c != 4) { print "error: row " f[1] ": 4 columns (#, criterion, how, kind), got " c; next }
       if (f[1] + 0 != rows) print "error: row " f[1] ": rows are numbered 1, 2, ... in order"
@@ -314,20 +329,28 @@ case $cmd in
       echo "checks.tsv already exists" >&2
       exit 4
     }
-    tmp=$(mktemp) || exit 1
-    # The first table of ## Plan outside fences.
-    awk "$_section_awk"'{ h = heading_index($0); if (h) { on = (h == 3); next } } on && _fence == "" && /^[ \t]*\|/ { print; t = 1; next } on && t { exit }' "$f" > "$tmp"
-    [ -s "$tmp" ] || {
-      rm -f "$tmp"
-      echo "kept as text: no table in ## Plan"
+    # The first table of ## Plan, outside fences, that reads as the checks
+    # table (a Base / branch or commit table may come first).
+    tdir=$(mktemp -d) || exit 1
+    awk "$_section_awk"'
+      { h = heading_index($0); if (h) { on = (h == 3); next } }
+      on && _fence == "" && /^[ \t]*\|/ { if (!in_t) { n++; in_t = 1 }; print > (dir "/" n); next }
+      { in_t = 0 }' dir="$tdir" "$f"
+    out="" pick=0 first=""
+    for tf in $(ls "$tdir" | sort -n); do
+      o=$(parse_table "$tdir/$tf")
+      if printf '%s\n' "$o" | grep -q '^error: '; then
+        [ -n "$first" ] || first=$(printf '%s\n' "$o" | grep '^error: ' | head -1)
+      else
+        out=$o pick=$tf
+        break
+      fi
+    done
+    rm -rf "$tdir"
+    [ "$pick" != 0 ] || {
+      echo "kept as text: ${first:-no table in ## Plan}"
       exit 0
     }
-    out=$(parse_table "$tmp")
-    rm -f "$tmp"
-    if printf '%s\n' "$out" | grep -q '^error: '; then
-      echo "kept as text: $(printf '%s\n' "$out" | grep '^error: ' | head -1)"
-      exit 0
-    fi
     printf '%s\n' "$out" > "$t"
     mkdir -p "$d/checks"
     # Manual check lines: "<word> @ <hash>: #2 ok（...）・#3 未確認（...）";
@@ -360,9 +383,10 @@ case $cmd in
     tmp=$(mktemp) || exit 1
     awk "$_section_awk"'
       { h = heading_index($0); if (h) on = (h == 3) }
-      on && !h && !gone && _fence == "" && /^[ \t]*\|/ { t = 1; next }
+      on && !h && _fence == "" && /^[ \t]*\|/ { if (!in_t) { n++; in_t = 1 }; if (n == pick) { t = 1; next } }
+      !(on && !h && _fence == "" && /^[ \t]*\|/) { in_t = 0 }
       on && t && !gone { gone = 1; if ($0 ~ /^[ \t\r]*$/) next }
-      { print }' "$f" > "$tmp" && cat "$tmp" > "$f"
+      { print }' pick="$pick" "$f" > "$tmp" && cat "$tmp" > "$f"
     rm -f "$tmp"
     render "$1"
     echo "$(grep -c '^check' "$t") rows"
