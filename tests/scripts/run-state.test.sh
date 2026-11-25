@@ -478,4 +478,23 @@ st rewind GT-000940 approach > /dev/null
 eq "$n" "$(grep -c '"mode"' "$evf")" "a normal run that goes back logs no mode"
 rm -rf .tixforge/GT-000940
 
+# passed: the phase's section ends with the automatic pass note.
+section="run-state.sh passed"
+st init GT-000941 > /dev/null
+eq no "$(st passed GT-000941 approach)" "passed: no before"
+st set GT-000941 Status approach:in-progress > /dev/null
+st pass GT-000941 approach > /dev/null
+eq yes "$(st passed GT-000941 approach)" "passed: yes after pass"
+printf 'language: en\n' > .tixforge/config.local.yml
+st set GT-000941 Status research:in-progress > /dev/null 2>&1 || true
+st init GT-000942 > /dev/null
+st pass GT-000942 research > /dev/null
+eq yes "$(st passed GT-000942 research)" "passed: the English note too"
+rm -f .tixforge/config.local.yml
+awk '{ print } /^> ゲート自動通過/ { print ""; print "あとから書いた" }' .tixforge/GT-000941/state.md > "$tmp/f41" && cat "$tmp/f41" > .tixforge/GT-000941/state.md
+eq no "$(st passed GT-000941 approach)" "passed: no when text follows the note"
+st passed GT-000941 plan > /dev/null 2>&1
+eq 2 $? "passed: plan always stops"
+rm -rf .tixforge/GT-000941 .tixforge/GT-000942
+
 done_file

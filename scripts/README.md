@@ -18,6 +18,7 @@ tixforge のスクリプトの一覧（人向け。Claude は読まない）。�
 | `checks.sh` | 対応表と手動確認の結果をデータとして持ち、state.md に描き、PR の受け入れ条件と手動確認を組み立てる | dev の Plan・Implement・Review・PR | `.tixforge/<id>/checks.tsv`・`checks/` |
 | `review-input.sh` | Review の agent が読む入力（差分・チケット・Approach・Plan・共通の規則の `index.md`）を書き出す | dev の Review | `.git/tixforge/review/` |
 | `pr-template.sh` | リポジトリの既定の PR テンプレートを探す | dev の PR・project の init | なし |
+| `tmpdir.sh` | 一時ファイルのフォルダを `.tixforge/tmp/` の下に作る・消す | どのスキルも | `.tixforge/tmp/` |
 | `branch.sh` | Plan の Base とブランチ名を決める | dev の Plan | なし（git を読むだけ） |
 | `pr-status.sh` | PR の状況（レビュー・CI・コンフリクト）を判定する | dev の PR | なし（GitHub は読むだけ） |
 | `pr-resume.sh` | PR フェーズをどこから再開するかを判定する | dev の PR | なし（`git fetch` と GitHub を読むだけ） |
