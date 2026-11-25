@@ -190,6 +190,24 @@ done
 for f in agents/reviewer.md agents/quality-reviewer.md; do
   grep -q '共通の規則（受け取るもの・進め方・守ること・報告の規則）' "$f" && ok || ng "$f names the sections of references/review.md"
 done
+# The read keys of a finding are fixed English words: every label names its
+# Kind, the report format writes Kind, Severity and Confidence with them,
+# and Refers for [未修正].
+for f in agents/reviewer.md agents/quality-reviewer.md; do
+  labels=$(sed -n '/^## ラベル/,/^## /p' "$f" | grep -c '^- \*\*\[')
+  kinds=$(sed -n '/^## ラベル/,/^## /p' "$f" | grep -cE '^- \*\*\[[^]]+\]\*\*（`[a-z-]+`）')
+  [ "$labels" -gt 0 ] && [ "$labels" = "$kinds" ] && ok || ng "$f: every label names its Kind ($kinds of $labels)"
+  fmt=$(sed -n '/^## 報告の形式/,$p' "$f")
+  for k in '  - Severity: high | medium | low' '  - Confidence: high | medium | low' '  - Kind: unfixed' '  - Refers: Round <N> '; do
+    case $fmt in *"$k"*) ok ;; *) ng "$f: the report format has [$k]" ;; esac
+  done
+  for w in $(printf '%s\n' "$fmt" | sed -n 's/^  - Kind: //p'); do
+    sed -n '/^## ラベル/,/^## /p' "$f" | grep -qF "（\`$w\`）" && ok || ng "$f: Kind $w is a label's word"
+  done
+done
+for k in Kind Refers Severity Confidence; do
+  grep -qF "\`$k:\`" references/review.md && ok || ng "references/review.md keeps $k: in English"
+done
 
 echo "plugin: $pass passed, $fail failed"
 [ $fail -eq 0 ]
