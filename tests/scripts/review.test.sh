@@ -277,10 +277,10 @@ Verification @ $m1: test pass
   - Auto-fix: △
 EOF
 awk -v r="$tmp/old-review" '$0 == "## Review" { while ((getline l < r) > 0) print l; skip = 1; next } /^## / { skip = 0 } !skip' "$f21" > "$tmp/f21"
-sed 's/^| Format  | 4 /| Format  | 3 /' "$tmp/f21" > "$f21"
+sed 's/^| Format  | 5 /| Format  | 3 /' "$tmp/f21" > "$f21"
 has "- keep ## Review as data (2 rounds" "$(st migrate --check GT-000921)" "migrate --check: the Review step"
-eq "format 3 -> 4: $f21" "$(st migrate GT-000921)" "migrate 3 -> 4"
-eq 4 "$(st get GT-000921 Format)" "migrate: Format 4"
+eq "format 3 -> 5: $f21" "$(st migrate GT-000921)" "migrate 3 -> 5"
+eq 5 "$(st get GT-000921 Format)" "migrate: Format 5"
 t21=.tixforge/GT-000921/review.tsv
 fld() { awk -F'\t' -v r="$1" -v id="$2" -v k="$3" '$1 == "finding" && $2 == r && $3 == id { print $k }' "$t21"; }
 eq "fix|3.0" "$(fld 1 R1 12)|$(fld 1 R1 14)" "3.0 修正 in an earlier round: fixed"

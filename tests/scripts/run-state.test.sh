@@ -20,7 +20,7 @@ eq 2 $? "not a ticket id"
 st init LT-000001 2> /dev/null
 eq 2 $? "no new run for a local ticket (v2)"
 eq research:in-progress "$(st get GT-000901)" "initial Status"
-eq 4 "$(st get GT-000901 Format)" "init writes the current Format"
+eq 5 "$(st get GT-000901 Format)" "init writes the current Format"
 eq "Research|Approach|Plan|Implementation Log|Review|PR" \
   "$(sed -n 's/^## //p' .tixforge/GT-000901/state.md | paste -sd'|' -)" "init writes the six sections in order"
 eq 0 "$(grep -c '<!--' .tixforge/GT-000901/state.md)" "the sections start empty"
@@ -305,13 +305,17 @@ v1=$(git rev-parse --short HEAD)
 rn() {
   printf '%s\n' "$1" > "$tmp/rn-log"
   printf '%s\n' "$2" > "$tmp/rn-rev"
-  awk -v l="$tmp/rn-log" -v r="$tmp/rn-rev" '
+  # A Plan table of 12 rows checked by the user, for the re-check lines.
+  { for i in 1 2 3 4 5 6 7 8 9 10 11 12; do printf '| %s | c%s | h | ユーザー |\n' "$i" "$i"; done; } > "$tmp/rn-plan"
+  awk -v l="$tmp/rn-log" -v r="$tmp/rn-rev" -v p="$tmp/rn-plan" '
+    $0 == "## Plan" { print; while ((getline x < p) > 0) print x; close(p); skip = 1; next }
     $0 == "## Implementation Log" { print; while ((getline x < l) > 0) print x; skip = 1; next }
     $0 == "## Review" { print; while ((getline x < r) > 0) print x; skip = 1; next }
     /^## / { skip = 0 }
     !skip' "$tmp/rn-orig" > "$f7"
-  rm -rf .tixforge/GT-000907/review.tsv .tixforge/GT-000907/review
+  rm -rf .tixforge/GT-000907/review.tsv .tixforge/GT-000907/review .tixforge/GT-000907/checks.tsv .tixforge/GT-000907/checks
   bash "$scripts/review.sh" _import GT-000907 > /dev/null
+  bash "$scripts/checks.sh" _import GT-000907 > /dev/null # migrate 4 -> 5
   st review-next GT-000907
 }
 # round <n> <hash> <reviewer's findings> [<quality findings>]

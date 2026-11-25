@@ -24,6 +24,6 @@
 
 PR を出した後の commit を push する。PR 本文の検証は書き換えず、検証の結果を PR にコメントする（いつ・どの commit で確かめたかを残し、レビュアーが変化に気づけるように）。
 
-1. **検証**（`phase/implement.md`「検証」。影響する手動確認もやり直す）を行い、1 行目を `## Implementation Log` に書き写す。
+1. **検証**（`phase/implement.md`「検証」。影響する手動確認もやり直し、`checks.sh record` で残す）を行い、1 行目を `## Implementation Log` に書き写す。
 2. 変更内容・検証結果と、投稿するコメント（ドキュメント言語。何に対応したかを 1 行、新しい `Verification @ <hash>: …` の行、その下に確かめた手段ごとの `###` の小見出し。`pr/create.md` の「PR の準備」の検証のコメントと同じ書き方で（未読なら Read する）、手動確認はやり直したものだけ）を一覧で示して**止まり、確認を得る**。PR を出した後に Approach か Plan に戻した run で、方針か対応表が変わっていれば、PR 本文の方針・受け入れ条件の更新案（`gh pr edit`。検証は書き換えない）も載せる。push とコメントの投稿は別のコマンドで行い、確認画面がそれぞれ出る（一覧で合意した内容だと伝える）。
 3. push し（済んでいれば飛ばす）、`gh pr comment <PR> --body-file <一時ファイル>` で投稿して、`## Implementation Log` に `PR comment @ <HEAD の短い hash>` （英語の固定キー）と記録する。呼んだ側に続きの指示があれば従い、無ければ `Status: pr:awaiting-review` にして止まる。

@@ -1,6 +1,7 @@
 # Fixed messages written into state.md, per language (this person's
 # language: user_lang). The scripts write them (gate_auto_pass: run-state.sh
-# pass, which review-input.sh finds again; review_*: review.sh). What goes
+# pass, which review-input.sh finds again; review_*: review.sh; check*:
+# checks.sh). What goes
 # to GitHub is in templates/github/tixforge/messages.yml, which init
 # copies for the Actions. A language that is not listed falls back to en.
 # One message per line.
@@ -12,6 +13,13 @@ ja:
   review_section_quality: "品質（tixforge:quality-reviewer）"
   review_section_added: "実装者による追加"
   review_none: "指摘なし"
+  checks_header: "| # | 受け入れ条件 | 確かめ方 | 種別 |"
+  check_kind_auto: "自動"
+  check_kind_browser: "Claude（ブラウザ）"
+  check_kind_api: "Claude（API）"
+  check_kind_user: "ユーザー"
+  check_not_yet: "未確認"
+  check_recheck: "Review の後にやり直す"
 en:
   verify_no_commands: "no verification commands"
   rewind_note: "Rewound ({time}): {reason}"
@@ -20,3 +28,10 @@ en:
   review_section_quality: "Quality (tixforge:quality-reviewer)"
   review_section_added: "Added by the implementer"
   review_none: "No findings"
+  checks_header: "| # | Acceptance criterion | How to check | Kind |"
+  check_kind_auto: "auto"
+  check_kind_browser: "Claude (browser)"
+  check_kind_api: "Claude (API)"
+  check_kind_user: "user"
+  check_not_yet: "not checked yet"
+  check_recheck: "to check again after Review"

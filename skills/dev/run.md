@@ -4,11 +4,11 @@
 
 ## 起動と再開
 
-`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。`state.md` の本文と固定の文言（「手動確認」「Round」の見出しなど）は個人の言語（共通規約）で書く。読み取りに使うキー `Verification @`・`PR comment @`・`PR head @`・`Auto-fix:`・`Decision:`・`Fixed @`・`Manual re-check:` は英語のまま。id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
+`.tixforge/config.yml` の値は SKILL.md の「現在の状態」にある。`state.md` の本文は個人の言語（共通規約）で書く。読み取りに使うキー `Verification @`・`PR comment @`・`PR head @` は英語のまま。id は `bash <scripts>/ticket-id.sh normalize <引数>` で正規化する。
 
 **状態ファイルの形式**（最初に行う）：`.tixforge/<ticket-id>/state.md` があれば `bash <scripts>/run-state.sh migrate --check <ticket-id>` を実行する。何か出たら、変わる内容を示し、AskUserQuestion で選ばせる。今の形式でないまま先に進めない。
 
-- **更新する**（説明：書いた本文と `Status` はそのまま）— `bash <scripts>/run-state.sh migrate <ticket-id>`
+- **更新する**（説明：書いた本文と `Status` はそのまま）— `bash <scripts>/run-state.sh migrate <ticket-id>`。出力に `put the checks table again` があれば、`## Plan` に残った対応表を `phase/plan.md` の手順 3 の形に直して `checks.sh put` してから続ける（未読なら Read する）。`put` の後、残った手書きの表は消し、Log に文で残っている手動確認の結果は `checks.sh record` で残し直す
 - **run を消して最初から** — `state.md` と `history/` を削除し、新規として進める。チケット・ブランチ・commit は消さない。
 - **中断する** — 何も変えずに止まる。
 
@@ -40,7 +40,7 @@
 run の単一の真実。
 
 - **ヘッダ表**（`Status`・`Branch`・`Base`・`Updated`・`Format`）は `bash <scripts>/run-state.sh set <ticket-id> <Status|Branch|Base> <値>` だけで変える。手で編集しない。
-- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## PR`）は各フェーズが Edit で書く。見出しは英語のまま。`## Review` は `review.sh` がデータ（`review.tsv`）から書くので、Edit しない。
+- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## PR`）は各フェーズが Edit で書く。見出しは英語のまま。`## Review` は `review.sh` がデータ（`review.tsv`）から書くので、Edit しない。`## Plan` の対応表と `## Implementation Log` の手動確認（`<!-- tixforge:checks -->`・`<!-- tixforge:manual -->` の間）も `checks.sh` が書くので、その間は Edit しない。スクリプトが state.md を書いた後に Edit するときは、先に Read し直す。
 - セクションを書いたら、続けて `Status` を更新する。
 - 次のフェーズへ進むときは、作業の前に `Status` を `<次のphase>:in-progress` にする。
 - 戻る前の古い内容は `history/` にある（`rewind.md`）。参考にしてよいが、承認済みとして扱わない。

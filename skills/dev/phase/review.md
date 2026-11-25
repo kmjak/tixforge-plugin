@@ -9,7 +9,7 @@
 1. **agent の確認**：`tixforge:reviewer` と `tixforge:quality-reviewer` が使えるか確かめる。無ければ止まり、tixforge plugin が有効か（`/plugin`）を確かめるよう案内する。**別の agent で代用しない**。
 2. **どこから進めるか**：Review に入るたび（最初・差し戻しから・再開）、`bash <scripts>/run-state.sh review-next <ticket-id>` を実行し、`step:` に従う。自分で `## Review` を読んで判定し直さない。
    - `3` → 手順 3。`drop: Round N` があれば、先に `bash <scripts>/review.sh drop <ticket-id> <N>` でそのラウンド（書きかけ）を消す。
-   - `6`・`7`・`9`・`10` → その手順。`recheck: #N …` は手順 9 でやり直す手動確認の候補（今の `## Plan` の対応表で `#N` が `ユーザー` でなければ要らない）。
+   - `6`・`7`・`9`・`10` → その手順。`recheck: #N …` は手順 9 でやり直す手動確認（`checks.sh recheck` されたまま）。
    - `implement` → `Status: implement:in-progress` にして `implement.md` の「Review からの差し戻し」へ（「未実行の修正」は `fix`・`fix (auto)` と決まり、`Fixed @` の無い指摘）。
    - `rewind` → 手順 9 の見直しの分岐（`rewind.md`）。
 
@@ -18,10 +18,10 @@
 4. **レビューの入力を書き出す**：`bash <scripts>/review-input.sh <ticket-id> <Base>`。2 ラウンド目以降は `--since <前のラウンドの Verification の hash>` を付ける（前のラウンドからの `delta.patch` も出る）。`.git/tixforge/review/<ticket-id>/` に差分・チケット・`## Approach`・`## Plan`・`frontend.md`（あれば）と `index.md` が書き出され、`index.md` のパスが出力される。このセッションで読む必要はない。終了コード 3（`snapshot.md` が無い）なら、チケットを「取ってくる」からやり直す。4（state.md が無い、または `## Approach`・`## Plan` が空）なら、原因を伝えて止まる（書き直すなら `rewind.md` で戻る）。
 5. **2 つの reviewer を並列に起動する**（1 つのメッセージで 2 つの Agent 呼び出し。ラウンドごとに新しく起動）。渡すのは次だけ：
    - 両方に（指摘は `review.sh list` で選び、本文のファイルから写す）：`index.md` のあるディレクトリのパス、報告の言語（個人の言語）、その agent の `accept`（自動を含む）と決まった指摘と理由、その agent の決定の無い `△` の指摘（同じ指摘を繰り返させないため）、前のラウンドの後に直した指摘（`Fixed @` の commit が前のラウンドの `Verification @` より後）：その agent の指摘は全文、他方と実装者の追加の指摘は「何をどう直すか」の 1 行（自分の指摘が直ったかを確かめさせ、他の修正を「合意外の変更」と言わせないため。合意の引用は他方に渡さない）。指摘は `Round N <番号>` で示す
-   - `tixforge:reviewer` にだけ：`## Implementation Log` の手動確認の行（全て。無ければ「無し」）。済んでいない `Manual re-check:` は「#N：Review の後にやり直す予定」と添える
+   - `tixforge:reviewer` にだけ：手動確認の結果（`bash <scripts>/checks.sh show <ticket-id>` の手動の行と、各行の手順のファイルの中身。無ければ「無し」）。やり直しを待つ行（`recheck` が 1）は「#N：Review の後にやり直す予定」と添える
 
    **`## Research`・`## Implementation Log` の判断・経緯・検証の行は渡さない**（実装者の意図に引きずられず、合意と成果物だけで判定させるため）。`.tixforge/` 配下のパスは渡さない。
-6. **結果を記録する**：各 reviewer の報告を、そのまま一時ファイル（共通規約の一時ファイルの決まりで）に書き、`bash <scripts>/review.sh add <ticket-id> <N> reviewer|quality <ファイル>` で取り込む（指摘なしもそのまま）。手順 2 からここに戻ったとき（中断の後）は、取り込み済みの報告をもう一度 `add` しない（exit 4）。`review.sh list` で `Auto-fix` が空（`-`）の指摘だけを `judge` する。終了コード 3（報告が形式に合わない）なら、出力に並ぶ問題を示してその reviewer を起動し直し、形式どおりに報告させる。直すのが `Kind:`・`Severity:`・`Confidence:`・`Refers:` の行の欠けや綴りだけなら、その行だけを足し・直して取り込んでよい（本文は変えない）。報告全体が 1 つのコードブロックで囲まれていたら、外側の囲みだけを外して取り込んでよい。
+6. **結果を記録する**：各 reviewer の報告を、そのまま一時ファイル（共通規約の一時ファイルの決まりで）に書き、`bash <scripts>/review.sh add <ticket-id> <N> reviewer|quality <ファイル>` で取り込む（指摘なしもそのまま）。手順 2 からここに戻ったとき（中断の後）は、取り込み済みの報告をもう一度 `add` しない（exit 4）。`review.sh list` で `Auto-fix` が空（`-`）の指摘だけを `judge` する。終了コード 3（報告が形式に合わない）なら、出力に並ぶ問題を添えてその reviewer を起動し直し、形式どおりに報告させる（「指摘なし」に説明を足した報告も同じ）。**報告の文を書き換えて通さない。**直すのが `Kind:`・`Severity:`・`Confidence:`・`Refers:` の行の欠けや綴りだけなら、その行だけを足し・直して取り込んでよい（本文は変えない）。報告全体が 1 つのコードブロックで囲まれていたら、外側の囲みだけを外して取り込んでよい。
    - **指摘を削除・統合・言い換え・並べ替えしない。** 誤検知と思っても消さず、推奨でそう述べる。
    - 指摘ごとに、**推奨**（`fix`・`accept`・`replan`・`reapproach`）を決め、個人の言語で書いたメモを一時ファイルにして `bash <scripts>/review.sh judge <ticket-id> <N> <id> <推奨> <yes|no> <メモ>` を実行する。出力が自動修正（`○` は聞かずに直す、`×` は聞かずに直さない、`△` は最後に尋ねる。`△` はチャットでは「検討」）。`○`・`×` には `Decision` も付く。
      - `yes|no`：直し方が合意（チケット・`## Approach`・`## Plan`）の中で 1 つに決まり、受け入れ条件・Approach・対応表を変えないなら `yes`。ここだけが Claude の判断で、ほかの条件（`Kind`・`Severity`・`Confidence`・Round）はスクリプトが当てはめる。
@@ -29,7 +29,7 @@
    - このセッションが別の問題に気づいたら、報告と同じ形（`Kind`・`Severity`・`Confidence` の行付き）で一時ファイルに書き、`bash <scripts>/review.sh own <ticket-id> <N> <ファイル>` で足す（`I<番号>` になる）。その後 `judge` する。
 7. 決定の無い `○`・`×` があれば（前の版の Review を移したもの）、その指摘を `judge` し直す。チャットにはラウンドを 1 行で伝える（例：「Round 1：合意とのズレ 3 件・品質 2 件。自動で直す 2・直さない 2・検討 1」）。
 8. 手順 2 に戻る（`○` があれば Implement で直し、次のラウンドで確かめる。`○` を全て見送って commit が無ければ、新しいラウンドを起こさずに進む）。`△` は決めずに残す。`○` が無くなれば周回を終え、`△` か手動確認のやり直しがあれば手順 9、無ければ手順 10。
-9. **ユーザーに尋ねる**（`Status` は `review:in-progress` のまま）：手動確認のやり直しがあれば先に済ませる（`<plugin>/skills/dev/phase/implement.md` の「手動確認」のとおり。未読なら Read する。問題が見つかれば、`review.sh own` で最新ラウンドに足して `judge` する）。次に、**決定の無い `△` の一覧（`review.sh list <ticket-id> ask`）をチャットに示してから**（下の「最後の一覧の示し方」）、項目ごとに対処を選んでもらう（勝手に決めない）。示した後なら、「推奨どおり」でまとめて決めるか個別に決めるかを尋ねてよい：
+9. **ユーザーに尋ねる**（`Status` は `review:in-progress` のまま）：手動確認のやり直しがあれば先に済ませる（`<plugin>/skills/dev/phase/implement.md` の「手動確認」のとおり `checks.sh record` で残す。未読なら Read する。問題が見つかれば、`review.sh own` で最新ラウンドに足して `judge` する）。次に、**決定の無い `△` の一覧（`review.sh list <ticket-id> ask`）をチャットに示してから**（下の「最後の一覧の示し方」）、項目ごとに対処を選んでもらう（勝手に決めない）。示した後なら、「推奨どおり」でまとめて決めるか個別に決めるかを尋ねてよい：
    - **修正** — 合意と違う／未実装／合意外の変更を除く／品質の問題を直す。Implement に戻る。
    - **計画の見直し** — 対応表の確かめ方や commit 分割が誤っていた。Plan に戻る。
    - **方針の見直し** — Approach 自体が誤っていた。Approach に戻る。

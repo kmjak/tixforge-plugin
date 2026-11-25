@@ -77,6 +77,7 @@
 | `branch.sh` | Plan の Base（ユーザー・チケットの `## Base`・設定・origin の既定の順）とブランチ名（空いている名前）の決定 |
 | `verify.sh` | 検証コマンドの実行と `Verification @ <hash>: …` の行の出力（`--reuse`：今の commit で全て通った結果があれば、実行せずにその行） |
 | `review.sh` | Review のデータ（`review.tsv`）の読み書きと `## Review` の描き直し：ラウンド・報告の取り込み・推奨と自動修正（○×△ の表）・決定・修正済み・一覧 |
+| `checks.sh` | 受け入れ条件 → 確かめ方の対応表と手動確認の結果をデータ（`checks.tsv`）として持ち、`## Plan`・`## Implementation Log` に描く。PR の受け入れ条件と検証のコメントの手動確認の部分を組み立てる |
 | `review-input.sh` | Review の agent が読む入力（差分・commit 一覧・チケット・Approach・Plan・フロントエンドの設計と、共通の規則をつけた `index.md`）の書き出し |
 | `pr-status.sh` | PR の状況（レビュー・CI・コンフリクト）の判定 |
 | `pr-resume.sh` | PR フェーズをどこから再開するか（PR の有無・push していない commit・検証のコメント）の判定 |
