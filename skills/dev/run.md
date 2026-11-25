@@ -40,7 +40,7 @@
 run の単一の真実。
 
 - **ヘッダ表**（`Status`・`Branch`・`Base`・`Updated`・`Format`）は `bash <scripts>/run-state.sh set <ticket-id> <Status|Branch|Base> <値>` だけで変える。手で編集しない。
-- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## PR`）は各フェーズが Edit で書く。見出しは英語のまま。`## Review` は `review.sh` がデータ（`review.tsv`）から書くので、Edit しない。`## Plan` の対応表と `## Implementation Log` の手動確認（`<!-- tixforge:checks -->`・`<!-- tixforge:manual -->` の間）も `checks.sh` が書くので、その間は Edit しない。
+- **セクション**（`## Research`・`## Approach`・`## Plan`・`## Implementation Log`・`## PR`）は各フェーズが Edit で書く。見出しは英語のまま。`## Review` は `review.sh` がデータ（`review.tsv`）から書くので、Edit しない。`## Plan` の対応表と `## Implementation Log` の手動確認（`<!-- tixforge:checks -->`・`<!-- tixforge:manual -->` の間）も `checks.sh` が書くので、その間は Edit しない。スクリプトが state.md を書いた後に Edit するときは、先に Read し直す。
 - セクションを書いたら、続けて `Status` を更新する。
 - 次のフェーズへ進むときは、作業の前に `Status` を `<次のphase>:in-progress` にする。
 - 戻る前の古い内容は `history/` にある（`rewind.md`）。参考にしてよいが、承認済みとして扱わない。
