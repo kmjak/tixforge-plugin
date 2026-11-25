@@ -102,7 +102,7 @@ render() {
       for (k = 1; k <= n; k++) s = s "| " no[k] " | " cell(cond[k]) " | " cell(how[k]) " | " kw(kind[k]) " |\n"
       return s "<!-- /tixforge:checks -->\n"
     }
-    function slurp(p,   l, s) { s = ""; while ((getline l < p) > 0) s = s "  " l "\n"; close(p); return s }
+    function slurp(p,   l, s) { s = ""; while ((getline l < p) > 0) s = s "    " l "\n"; close(p); return s }
     function records(   k, s, any) {
       s = "<!-- tixforge:manual -->\n"
       for (k = 1; k <= n; k++) {
@@ -126,6 +126,8 @@ render() {
       line = $0; sub(/\r$/, "", line)
       h = heading_index($0)
       if (h) {
+        # A block whose closing mark was lost ends at the next section.
+        skip = 0
         if (cur == 3 && !done["checks"]) { put_block("checks"); print "" }
         if (cur == 4 && !done["manual"] && records() != "") { put_block("manual"); print "" }
         cur = h; print; next
@@ -178,6 +180,7 @@ parse_table() {
       c = split(line, f, "|")
       for (i = 1; i <= c; i++) { gsub(/\001/, "|", f[i]); f[i] = trim(f[i]) }
       if (f[1] ~ /^:?-+:?$/) next
+      if (f[1] ~ /^[0-9]/ && f[1] !~ /^[0-9]+$/) { print "error: row " f[1] ": the # column is a number"; next }
       if (f[1] !~ /^[0-9]+$/) { header++; next }
       rows++
       if (c != 4) { print "error: row " f[1] ": 4 columns (#, criterion, how, kind), got " c; next }
@@ -215,6 +218,8 @@ case $cmd in
     ;;
   record)
     [ $# -eq 6 ] || usage
+    case $2 in "" | *[!0-9]*) usage ;; esac
+    set -- "$1" "$((10#$2))" "$3" "$4" "$5" "$6"
     d=$(run_dir "$1") || exit 1
     t="$d/checks.tsv"
     [ -f "$t" ] && [ -n "$(row_field "$t" "$2" 2)" ] || {
@@ -229,6 +234,10 @@ case $cmd in
     case $4 in "" | *[!0-9a-f]*) usage ;; esac
     case $5 in claude | user) ;; *) usage ;; esac
     [ -f "$6" ] || usage
+    LC_ALL=C awk '{ sub(/\r$/, "") } match($0, /^ ? ? ?(```+|~~~+)/) { m = substr($0, RSTART, RLENGTH); sub(/^ +/, "", m); if (f == "") f = m; else if (substr(m, 1, 1) == substr(f, 1, 1) && length(m) >= length(f) && substr($0, RSTART + RLENGTH) ~ /^[ \t]*$/) f = "" } END { exit f != "" }' "$6" || {
+      echo "the steps have a code fence that is not closed" >&2
+      exit 3
+    }
     mkdir -p "$d/checks"
     tr -d '\r' < "$6" > "$d/checks/$2.md"
     set_row "$t" "$2" "6=$3" "7=$4" "8=$5" "9=0"
@@ -236,6 +245,8 @@ case $cmd in
     ;;
   recheck)
     [ $# -eq 2 ] || usage
+    case $2 in "" | *[!0-9]*) usage ;; esac
+    set -- "$1" "$((10#$2))"
     d=$(run_dir "$1") || exit 1
     t="$d/checks.tsv"
     [ -f "$t" ] && [ -n "$(row_field "$t" "$2" 2)" ] && [ "$(row_field "$t" "$2" 3)" != auto ] || {
@@ -261,16 +272,18 @@ case $cmd in
       echo "no checks table" >&2
       exit 4
     }
+    # Auto rows are checked when the line has a pass, no fail and no +dirty
+    # (no commands configured: nothing ran, nothing is checked).
     passed=0
-    case ${2:-} in "Verification @ "*) case $2 in *" fail"* | *+dirty*) ;; *) passed=1 ;; esac ;; esac
+    case ${2:-} in "Verification @ "*" pass"*) case $2 in *" fail"* | *+dirty*) ;; *) passed=1 ;; esac ;; esac
     LC_ALL=C awk -F'\t' -v passed="$passed" -v dir="$d/checks" "$_esc_awk"'
       $1 != "check" { next }
-      { n++; no[n] = $2; kind[n] = $3; cond[n] = unesc($4); how[n] = unesc($5); res[n] = $6; at[n] = $7; by[n] = $8 }
+      { n++; no[n] = $2; kind[n] = $3; cond[n] = unesc($4); how[n] = unesc($5); res[n] = $6; at[n] = $7; by[n] = $8; rc[n] = $9 }
       END {
         print "criteria:"
         for (k = 1; k <= n; k++) {
-          ok = kind[k] == "auto" ? passed : res[k] == "ok"
-          r = kind[k] == "auto" ? "" : res[k] == "-" ? "（not checked）" : "（" res[k] " @ " at[k] ", " by[k] "）"
+          ok = kind[k] == "auto" ? passed : (res[k] == "ok" && rc[k] != 1)
+          r = kind[k] == "auto" ? "" : res[k] == "-" ? "（not checked）" : "（" res[k] " @ " at[k] ", " by[k] (rc[k] == 1 ? ", to check again" : "") "）"
           printf "- [%s] %s — %s%s\n", (ok ? "x" : " "), cond[k], how[k], r
         }
         print "manual:"
@@ -302,7 +315,8 @@ case $cmd in
       exit 4
     }
     tmp=$(mktemp) || exit 1
-    awk "$_section_awk"'{ h = heading_index($0); if (h) { on = (h == 3); next } } on && /^[ \t]*\|/' "$f" > "$tmp"
+    # The first table of ## Plan outside fences.
+    awk "$_section_awk"'{ h = heading_index($0); if (h) { on = (h == 3); next } } on && _fence == "" && /^[ \t]*\|/ { print; t = 1; next } on && t { exit }' "$f" > "$tmp"
     [ -s "$tmp" ] || {
       rm -f "$tmp"
       echo "kept as text: no table in ## Plan"
@@ -319,7 +333,7 @@ case $cmd in
     # Manual check lines: "<word> @ <hash>: #2 ok（...）・#3 未確認（...）";
     # "Manual re-check: #N" asks for one again until a later line checks it.
     LC_ALL=C awk "$_section_awk"'
-      function res(w) { return w ~ /^(ok|OK)/ ? "ok" : w ~ /^(ng|NG|失敗)/ ? "ng" : w ~ /^(未確認|skipped|not)/ ? "skipped" : "" }
+      function res(w) { return w ~ /^(ok|OK)/ ? "ok" : w ~ /^(ng|NG|失敗|fail)/ ? "ng" : w ~ /^(未確認|skipped|not)/ ? "skipped" : "" }
       { line = $0; sub(/\r$/, "", line); h = heading_index(line); if (h) { on = (h == 4); next } }
       !on || _fence != "" { next }
       line ~ /Manual re-check:/ { t = line; while (match(t, /#[0-9]+/)) { n = substr(t, RSTART + 1, RLENGTH - 1); rc[n] = 1; t = substr(t, RSTART + RLENGTH) }; next }
@@ -327,7 +341,7 @@ case $cmd in
         hash = substr(line, RSTART + 2, RLENGTH - 2); t = substr(line, RSTART + RLENGTH)
         while (match(t, /#[0-9]+[ \t]*[^ \t・,、（(]+/)) {
           m = substr(t, RSTART + 1, RLENGTH - 1); n = m; sub(/[^0-9].*/, "", n); w = m; sub(/^[0-9]+[ \t]*/, "", w)
-          rest = substr(t, RSTART + RLENGTH); who = (rest ~ /^[（(]?(ユーザー|user)/ ? "user" : "claude")
+          rest = substr(t, RSTART + RLENGTH); who = (rest ~ /^[ \t]*(（|\()?[ \t]*(ユーザー|user|User)/ ? "user" : "claude")
           r = res(w); if (r != "") { R[n] = r; H[n] = hash; B[n] = who; L[n] = line; rc[n] = 0 }
           t = rest
         }
@@ -344,7 +358,11 @@ case $cmd in
       done
     # The hand-written table gives way to the rendered one.
     tmp=$(mktemp) || exit 1
-    awk "$_section_awk"'{ h = heading_index($0); if (h) on = (h == 3) } on && !h && _fence == "" && /^[ \t]*\|/ { next } { print }' "$f" > "$tmp" && cat "$tmp" > "$f"
+    awk "$_section_awk"'
+      { h = heading_index($0); if (h) on = (h == 3) }
+      on && !h && !gone && _fence == "" && /^[ \t]*\|/ { t = 1; next }
+      on && t && !gone { gone = 1; if ($0 ~ /^[ \t\r]*$/) next }
+      { print }' "$f" > "$tmp" && cat "$tmp" > "$f"
     rm -f "$tmp"
     render "$1"
     echo "$(grep -c '^check' "$t") rows"

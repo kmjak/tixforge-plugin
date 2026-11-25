@@ -32,6 +32,13 @@ has "- #2 未確認（Claude（ブラウザ））" "$(sec 'Implementation Log')"
 case "$(sec 'Implementation Log')" in *"#1 "*) ng "render: auto rows are not manual records" ;; *) ok ;; esac
 ck render GT-000930
 eq 1 "$(grep -c '^<!-- tixforge:checks -->$' "$f")" "render again: one table"
+# A closing mark lost by an edit: the block ends at the next section, and
+# nothing after it goes.
+printf '\n## PR\n- URL: https://github.com/o/r/pull/9\n' >> "$f"
+grep -v '^<!-- /tixforge:checks -->$' "$f" > "$tmp/f" && cat "$tmp/f" > "$f"
+ck render GT-000930
+has "https://github.com/o/r/pull/9" "$(cat "$f")" "render: a lost closing mark deletes nothing after the section"
+eq 1 "$(grep -c '^<!-- /tixforge:checks -->$' "$f")" "render: and the mark is back"
 
 # Refused tables write nothing.
 printf '| 1 | a | b | 自動 |\n| 3 | c | d | auto |\n' > "$tmp/bad"
@@ -40,6 +47,8 @@ printf '| 1 | a | b | manual |\n' > "$tmp/bad"
 has "kind must be" "$(ck put GT-000930 "$tmp/bad" 2>&1)" "put: a known kind"
 printf '| 1 | a | 自動 |\n' > "$tmp/bad"
 has "4 columns" "$(ck put GT-000930 "$tmp/bad" 2>&1)" "put: four columns"
+printf '| 1 | a | b | auto |\n| 2. | c | d | auto |\n' > "$tmp/bad"
+has "is a number" "$(ck put GT-000930 "$tmp/bad" 2>&1)" "put: a # like 2. is refused, not dropped"
 printf 'no table\n' > "$tmp/bad"
 ck put GT-000930 "$tmp/bad" > /dev/null 2>&1
 eq 3 $? "put: no rows"
@@ -47,15 +56,18 @@ eq 4 "$(grep -c '^check' "$d/checks.tsv")" "nothing written for refused tables"
 
 # Manual checks.
 printf '1. http://localhost:3000/login を開く\n2. 誤ったパスワードを入れる\n\n赤字でエラーが出た\n' > "$tmp/steps"
-ck record GT-000930 2 ok "$h1" claude "$tmp/steps"
-has "- #2 ok @ ${h1}（claude）" "$(sec 'Implementation Log')" "record: the result in the Log"
-has "  1. http://localhost:3000/login を開く" "$(sec 'Implementation Log')" "record: the steps under it"
+ck record GT-000930 02 ok "$h1" claude "$tmp/steps"
+has "- #2 ok @ ${h1}（claude）" "$(sec 'Implementation Log')" "record: the result in the Log (02 is row 2)"
+has "    1. http://localhost:3000/login を開く" "$(sec 'Implementation Log')" "record: the steps under it, four spaces in"
 ck record GT-000930 1 ok "$h1" claude "$tmp/steps" > /dev/null 2>&1
 eq 4 $? "record: not an auto row"
 ck record GT-000930 9 ok "$h1" claude "$tmp/steps" > /dev/null 2>&1
 eq 4 $? "record: no such row"
 ck record GT-000930 2 fine "$h1" claude "$tmp/steps" > /dev/null 2>&1
 eq 2 $? "record: ok, ng or skipped"
+printf '```\nopen\n' > "$tmp/badsteps"
+ck record GT-000930 2 ok "$h1" claude "$tmp/badsteps" > /dev/null 2>&1
+eq 3 $? "record: steps with an unclosed fence are refused"
 printf '環境が無い\n' > "$tmp/why"
 ck record GT-000930 3 skipped "$h1" claude "$tmp/why"
 ck put GT-000930 "$tmp/table" > /dev/null 2>&1
@@ -82,6 +94,10 @@ has "- [ ] メールが届く — メールボックスで見る（not checked�
 has "$(printf '### エラーが出る | 赤字で（#2）\n1. http://localhost:3000/login を開く')" "$out" "pr: the manual section with its steps"
 has "- [ ] ログインできる" "$(ck pr GT-000930 "Verification @ $h1: test fail")" "pr: not checked when a test failed"
 has "- [ ] ログインできる" "$(ck pr GT-000930 "Verification @ $h1+dirty: test pass")" "pr: not checked for a +dirty line"
+has "- [ ] ログインできる" "$(ck pr GT-000930 "Verification @ $h1: 検証コマンドなし")" "pr: not checked when no command ran"
+ck recheck GT-000930 2
+has "- [ ] エラーが出る | 赤字で — ログイン画面で確かめる（ok @ $h1, claude, to check again）" "$(ck pr GT-000930 "Verification @ $h1: test pass")" "pr: an ok waiting for a re-check is not checked"
+ck record GT-000930 2 ok "$h1" claude "$tmp/steps"
 
 # English
 printf 'language: en\n' > .tixforge/config.local.yml
@@ -113,17 +129,32 @@ cat > "$tmp/old" << EOF
 ## Plan
 - Base: main
 
+\`\`\`markdown
+| 9 | an example | x | 自動 |
+\`\`\`
+
 | # | 受け入れ条件 | 確かめ方 | 種別 |
 |---|---|---|---|
 | 1 | a | t | 自動 |
 | 2 | b | ブラウザで | Claude（ブラウザ） |
 | 3 | c | メール | ユーザー |
+| 4 | d | 手で | ユーザー |
+| 5 | e | 手で | user |
+| 6 | f | 手で | user |
+
+| commit | what |
+|---|---|
+| 1 | x |
 
 - commit 1: x
 
 ## Implementation Log
 - 手動確認 @ $h1: #2 ok（Claude：スクリーンショットで確認）・#3 未確認（理由：環境が無い）
 - Manual re-check: #2
+- 手動確認 @ $h1: #4 ok（ユーザー）
+- manual @ $h1: #5 ok (user)
+- manual @ $h1: #6 ok (user)
+- manual @ $h1: #6 failed (user)
 EOF
 awk -v r="$tmp/old" '$0 == "## Plan" { while ((getline l < r) > 0) print l; skip = 1; next } $0 == "## Review" { skip = 0 } !skip' "$f31" > "$tmp/f31"
 sed 's/^| Format  | 5 /| Format  | 4 /' "$tmp/f31" > "$f31"
@@ -131,7 +162,20 @@ has "- keep the checks table" "$(st migrate --check GT-000931)" "migrate --check
 eq "format 4 -> 5: $f31" "$(st migrate GT-000931)" "migrate 4 -> 5"
 eq "2 browser ok $h1 claude 1" "$(ck show GT-000931 | sed -n 2p | cut -f1-6 | tr '\t' ' ')" "the manual line and the later re-check"
 eq "3 user skipped $h1 claude 0" "$(ck show GT-000931 | sed -n 3p | cut -f1-6 | tr '\t' ' ')" "未確認 is skipped"
+eq "4 user ok $h1 user 0" "$(ck show GT-000931 | sed -n 4p | cut -f1-6 | tr '\t' ' ')" "（ユーザー） is the user"
+eq "5 user ok $h1 user 0" "$(ck show GT-000931 | sed -n 5p | cut -f1-6 | tr '\t' ' ')" "(user) is the user"
+eq "6 ng" "$(ck show GT-000931 | sed -n 6p | cut -f1,3 | tr '\t' ' ')" "a later failed is ng"
+eq 6 "$(ck show GT-000931 | wc -l | tr -d ' ')" "only the first table outside fences is the checks table"
+has "| 9 | an example | x | 自動 |" "$(cat "$f31")" "the fenced example stays"
+has "| 1 | x |" "$(cat "$f31")" "the second table stays"
 eq 1 "$(grep -c '^| 1 | a | t | 自動 |' "$f31")" "the table appears once, rendered"
+st init GT-000933 > /dev/null
+f33=.tixforge/GT-000933/state.md
+printf '## Plan\n| # | a | b | c |\n|---|---|---|---|\n| 1 | x | y | someday |\n' > "$tmp/old33"
+awk -v r="$tmp/old33" '$0 == "## Plan" { while ((getline l < r) > 0) print l; skip = 1; next } $0 == "## Implementation Log" { skip = 0 } !skip' "$f33" > "$tmp/f33"
+sed 's/^| Format  | 5 /| Format  | 4 /' "$tmp/f33" > "$f33"
+has "put the checks table again (checks.sh put): error: row 1: kind must be" "$(st migrate GT-000933)" "migrate: says to put a table it could not read"
+rm -rf .tixforge/GT-000933
 has "- commit 1: x" "$(awk '$0 == "## Plan" { on = 1; next } on && /^## / { exit } on' "$f31")" "the rest of ## Plan stays"
 st init GT-000932 > /dev/null
 sed 's/^| Format  | 5 /| Format  | 4 /' .tixforge/GT-000932/state.md > "$tmp/f32" && cat "$tmp/f32" > .tixforge/GT-000932/state.md

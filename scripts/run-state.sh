@@ -595,11 +595,14 @@ case $cmd in
       } > "$hd/$(date '+%Y%m%d-%H%M%S')-format4.md"
       bash "$(dirname "$0")/review.sh" _import "$1" > /dev/null || exit 1
     fi
+    kept=""
     if [ "$from" -lt 5 ] && [ -n "$plan_table" ]; then
-      bash "$(dirname "$0")/checks.sh" _import "$1" | grep '^kept as text' >&2
+      kept=$(bash "$(dirname "$0")/checks.sh" _import "$1" | sed -n 's/^kept as text: //p')
     fi
     put "$f" Format "$STATE_FORMAT"
     printf 'format %s -> %s: %s\n' "$from" "$STATE_FORMAT" "${f#"$top"/}"
+    # The run goes on without checks data until the table is put again.
+    [ -z "$kept" ] || printf 'put the checks table again (checks.sh put): %s\n' "$kept"
     ;;
   cancel)
     [ $# -ge 1 ] || usage
