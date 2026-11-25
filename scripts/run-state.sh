@@ -318,6 +318,10 @@ EOF
     say implement "Round $last has a ○ finding decided fix and not fixed"
     return
   fi
+  if [ "$vh" != - ] && ! git -C "$top" rev-parse -q --verify "$vh^{commit}" > /dev/null 2>&1; then
+    say 3 "Round $last's Verification ($vh) is no commit here: verify again"
+    return
+  fi
   if [ "$vh" != - ] && [ -n "$(git -C "$top" rev-list "$vh..HEAD" 2> /dev/null | head -1)" ]; then
     say 3 "HEAD is ahead of Round $last's Verification ($vh)"
     return

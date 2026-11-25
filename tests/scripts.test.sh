@@ -623,6 +623,8 @@ out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ○ 'fix (auto)')")")
 eq implement "$(step "$out")" "review-next: ○ decided fix, not fixed -> implement"
 out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ○ 'fix (auto)' "$v1")")")
 eq 10 "$(step "$out")" "review-next: fixed and HEAD at the Verification -> 10"
+out=$(rn "" "$(round 1 deadbee "$(fnd R1 × 'accept (auto)')")")
+eq 3 "$(step "$out")" "review-next: a Verification hash that is no commit -> 3"
 git commit -q --allow-empty -m rn2
 out=$(rn "" "$(round 1 "$v1" "$(fnd R1 ○ 'fix (auto)' "$(git rev-parse --short HEAD)")")")
 eq 3 "$(step "$out")" "review-next: HEAD ahead of the round's Verification -> 3"
