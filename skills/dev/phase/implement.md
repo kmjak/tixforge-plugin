@@ -8,7 +8,7 @@
 
 1. **ブランチの準備**：git リポジトリであることを確かめ、このチケットと無関係な未コミット変更があれば警告する。ブランチが無ければ `git fetch origin <Base>` の後、`git switch --no-track -c <ブランチ> origin/<Base>` で作る（upstream を Base にしない）。ローカルの Base が `origin/<Base>` より進んでいれば（`git rev-list --count origin/<Base>..<Base>` が 0 でない）、その commit はブランチに入らないと伝え、push するか尋ねる。あれば切り替えるだけ。
 2. 承認済みの commit 分割に従って実装・commit する。
-   - **テストは対応表に沿う。** `自動` の行のテストを表のテスト名で作る。名前や場所を変えたら `## Implementation Log` に記録する。
+   - **テストは対応表に沿う。** `auto` の行のテストを表のテスト名で作る。名前や場所を変えたら `## Implementation Log` に記録する。
    - **commit メッセージは `docs/context/commit.md` に従う**（最初の commit の前に読み、`Language:` の言語で書く）。`Source:` にパスがあればそのファイルを規約とし、本文は補足。**`Source:` のファイルが読めなければ、黙って別の書式にしない。** 止まって伝え、`/tixforge:project update` で直すか、今回は `commit.md` の本文と直近の `git log` の書式で進めるかを尋ねる。`commit.md` が無ければ直近の `git log` に合わせ、`/tixforge:project init` の再実行で作れると伝える。
    - 最初の commit には、`references/github/pr.md` を Read し、その「commit と PR 本文」のとおり紐付けを入れる。
 3. commit ごとに `## Implementation Log`（hash とメッセージ、実装中の重要な判断）を更新する。
@@ -19,7 +19,7 @@
 - 1 つ直したら `bash <scripts>/review.sh fixed <ticket-id> <N> <id> <短い commit hash>` を実行する。commit の要らない修正は、HEAD の短い hash に `--no-commit` を付ける。修正の commit は `## Implementation Log` にも「Review の修正：Round 1 Q2」（個人の言語）と記録する。
 - 中断から戻ったら、最新ラウンドの `Verification @` の後の commit を `git log` で確かめ、直したのに `Fixed @` の無い指摘に補ってから続ける。
 - `○` の指摘を直せないと分かったら（合意の外に出る・1 つに決まらない・誤検知）、直さずに `bash <scripts>/review.sh demote <ticket-id> <N> <id> "<理由>"` を実行する（`△` に戻り、決定が消える）。
-- 修正後に検証と、影響する手動確認のうち Claude が行うものをやり直す。影響する `ユーザー` の手動確認は、自動修正なら止まらずに `## Implementation Log` に `Manual re-check: #N` と書き、Review の手順 9 でまとめて行う（後に `#N` の手動確認の行を書けば済み。今の対応表で `#N` が `ユーザー` でなければ不要）。ユーザーが選んだ修正なら、ここで行う。
+- 修正後に検証と、影響する手動確認のうち Claude が行うものをやり直す。影響する `user` の手動確認は、自動修正なら止まらずに `bash <scripts>/checks.sh recheck <ticket-id> <N>` を実行し、Review の手順 9 でまとめて行う（`record` で済む）。ユーザーが選んだ修正なら、ここで行う。
 - Implement のゲートを挟まずに `Status: review:in-progress` にして Review の手順 2 へ。
 
 ### 検証
@@ -38,12 +38,12 @@
 
 ### 手動確認
 
-対応表の `Claude（ブラウザ）`・`Claude（API）`・`ユーザー` の行を、検証が通った後に確かめる。誰が確かめるかは Plan で決まっている（尋ね直さない）。
+対応表の `browser`・`api`・`user` の行（`bash <scripts>/checks.sh show <ticket-id>`）を、検証が通った後に確かめる。誰が確かめるかは Plan で決まっている（尋ね直さない）。
 
-- `Claude（…）`：その手段で確かめる。このセッションで使えなくなっていたときだけ、「自分で確認する」「今回は確認しない（理由を記録）」を尋ねる。
-- `ユーザー`：手順（起動方法・操作・期待する結果）を示して確かめてもらう。残っている間は Implement のゲートで止まる。
-- `## Implementation Log` に記録する（個人の言語）。1 行目に `手動確認 @ <短い commit hash>: #2 ok（Claude（ブラウザ））`・`#3 ok（ユーザー）`・`#4 未確認（理由：…）`のように書き、確かめた行ごとに、その下へ操作の手順（開いた URL・押したもの・入れた値）と見えた結果を短く書く（PR の検証のコメントにそのまま写すため）。ユーザーが確かめた行は、示した手順と、ユーザーが答えた結果を書く。
-- 問題が見つかったら、検証の失敗と同じく直してから、検証からやり直す。
+- `browser`・`api`：その手段で Claude が確かめる。このセッションで使えなくなっていたときだけ、「自分で確認する」「今回は確認しない（理由を記録）」を尋ねる。
+- `user`：手順（起動方法・操作・期待する結果）を示して確かめてもらう。残っている間は Implement のゲートで止まる。
+- 1 行確かめるたびに、操作の手順（開いた URL・押したもの・入れた値）と見えた結果を個人の言語で一時ファイルに書き、`bash <scripts>/checks.sh record <ticket-id> <N> ok|ng|skipped <確かめた commit の短い hash> claude|user <ファイル>` で残す（`## Implementation Log` に描かれる。PR の検証のコメントにそのまま使う）。ユーザーが確かめた行は、示した手順とユーザーが答えた結果を書く。確かめなかったら `skipped` で、ファイルに理由を書く。
+- 問題が見つかったら（`ng`）、検証の失敗と同じく直してから、検証からやり直す。
 
 ### context の確認
 

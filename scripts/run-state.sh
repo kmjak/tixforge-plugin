@@ -132,7 +132,7 @@ put() {
   rm -f "$tmp"
 }
 
-STATE_FORMAT=4
+STATE_FORMAT=5
 
 # The words of --category and --trigger; the skill that asks lists each with
 # its meaning (rewind.md, cancel.md), and the tests keep the lists the same.
@@ -159,27 +159,12 @@ EOF
 # review_facts <state.md>: the facts review-next decides on, one per line:
 #   R <round> <verification hash or -> <cut short 0|1>
 #   F <round> <auto_fix: fix|accept|ask|-> <decision or -> <fixed hash or ->
-#   M <N> <done 0|1>
-# R and F from the data (review.sh _facts); M from the Implementation Log: a
-# "Manual re-check: #N" is done by a later line "<word> @ <hash>: ... #N"
-# (the manual check record, in the person's language; an ASCII or full-width
-# colon).
+#   M <N> 0          row N of the checks waits for a manual re-check
+# R and F from the Review data (review.sh _facts), M from the checks
+# (checks.sh _facts).
 review_facts() {
   bash "$(dirname "$0")/review.sh" _facts "$(run_id "$1")"
-  LC_ALL=C awk "$_section_awk"'
-    {
-      line = $0; sub(/\r$/, "", line)
-      h = heading_index(line)
-      if (h) { inlog = (h == 4); next }
-      if (!inlog || _fence != "") next
-      if (line ~ /Manual re-check:/) {
-        t = line; sub(/.*Manual re-check:[ \t]*/, "", t)
-        while (match(t, /#[0-9]+/)) { n = substr(t, RSTART + 1, RLENGTH - 1); mr[n] = 1; done[n] = 0; t = substr(t, RSTART + RLENGTH) }
-      } else if (line !~ /(Verification|PR comment|PR head) @/ && line ~ /@ [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*[^:]*(:|：)/) {
-        for (n in mr) if (!done[n] && match(line, "#" n "([^0-9]|$)")) done[n] = 1
-      }
-    }
-    END { for (n in mr) printf "M %s %d\n", n, done[n] }' "$1"
+  bash "$(dirname "$0")/checks.sh" _facts "$(run_id "$1")"
 }
 
 # review_next <state.md>: phase/review.md step 2 (see the header).
@@ -534,8 +519,14 @@ case $cmd in
     }
     cat "$tmp" > "$f"
     rm -f "$tmp"
-    # The Review data moves with ## Review (every rewind moves it).
+    # The Review data moves with ## Review (every rewind moves it), the
+    # checks with ## Plan (a rewind to plan or before).
     rd=$(dirname "$f")
+    if [ "$from" -le 3 ] && { [ -e "$rd/checks.tsv" ] || [ -d "$rd/checks" ]; }; then
+      mkdir -p "${hist%.md}-checks"
+      [ -e "$rd/checks.tsv" ] && mv "$rd/checks.tsv" "${hist%.md}-checks/"
+      [ -d "$rd/checks" ] && mv "$rd/checks" "${hist%.md}-checks/"
+    fi
     if [ -e "$rd/review.tsv" ] || [ -d "$rd/review" ]; then
       mkdir -p "${hist%.md}-review"
       [ -e "$rd/review.tsv" ] && mv "$rd/review.tsv" "${hist%.md}-review/"
@@ -570,6 +561,8 @@ case $cmd in
     [ "$from" -eq "$STATE_FORMAT" ] && exit 0
     # The steps: 2 -> 3 (v2: placeholders out, a Format row in), 3 -> 4 (##
     # Review written by hand -> the Review data, review.sh _import).
+    plan_table=$(awk "$_section_awk"'{ h = heading_index($0); if (h) { on = (h == 3); next } } on && _fence == "" && /^[ \t]*\|/ { print; exit }' "$f")
+    [ -e "$(dirname "$f")/checks.tsv" ] && plan_table=""
     rounds=$(awk "$_section_awk"'{ h = heading_index($0); if (h) { on = (h == 5); next } } on && _fence == "" && /^### Round [0-9]+[ \t\r]*$/ { n++ } END { print n + 0 }' "$f")
     if [ -n "$check" ]; then
       case $(field "$f" Status) in done | canceled) exit 0 ;; esac
@@ -579,7 +572,8 @@ case $cmd in
         [ "$n" -gt 0 ] && printf -- '- remove the placeholder comments (%s)\n' "$n"
         printf -- '- add the Format row\n'
       fi
-      [ "$rounds" -gt 0 ] && printf -- '- keep ## Review as data (%s rounds; the old text is kept in history/)\n' "$rounds"
+      [ "$from" -lt 4 ] && [ "$rounds" -gt 0 ] && printf -- '- keep ## Review as data (%s rounds; the old text is kept in history/)\n' "$rounds"
+      [ "$from" -lt 5 ] && [ -n "$plan_table" ] && printf -- '- keep the checks table of ## Plan and the manual check results as data\n'
       exit 0
     fi
     if [ "$from" -lt 3 ]; then
@@ -591,7 +585,7 @@ case $cmd in
       cat "$tmp" > "$f"
       rm -f "$tmp"
     fi
-    if [ "$rounds" -gt 0 ]; then
+    if [ "$from" -lt 4 ] && [ "$rounds" -gt 0 ]; then
       # The hand-written text as it was (text outside the findings is not data).
       hd="$(dirname "$f")/history"
       mkdir -p "$hd"
@@ -601,8 +595,11 @@ case $cmd in
       } > "$hd/$(date '+%Y%m%d-%H%M%S')-format4.md"
       bash "$(dirname "$0")/review.sh" _import "$1" > /dev/null || exit 1
     fi
+    if [ "$from" -lt 5 ] && [ -n "$plan_table" ]; then
+      bash "$(dirname "$0")/checks.sh" _import "$1" | grep '^kept as text' >&2
+    fi
     put "$f" Format "$STATE_FORMAT"
-    printf 'format %s -> %s: %s\n' "$from" "$STATE_FORMAT" "${f#$top/}"
+    printf 'format %s -> %s: %s\n' "$from" "$STATE_FORMAT" "${f#"$top"/}"
     ;;
   cancel)
     [ $# -ge 1 ] || usage
@@ -652,8 +649,8 @@ case $cmd in
     f=$(open_run "$id") || exit $?
     before=$(field "$f" Status)
     d=$(dirname "$f")
-    rm -rf "$d/history" "$d/review"
-    rm -f "$f" "$d/snapshot.md" "$d/.snapshot.md.hash" "$d/review.tsv"
+    rm -rf "$d/history" "$d/review" "$d/checks"
+    rm -f "$f" "$d/snapshot.md" "$d/.snapshot.md.hash" "$d/review.tsv" "$d/checks.tsv"
     rmdir "$d" 2> /dev/null || true
     event "$top" "$id" released from "$(json_str "$before")" reason "$(jtext "$reason")"
     printf 'released: %s\n' "$id"
