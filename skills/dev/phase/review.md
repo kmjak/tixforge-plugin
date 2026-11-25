@@ -48,7 +48,7 @@
    - 見直しがある → `rewind.md` を Read し、Approach（両方あれば Approach）か Plan に戻る（きっかけは `review`）。以降のゲートも通り直す。
    - 未実行の修正がある（見直しは無い。今回決めたものに限らない）→ `Status: implement:in-progress` にして Implement へ。直したら Review の次のラウンドへ進み、手順 6〜8 のとおり回す（Round 3 以降の「修正」は `△` なので、聞かずに直すことはない）。
    - どちらも無い → 手順 10。
-10. 全ての指摘に `Decision:` があり、未実行の修正が無い → 全ラウンドの自動で決めた指摘（`○`・`×`）を、「最後の一覧の示し方」の 1 行の形で全件示す（聞かずに決めたものを隠さない）。続けてゲート（`review`）へ。`gates` に無ければ自動で通過して `Status: pr:in-progress` にし、`pr.md` へ。あれば `Status: review:awaiting-approval` にして要約を出し、止まる。
+10. 全ての指摘に `Decision:` があり、未実行の修正が無い → 全ラウンドの自動で決めた指摘（`○`・`×`）を、「最後の一覧の示し方」の 1 行の形で全件示す（聞かずに決めたものを隠さない）。続けてゲート（`review`）へ。`gates` に無ければ `bash <scripts>/run-state.sh pass <ticket-id> review` で自動で通過し、`pr.md` へ。あれば `Status: review:awaiting-approval` にして要約を出し、止まる。
 
 `## Review` のラウンドの書き方（見出しと本文は個人の言語。reviewer の報告をそのまま貼り、`推奨`・`受け入れた場合`・`Auto-fix:`・`Decision:`・`Fixed @` の行と実装者の追加の項目だけを足す。日本語の例）：
 

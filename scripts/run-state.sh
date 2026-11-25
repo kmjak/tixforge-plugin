@@ -22,6 +22,7 @@
 #   run-state.sh triggers                    every valid --trigger, one per line
 #   run-state.sh migrate [--check] <id>      bring state.md to the current format
 #   run-state.sh review-next <id>            where Review goes on from (phase/review.md step 2)
+#   run-state.sh pass <id> <phase>           pass the gate of research / approach / implement / review
 #
 # The Format row of the header is the version of the file's layout (none:
 # 2, what v2 wrote). init writes the current one; migrate moves an older
@@ -76,6 +77,11 @@
 # done by a later Log line "<word> @ <hash>: ... #N ..." (the manual check
 # record, in the person's language); whether #N is still the user's to check
 # is in the Plan's table, which Claude reads in step 9. Read only.
+# pass is the automatic pass of a gate that is not in gates (skills/dev/run.md):
+# it ends the phase's section with "> <gate_auto_pass>" (scripts/messages.yml,
+# in this person's language) and sets Status to the next phase's
+# in-progress, as set does. Only from <phase>:in-progress; plan and pr
+# always stop, so they have no pass. Prints the new Status.
 #
 # Every change of Status, init, rewind, cancel and release append an event to
 # .tixforge/events.jsonl (lib.sh event; the README lists them). A log that
@@ -741,6 +747,47 @@ case $cmd in
       exit 1
     }
     review_next "$f"
+    ;;
+  pass)
+    [ $# -eq 2 ] || usage
+    f=$(sfile "$1")
+    [ -f "$f" ] || {
+      echo "no run: $1" >&2
+      exit 1
+    }
+    case $2 in
+      research) sec=1 nxt=approach ;;
+      approach) sec=2 nxt=plan ;;
+      implement) sec=4 nxt=review ;;
+      review) sec=5 nxt=pr ;;
+      *)
+        echo "pass: research, approach, implement or review (plan and pr always stop)" >&2
+        exit 2
+        ;;
+    esac
+    cur=$(field "$f" Status)
+    [ "$cur" = "$2:in-progress" ] || {
+      echo "Status is $cur, not $2:in-progress" >&2
+      exit 2
+    }
+    # The note goes after the section's last line that is not blank. Text
+    # goes in through ENVIRON (-v and operands would read its backslashes).
+    tmp=$(mktemp) || exit 1
+    TF_NOTE="> $(msg gate_auto_pass "$(user_lang "$top")")" awk "$_section_awk"'
+      function flush() { if (on) { printf "%s", body; if (body != "") print ""; print ENVIRON["TF_NOTE"]; print ""; on = 0; body = ""; blanks = ""; found = 1 } }
+      { h = heading_index($0) }
+      h { flush(); print; if (h == s) { on = 1 }; next }
+      on && /^[ \t\r]*$/ { blanks = blanks $0 "\n"; next }
+      on { body = body blanks $0 "\n"; blanks = ""; next }
+      { print }
+      END { flush(); exit !found }' s="$sec" "$f" > "$tmp" || {
+      rm -f "$tmp"
+      echo "no section for $2 in ${f#"$top"/}" >&2
+      exit 2
+    }
+    cat "$tmp" > "$f"
+    rm -f "$tmp"
+    bash "$0" set "$1" Status "$nxt:in-progress"
     ;;
   statuses)
     [ $# -eq 0 ] || usage

@@ -651,6 +651,36 @@ eq 1 $? "review-next: no such run"
 git switch -q "$back"
 git branch -q -D rn-test
 rm -rf .tixforge/GT-000907
+# pass: the note at the end of the phase's section, then the next phase.
+st init GT-000911 > /dev/null
+f11=.tixforge/GT-000911/state.md
+awk '{ print } $0 == "## Research" { print "調べた結果"; print ""; print "```"; print "## Approach"; print "```"; print ""; print "" }' "$f11" > "$tmp/f11" && cat "$tmp/f11" > "$f11"
+n=$(wc -l < "$evf")
+eq approach:in-progress "$(st pass GT-000911 research)" "pass: prints the next phase's in-progress"
+eq approach:in-progress "$(st get GT-000911)" "pass: Status"
+eq "$(printf '調べた結果\n\n```\n## Approach\n```\n\n> ゲート自動通過（gates に無く、止まる条件なし）\n')" \
+  "$(awk '/^```/ { f = !f } $0 == "## Research" { on = 1; next } on && !f && $0 == "## Approach" { exit } on' "$f11")" "pass: the note after the section's last line, a fenced heading kept inside"
+eq $((n + 1)) "$(wc -l < "$evf" | tr -d ' ')" "pass: one status event"
+printf 'language: en\n' > .tixforge/config.local.yml
+st pass GT-000911 approach > /dev/null
+has "> Gate passed automatically" "$(awk '$0 == "## Approach" { on = 1; next } on && /^## / { exit } on' "$f11")" "pass: the note in the person's language, in an empty section"
+rm -f .tixforge/config.local.yml
+st pass GT-000911 plan > /dev/null 2>&1
+eq 2 $? "pass: plan always stops"
+st set GT-000911 Status review:in-progress > /dev/null
+st pass GT-000911 implement > /dev/null 2>&1
+eq 2 $? "pass: only from the phase's in-progress"
+eq pr:in-progress "$(st pass GT-000911 review)" "pass: review goes to the PR"
+has "> ゲート自動通過" "$(awk '$0 == "## Review" { on = 1; next } on && /^## / { exit } on' "$f11")" "pass: review's note"
+st pass GT-999999 research > /dev/null 2>&1
+eq 1 $? "pass: no such run"
+st init GT-000912 > /dev/null
+grep -v '^## Research' .tixforge/GT-000912/state.md > "$tmp/f12" && cat "$tmp/f12" > .tixforge/GT-000912/state.md
+st pass GT-000912 research > /dev/null 2>&1
+eq 2 $? "pass: no section heading, no pass"
+eq research:in-progress "$(st get GT-000912)" "pass: and Status stays"
+rm -rf .tixforge/GT-000912
+rm -rf .tixforge/GT-000911
 # The words the skills ask for are the ones run-state accepts: rewind.md and
 # cancel.md list each as "- `<word>`：<meaning>" under the step that asks.
 for kind in rewind cancel; do
