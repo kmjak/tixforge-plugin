@@ -124,6 +124,13 @@ has "| 1 | ログインできる | \`tests/login.test.ts\`「ログインでき�
 rm -f .tixforge/config.local.yml
 ck render GT-000930
 
+# A fence Claude left open above the marks: render adds nothing, each time.
+cp "$f" "$tmp/keep"
+awk '{ print } $0 == "## Plan" { print "```sh" }' "$tmp/keep" > "$f"
+ck render GT-000930
+ck render GT-000930
+eq 1 "$(grep -c '^<!-- tixforge:checks -->$' "$f")" "render: no block added under an open fence"
+cp "$tmp/keep" "$f"
 # put --reset after records; rewind and release.
 ck put GT-000930 "$tmp/table" --reset > /dev/null
 eq "-" "$(ck show GT-000930 | sed -n 2p | cut -f3)" "put --reset: the records go"

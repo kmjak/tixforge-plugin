@@ -153,6 +153,9 @@ render() {
       print
     }
     END {
+      # A fence left open above: the sections were not seen; add nothing
+      # (each render would add another block inside the fence).
+      if (_fence != "") exit
       if (cur == 3 && !done["checks"]) put_block("checks")
       if (cur == 4 && !done["manual"] && records() != "") put_block("manual")
     }' "$f" "$f" > "$tmp" && cat "$tmp" > "$f"
@@ -334,7 +337,7 @@ case $cmd in
     tdir=$(mktemp -d) || exit 1
     awk "$_section_awk"'
       { h = heading_index($0); if (h) { on = (h == 3); next } }
-      on && _fence == "" && /^[ \t]*\|/ { if (!in_t) { n++; in_t = 1 }; print > (dir "/" n); next }
+      on && _fence == "" && /^[ \t]*\|/ { if (!in_t) { if (n) close(dir "/" n); n++; in_t = 1 }; print > (dir "/" n); next }
       { in_t = 0 }' dir="$tdir" "$f"
     out="" pick=0 first=""
     for tf in $(ls "$tdir" | sort -n); do
