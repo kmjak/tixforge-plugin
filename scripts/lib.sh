@@ -372,7 +372,7 @@ json_str() {
 }
 
 # The event log, .tixforge/events.jsonl: one JSON object per line, appended
-# only, for tools that show how runs went (the README lists the events and
+# only, for tools that show how runs went (docs/events.md lists the events and
 # their fields). Every line has v (EVENTS_SCHEMA), id (new_uuid: the same
 # event sent twice is one event), at (tf_stamp), ticket and type. Raise EVENTS_SCHEMA when a field changes meaning or goes away;
 # adding a field or an event type does not need it.

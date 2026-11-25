@@ -26,7 +26,7 @@ events:
 | `commands` | dev の検証で実行するコマンド。名前: コマンド | 1 行 1 つ。無ければ `{}` | 「検証コマンド」（`package.json`・`Makefile` などから候補を作って確かめる） | 「init が途中」と出て、init 以外は止まる（`verify.sh` も終了コード 3 で止まる） | `verify.sh`、init の「CI」（`tixforge-ci.yml` に埋める） |
 | `ticket.tracker` | チケットの置き場 | `github` | 「チケット管理」（尋ねずに書く） | 「init が途中」と出て、init 以外は止まる | `project-status.sh`（v2 の `local` を見つける。`repository.base_branch`・`commands` と合わせて、無ければ「init が途中」と出す） |
 | `review.required` | PR の Approve を必須にするか | `true`・`false`（1 人なら `false`。GitHub では自分の PR を Approve できない） | 「レビューの要否」（「開発の人数」の答え） | `true` | dev の PR（`pr-status.sh` の判定と合わせる） |
-| `events.endpoint` | イベントログ（README の「イベントログ」）を送るチームの受け口。送るのは、各自が環境変数 `TIXFORGE_EVENTS_TOKEN` にトークンを置いたときだけ（トークンは設定ファイルに書かない） | `https://` の URL（手元での確かめには、ホストがちょうど `127.0.0.1`・`localhost` の `http://` も可。`@`・空白・`\` を含むものは不可） | init では尋ねない（update の「設定の値を変える」で足す） | 送らない（手元のログだけ） | `events-sync.sh`（`lib.sh` の `events_sync_check`）、`project-status.sh`（`events_sync=`） |
+| `events.endpoint` | イベントログ（plugin の `docs/events.md`）を送るチームの受け口。送るのは、各自が環境変数 `TIXFORGE_EVENTS_TOKEN` にトークンを置いたときだけ（トークンは設定ファイルに書かない） | `https://` の URL（手元での確かめには、ホストがちょうど `127.0.0.1`・`localhost` の `http://` も可。`@`・空白・`\` を含むものは不可） | init では尋ねない（update の「設定の値を変える」で足す） | 送らない（手元のログだけ） | `events-sync.sh`（`lib.sh` の `events_sync_check`）、`project-status.sh`（`events_sync=`） |
 | `gates` | 必ず止まるゲート。書いていないフェーズは、止まる条件があるときだけ止まる | `research`・`approach`・`plan`・`implement`・`review`・`pr` のリスト。`[]` も可（`pr` は書かなくても必ず止まる） | 「ゲート」（尋ねずに `[plan, pr]`） | `[plan, pr]` | dev の「承認ゲート」 |
 
 - 表に無いキーの値を、推測で補わない。キーが無いときは、表の「無いとき」の扱いに従う。
@@ -47,6 +47,6 @@ events_log: ~/tixforge-logs/myapp.jsonl
 |---|---|---|
 | `language` | 個人の言語：会話・`state.md` の本文・reviewer の報告（チケット・PR・issue はドキュメント言語のまま） | `config.yml` の `language` |
 | `gates` | この人の dev で必ず止まるゲート | `config.yml` の `gates` |
-| `events_log` | イベントログ（README の「イベントログ」）のファイル。`~/` で始まればホームから、相対パスはリポジトリの最上位から。無いフォルダは作る。`git clean -xdf` やクローンし直しで消えないよう、リポジトリの外に置くときに使う。プロジェクトごとに別のファイルにする（イベントはチケット id だけで run を区別する） | `.tixforge/events.jsonl` |
+| `events_log` | イベントログ（plugin の `docs/events.md`）のファイル。`~/` で始まればホームから、相対パスはリポジトリの最上位から。無いフォルダは作る。`git clean -xdf` やクローンし直しで消えないよう、リポジトリの外に置くときに使う。プロジェクトごとに別のファイルにする（イベントはチケット id だけで run を区別する） | `.tixforge/events.jsonl` |
 
 「現在の状態」の「この人が使う値」に、使う値とそのファイルが出る（`project-status.sh`）。
